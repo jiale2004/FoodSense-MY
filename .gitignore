@@ -23,9 +23,10 @@ app/static/uploads/*
 .DS_Store
 Thumbs.db
 
-# IDE
+# IDE / editor (local only — do not commit)
 .vscode/
 .idea/
+.cursor/
 *.swp
 
 # Ultralytics
