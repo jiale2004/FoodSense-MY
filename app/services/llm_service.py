@@ -6,22 +6,32 @@ from app.models.schemas import DetectionResult, NutritionInfo
 
 logger = logging.getLogger(__name__)
 
-SYSTEM_PROMPT = """You are a helpful Malaysian food nutrition assistant for FoodSense-MY.
-Provide clear, friendly, and safe dietary information based ONLY on the verified data provided.
-Rules:
-- Do NOT invent or estimate nutritional numbers; use only the values given.
-- Mention allergens when present.
-- Include a brief disclaimer that this is informational, not medical advice.
-- Keep the response concise (2-4 short paragraphs).
-- If no dishes were detected, explain that and suggest trying a clearer photo."""
+DISCLAIMER = (
+    "This information is for educational purposes only and is not medical advice. "
+    "Consult a healthcare professional for dietary guidance."
+)
+
+SYSTEM_PROMPT = """You are a text-formatting assistant for FoodSense-MY.
+Your ONLY role is to summarize the verified JSON data provided below into clear, friendly language.
+
+STRICT RULES:
+- Do NOT invent, estimate, or modify any calorie counts, macros, or nutritional numbers.
+- Do NOT generate ingredient lists or medical advice beyond what is in the data.
+- Do NOT add information that is not present in the provided JSON.
+- Summarize ONLY the fields given: display_name, calories, macros, allergens, dietary_tags, health_notes.
+- Keep the response concise (2-3 short paragraphs).
+- If no dishes were detected, state that and suggest trying a clearer photo."""
 
 
-class LLMService:
+class AdvisoryGenerator:
+    """Generates nutritional advisory text using an LLM as a strict formatting layer."""
+
     def __init__(self, settings: Settings | None = None) -> None:
         self.settings = settings or get_settings()
 
     @property
     def is_configured(self) -> bool:
+        """Return True if the active LLM provider has an API key configured."""
         if self.settings.llm_provider == "openai":
             return bool(self.settings.openai_api_key)
         return bool(self.settings.gemini_api_key)
@@ -31,6 +41,7 @@ class LLMService:
         detections: list[DetectionResult],
         nutrition_entries: list[NutritionInfo],
     ) -> str:
+        """Build the fixed prompt template injecting verified JSON data."""
         payload = {
             "detections": [
                 {"class_name": d.class_name, "confidence": round(d.confidence, 3)}
@@ -53,8 +64,8 @@ class LLMService:
             ],
         }
         return (
-            "Analyze the following Malaysian food detection results and provide a "
-            "user-friendly nutritional advisory. Use ONLY the verified data below:\n\n"
+            "Format the following verified Malaysian food detection data into a "
+            "user-friendly summary. Use ONLY the data below — do not add or modify any values:\n\n"
             + json.dumps(payload, indent=2)
         )
 
@@ -63,14 +74,14 @@ class LLMService:
         detections: list[DetectionResult],
         nutrition_entries: list[NutritionInfo],
     ) -> str:
+        """Generate a template-based advisory when LLM is unavailable."""
         if not detections:
             return (
                 "No Malaysian dishes were detected in your image. "
-                "Try uploading a clearer, well-lit photo of the food.\n\n"
-                "Disclaimer: This information is for educational purposes only and is not medical advice."
+                "Try uploading a clearer, well-lit photo of the food."
             )
 
-        lines = ["Here is a summary based on our verified nutrition database:\n"]
+        lines = ["Summary based on our verified nutrition database:\n"]
         for entry in nutrition_entries:
             if not entry.found_in_kb:
                 lines.append(f"- {entry.display_name}: No verified data available.")
@@ -92,12 +103,10 @@ class LLMService:
             if entry.health_notes:
                 lines.append(f"  {entry.health_notes}")
 
-        lines.append(
-            "\nDisclaimer: This information is for educational purposes only and is not medical advice."
-        )
         return "\n".join(lines)
 
     async def _call_openai(self, user_prompt: str) -> str:
+        """Call OpenAI API for advisory text generation."""
         from openai import AsyncOpenAI
 
         client = AsyncOpenAI(api_key=self.settings.openai_api_key)
@@ -107,12 +116,13 @@ class LLMService:
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": user_prompt},
             ],
-            temperature=0.4,
+            temperature=0.2,
             max_tokens=600,
         )
         return response.choices[0].message.content or ""
 
     async def _call_gemini(self, user_prompt: str) -> str:
+        """Call Google Gemini API for advisory text generation."""
         import google.generativeai as genai
 
         genai.configure(api_key=self.settings.gemini_api_key)
@@ -128,6 +138,7 @@ class LLMService:
         detections: list[DetectionResult],
         nutrition_entries: list[NutritionInfo],
     ) -> str:
+        """Generate advisory text using LLM or template fallback."""
         if not self.is_configured:
             return self._fallback_advisory(detections, nutrition_entries)
 
@@ -142,11 +153,12 @@ class LLMService:
             return self._fallback_advisory(detections, nutrition_entries)
 
 
-_llm_service: LLMService | None = None
+_advisory_generator: AdvisoryGenerator | None = None
 
 
-def get_llm_service() -> LLMService:
-    global _llm_service
-    if _llm_service is None:
-        _llm_service = LLMService()
-    return _llm_service
+def get_llm_service() -> AdvisoryGenerator:
+    """Return the singleton AdvisoryGenerator instance."""
+    global _advisory_generator
+    if _advisory_generator is None:
+        _advisory_generator = AdvisoryGenerator()
+    return _advisory_generator

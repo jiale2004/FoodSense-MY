@@ -32,6 +32,7 @@ class PredictResponse(BaseModel):
     detections: list[DetectionResult]
     nutrition: list[NutritionInfo]
     advisory_text: str
+    disclaimer: str
     image_url: str
     processing_ms: int
 
@@ -40,6 +41,7 @@ class HealthResponse(BaseModel):
     status: str
     model_loaded: bool
     model_path: str
+    device: str
     knowledge_base_loaded: bool
     knowledge_base_entries: int
     llm_provider: str

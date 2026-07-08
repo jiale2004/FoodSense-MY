@@ -10,16 +10,20 @@ logger = logging.getLogger(__name__)
 
 
 def normalize_class_name(name: str) -> str:
+    """Normalize a class name to lowercase underscore format."""
     return re.sub(r"[\s\-]+", "_", name.strip().lower())
 
 
-class DataService:
+class KnowledgeRetriever:
+    """Loads and looks up verified nutritional data from the JSON knowledge base."""
+
     def __init__(self, settings: Settings | None = None) -> None:
         self.settings = settings or get_settings()
         self._entries: dict[str, dict] = {}
         self._loaded = False
 
     def load(self) -> None:
+        """Load and cache the knowledge base JSON file."""
         kb_path = self.settings.knowledge_base_path
         if not kb_path.exists():
             logger.warning("Knowledge base not found at %s", kb_path)
@@ -46,9 +50,11 @@ class DataService:
         return len(self._entries)
 
     def list_classes(self) -> list[str]:
+        """Return sorted list of known dish class names."""
         return sorted(self._entries.keys())
 
     def lookup(self, class_name: str) -> NutritionInfo:
+        """Look up nutrition info for a single detected class name."""
         key = normalize_class_name(class_name)
         entry = self._entries.get(key)
 
@@ -75,6 +81,7 @@ class DataService:
         )
 
     def lookup_many(self, class_names: list[str]) -> list[NutritionInfo]:
+        """Look up nutrition info for multiple class names, deduplicated."""
         seen: set[str] = set()
         results: list[NutritionInfo] = []
         for name in class_names:
@@ -86,11 +93,12 @@ class DataService:
         return results
 
 
-_data_service: DataService | None = None
+_knowledge_retriever: KnowledgeRetriever | None = None
 
 
-def get_data_service() -> DataService:
-    global _data_service
-    if _data_service is None:
-        _data_service = DataService()
-    return _data_service
+def get_data_service() -> KnowledgeRetriever:
+    """Return the singleton KnowledgeRetriever instance."""
+    global _knowledge_retriever
+    if _knowledge_retriever is None:
+        _knowledge_retriever = KnowledgeRetriever()
+    return _knowledge_retriever

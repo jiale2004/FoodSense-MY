@@ -14,6 +14,12 @@ build/
 
 # Model weights (large files)
 data/weights/*.pt
+datasets/
+data/*
+
+# Scraped training images (keep folder structure only)
+data/dataset3/**/*
+!data/dataset3/**/.gitkeep
 
 # Uploaded images
 app/static/uploads/*

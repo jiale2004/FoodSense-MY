@@ -12,9 +12,9 @@ from app.models.schemas import (
     HealthResponse,
     PredictResponse,
 )
-from app.services.data_service import get_data_service
-from app.services.llm_service import get_llm_service
-from app.services.vision_service import get_vision_service
+from app.services.data_service import KnowledgeRetriever, get_data_service
+from app.services.llm_service import DISCLAIMER, AdvisoryGenerator, get_llm_service
+from app.services.vision_service import VisionProcessor, get_vision_service
 
 logger = logging.getLogger(__name__)
 
@@ -22,16 +22,17 @@ router = APIRouter(dependencies=[Depends(verify_api_key)])
 
 
 @router.get("/health", response_model=HealthResponse)
-async def health_check() -> HealthResponse:
+async def health_check(
+    vision: VisionProcessor = Depends(get_vision_service),
+    data: KnowledgeRetriever = Depends(get_data_service),
+    llm: AdvisoryGenerator = Depends(get_llm_service),
+) -> HealthResponse:
     settings = get_settings()
-    vision = get_vision_service()
-    data = get_data_service()
-    llm = get_llm_service()
-
     return HealthResponse(
         status="ok",
         model_loaded=vision.model is not None,
         model_path=vision.model_path,
+        device=vision.device,
         knowledge_base_loaded=data.is_loaded,
         knowledge_base_entries=data.entry_count,
         llm_provider=settings.llm_provider,
@@ -40,13 +41,19 @@ async def health_check() -> HealthResponse:
 
 
 @router.get("/classes", response_model=ClassListResponse)
-async def list_classes() -> ClassListResponse:
-    data = get_data_service()
+async def list_classes(
+    data: KnowledgeRetriever = Depends(get_data_service),
+) -> ClassListResponse:
     return ClassListResponse(classes=data.list_classes())
 
 
 @router.post("/predict", response_model=PredictResponse)
-async def predict(file: UploadFile = File(...)) -> PredictResponse:
+async def predict(
+    file: UploadFile = File(...),
+    vision: VisionProcessor = Depends(get_vision_service),
+    data: KnowledgeRetriever = Depends(get_data_service),
+    llm: AdvisoryGenerator = Depends(get_llm_service),
+) -> PredictResponse:
     settings = get_settings()
     await validate_upload(file)
 
@@ -61,9 +68,6 @@ async def predict(file: UploadFile = File(...)) -> PredictResponse:
     save_path.write_bytes(content)
 
     start = time.perf_counter()
-    vision = get_vision_service()
-    data = get_data_service()
-    llm = get_llm_service()
 
     detections = vision.detect(save_path)
     class_names = [d.class_name for d in detections]
@@ -76,6 +80,7 @@ async def predict(file: UploadFile = File(...)) -> PredictResponse:
         detections=detections,
         nutrition=nutrition,
         advisory_text=advisory_text,
+        disclaimer=DISCLAIMER,
         image_url=f"/uploads/{filename}",
         processing_ms=processing_ms,
     )

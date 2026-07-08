@@ -1,129 +1,92 @@
 #!/usr/bin/env python3
-"""Scrape supplemental food images for the myFood11 dataset."""
+"""Scrape supplemental food images using icrawler."""
 
 import argparse
-import time
+import logging
 from pathlib import Path
-from urllib.parse import quote_plus, urlparse
 
-import requests
+from icrawler.builtin import BingImageCrawler, GoogleImageCrawler
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+logger = logging.getLogger(__name__)
 
 DEFAULT_KEYWORDS = {
     "nasi_lemak": "nasi lemak malaysian food",
     "roti_canai": "roti canai malaysian",
     "char_kuey_teow": "char kuey teow malaysian",
-    "nasi_goreng": "nasi goreng malaysian",
+    "chicken_rice": "chicken rice malaysian hainanese",
     "laksa": "laksa malaysian food",
-    "satay": "satay malaysian",
-    "rendang": "rendang malaysian",
-    "roti_tissue": "roti tissue malaysian",
-    "cendol": "cendol malaysian dessert",
-    "teh_tarik": "teh tarik malaysian",
-    "murtabak": "murtabak malaysian",
-}
-
-HEADERS = {
-    "User-Agent": "FoodSense-MY/1.0 (research; educational dataset builder)",
+    "mee_goreng": "mee goreng malaysian",
 }
 
 
-def check_robots_txt(base_url: str) -> bool:
-    """Basic robots.txt check stub. Returns True if scraping should proceed."""
-    robots_url = f"{urlparse(base_url).scheme}://{urlparse(base_url).netloc}/robots.txt"
-    try:
-        resp = requests.get(robots_url, headers=HEADERS, timeout=10)
-        if resp.status_code == 200 and "Disallow: /" in resp.text:
-            print(f"WARNING: {robots_url} may disallow scraping. Review before proceeding.")
-            return False
-    except requests.RequestException:
-        pass
-    return True
+class ImageScraper:
+    """Downloads food images per class using icrawler (Google/Bing)."""
 
+    def __init__(
+        self,
+        output_dir: Path,
+        keywords: dict[str, str] | None = None,
+        max_images: int = 50,
+        engine: str = "google",
+    ) -> None:
+        self.output_dir = output_dir
+        self.keywords = keywords or DEFAULT_KEYWORDS
+        self.max_images = max_images
+        self.engine = engine
 
-def download_image(url: str, save_path: Path) -> bool:
-    try:
-        resp = requests.get(url, headers=HEADERS, timeout=15, stream=True)
-        resp.raise_for_status()
-        content_type = resp.headers.get("content-type", "")
-        if "image" not in content_type:
-            return False
-        save_path.write_bytes(resp.content)
-        return True
-    except requests.RequestException as exc:
-        print(f"  Failed: {url} — {exc}")
-        return False
+    def _create_crawler(self, class_dir: Path):
+        """Create an icrawler instance for the given engine."""
+        if self.engine == "bing":
+            return BingImageCrawler(storage={"root_dir": str(class_dir)})
+        return GoogleImageCrawler(storage={"root_dir": str(class_dir)})
 
+    def scrape_class(self, class_name: str, keyword: str) -> int:
+        """Scrape images for a single class. Returns number of images downloaded."""
+        class_dir = self.output_dir / class_name
+        class_dir.mkdir(parents=True, exist_ok=True)
 
-def scrape_class(
-    class_name: str,
-    keyword: str,
-    output_dir: Path,
-    max_images: int,
-    delay: float,
-) -> int:
-    class_dir = output_dir / class_name
-    class_dir.mkdir(parents=True, exist_ok=True)
+        existing = len(list(class_dir.glob("*")))
+        if existing >= self.max_images:
+            logger.info("%s: already has %d images, skipping.", class_name, existing)
+            return existing
 
-    # Placeholder: uses a simple image search API pattern.
-    # Replace with your preferred source when myFood11 data is available.
-    print(f"Scraping '{class_name}' with keyword '{keyword}' (max {max_images})...")
-    print("  NOTE: Configure a real image source API before production use.")
+        to_fetch = self.max_images - existing
+        logger.info("Scraping '%s' with keyword '%s' (max %d)...", class_name, keyword, to_fetch)
 
-    search_url = f"https://www.google.com/search?q={quote_plus(keyword)}&tbm=isch"
-    check_robots_txt(search_url)
+        crawler = self._create_crawler(class_dir)
+        crawler.crawl(keyword=keyword, max_num=to_fetch)
 
-    downloaded = 0
-    for i in range(max_images):
-        save_path = class_dir / f"{class_name}_{i:04d}.jpg"
-        if save_path.exists():
-            downloaded += 1
-            continue
-        time.sleep(delay)
+        downloaded = len(list(class_dir.glob("*")))
+        logger.info("  %s: %d images in %s", class_name, downloaded, class_dir)
+        return downloaded
 
-    print(f"  {class_name}: {downloaded} images in {class_dir}")
-    return downloaded
+    def scrape_all(self, classes: list[str] | None = None) -> int:
+        """Scrape images for all (or specified) classes. Returns total image count."""
+        target = classes or list(self.keywords.keys())
+        total = 0
+        for class_name in target:
+            if class_name not in self.keywords:
+                logger.warning("Unknown class: %s, skipping.", class_name)
+                continue
+            total += self.scrape_class(class_name, self.keywords[class_name])
+        return total
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Scrape supplemental food images")
-    parser.add_argument(
-        "--output-dir",
-        type=Path,
-        default=Path("data/raw_images"),
-        help="Output directory for scraped images",
-    )
-    parser.add_argument(
-        "--max-images",
-        type=int,
-        default=50,
-        help="Maximum images per class",
-    )
-    parser.add_argument(
-        "--delay",
-        type=float,
-        default=1.0,
-        help="Delay between requests in seconds",
-    )
-    parser.add_argument(
-        "--classes",
-        nargs="*",
-        default=None,
-        help="Specific classes to scrape (default: all)",
-    )
+    parser = argparse.ArgumentParser(description="Scrape food images with icrawler")
+    parser.add_argument("--output-dir", type=Path, default=Path("data/dataset3"))
+    parser.add_argument("--max-images", type=int, default=50, help="Max images per class")
+    parser.add_argument("--engine", choices=["google", "bing"], default="google")
+    parser.add_argument("--classes", nargs="*", default=None, help="Specific classes to scrape")
     args = parser.parse_args()
 
-    keywords = DEFAULT_KEYWORDS
-    target_classes = args.classes or list(keywords.keys())
-
-    total = 0
-    for class_name in target_classes:
-        if class_name not in keywords:
-            print(f"Unknown class: {class_name}, skipping.")
-            continue
-        total += scrape_class(
-            class_name, keywords[class_name], args.output_dir, args.max_images, args.delay
-        )
-
+    scraper = ImageScraper(
+        output_dir=args.output_dir,
+        max_images=args.max_images,
+        engine=args.engine,
+    )
+    total = scraper.scrape_all(args.classes)
     print(f"Done. Total images across classes: {total}")
 
 

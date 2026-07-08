@@ -8,135 +8,143 @@ from pathlib import Path
 
 import yaml
 
-DEFAULT_CLASSES = [
+TARGET_CLASSES = [
     "nasi_lemak",
     "roti_canai",
     "char_kuey_teow",
-    "nasi_goreng",
+    "chicken_rice",
     "laksa",
-    "satay",
-    "rendang",
-    "roti_tissue",
-    "cendol",
-    "teh_tarik",
-    "murtabak",
+    "mee_goreng",
 ]
 
 
-def collect_pairs(source_dir: Path) -> list[tuple[Path, Path | None]]:
-    """Collect (image, label) pairs from a YOLO dataset directory."""
-    images_dir = source_dir / "images"
-    labels_dir = source_dir / "labels"
-    pairs = []
+class DatasetPreparer:
+    """Splits a YOLO dataset into train/val/test and generates data.yaml."""
 
-    if not images_dir.exists():
-        print(f"No images directory at {images_dir}")
+    def __init__(
+        self,
+        source_dir: Path,
+        output_dir: Path,
+        classes: list[str] | None = None,
+        train_ratio: float = 0.7,
+        val_ratio: float = 0.2,
+        seed: int = 42,
+    ) -> None:
+        self.source_dir = source_dir
+        self.output_dir = output_dir
+        self.classes = classes or TARGET_CLASSES
+        self.train_ratio = train_ratio
+        self.val_ratio = val_ratio
+        self.seed = seed
+
+    def _collect_pairs(self) -> list[tuple[Path, Path | None]]:
+        """Collect (image, label) pairs from the source YOLO dataset."""
+        images_dir = self.source_dir / "images"
+        labels_dir = self.source_dir / "labels"
+        pairs: list[tuple[Path, Path | None]] = []
+
+        if not images_dir.exists():
+            return pairs
+
+        for img_path in sorted(images_dir.iterdir()):
+            if img_path.suffix.lower() not in {".jpg", ".jpeg", ".png", ".webp"}:
+                continue
+            label_path = labels_dir / f"{img_path.stem}.txt"
+            pairs.append((img_path, label_path if label_path.exists() else None))
         return pairs
 
-    for img_path in sorted(images_dir.iterdir()):
-        if img_path.suffix.lower() not in {".jpg", ".jpeg", ".png", ".webp"}:
-            continue
-        label_path = labels_dir / f"{img_path.stem}.txt"
-        pairs.append((img_path, label_path if label_path.exists() else None))
+    def _split(
+        self, pairs: list[tuple[Path, Path | None]]
+    ) -> dict[str, list[tuple[Path, Path | None]]]:
+        """Split pairs into train/val/test sets."""
+        random.shuffle(pairs)
+        n = len(pairs)
+        train_end = int(n * self.train_ratio)
+        val_end = train_end + int(n * self.val_ratio)
+        return {
+            "train": pairs[:train_end],
+            "val": pairs[train_end:val_end],
+            "test": pairs[val_end:],
+        }
 
-    return pairs
+    def _copy_split(
+        self,
+        split_name: str,
+        items: list[tuple[Path, Path | None]],
+    ) -> None:
+        """Copy image/label pairs into the output split directory."""
+        img_out = self.output_dir / split_name / "images"
+        lbl_out = self.output_dir / split_name / "labels"
+        img_out.mkdir(parents=True, exist_ok=True)
+        lbl_out.mkdir(parents=True, exist_ok=True)
 
+        for img_path, label_path in items:
+            shutil.copy2(img_path, img_out / img_path.name)
+            if label_path:
+                shutil.copy2(label_path, lbl_out / label_path.name)
 
-def split_dataset(
-    pairs: list[tuple[Path, Path | None]],
-    train_ratio: float,
-    val_ratio: float,
-) -> dict[str, list[tuple[Path, Path | None]]]:
-    random.shuffle(pairs)
-    n = len(pairs)
-    train_end = int(n * train_ratio)
-    val_end = train_end + int(n * val_ratio)
+    def _generate_data_yaml(self) -> Path:
+        """Write data.yaml with class names and paths."""
+        yaml_path = self.output_dir / "data.yaml"
+        data = {
+            "path": str(self.output_dir.resolve()),
+            "train": "train/images",
+            "val": "val/images",
+            "test": "test/images",
+            "nc": len(self.classes),
+            "names": self.classes,
+        }
+        with yaml_path.open("w") as f:
+            yaml.dump(data, f, default_flow_style=False)
+        return yaml_path
 
-    return {
-        "train": pairs[:train_end],
-        "val": pairs[train_end:val_end],
-        "test": pairs[val_end:],
-    }
+    def prepare(self) -> Path | None:
+        """Run the full dataset preparation pipeline. Returns path to data.yaml."""
+        random.seed(self.seed)
+        pairs = self._collect_pairs()
+        if not pairs:
+            print(f"No image/label pairs found in {self.source_dir}")
+            print("Run convert_voc_to_yolo.py first, or place images in source/images/.")
+            return None
 
+        test_ratio = 1.0 - self.train_ratio - self.val_ratio
+        if test_ratio < 0:
+            raise ValueError("train_ratio + val_ratio must be <= 1.0")
 
-def copy_split(
-    split_name: str,
-    items: list[tuple[Path, Path | None]],
-    output_dir: Path,
-) -> None:
-    img_out = output_dir / split_name / "images"
-    lbl_out = output_dir / split_name / "labels"
-    img_out.mkdir(parents=True, exist_ok=True)
-    lbl_out.mkdir(parents=True, exist_ok=True)
+        splits = self._split(pairs)
+        for split_name, items in splits.items():
+            self._copy_split(split_name, items)
+            print(f"{split_name}: {len(items)} images")
 
-    for img_path, label_path in items:
-        shutil.copy2(img_path, img_out / img_path.name)
-        if label_path:
-            shutil.copy2(label_path, lbl_out / label_path.name)
-
-
-def generate_data_yaml(output_dir: Path, classes: list[str]) -> Path:
-    yaml_path = output_dir / "data.yaml"
-    data = {
-        "path": str(output_dir.resolve()),
-        "train": "train/images",
-        "val": "val/images",
-        "test": "test/images",
-        "nc": len(classes),
-        "names": classes,
-    }
-    with yaml_path.open("w") as f:
-        yaml.dump(data, f, default_flow_style=False)
-    return yaml_path
+        yaml_path = self._generate_data_yaml()
+        print(f"Generated {yaml_path} (nc={len(self.classes)})")
+        return yaml_path
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Prepare YOLO dataset splits and data.yaml")
-    parser.add_argument(
-        "--source-dir",
-        type=Path,
-        default=Path("data/yolo_dataset"),
-        help="Source YOLO dataset with images/ and labels/ subdirectories",
-    )
-    parser.add_argument(
-        "--output-dir",
-        type=Path,
-        default=Path("data/dataset"),
-        help="Output directory for split dataset",
-    )
+    parser.add_argument("--source-dir", type=Path, default=Path("data/yolo_dataset"))
+    parser.add_argument("--output-dir", type=Path, default=Path("data/dataset"))
     parser.add_argument("--train-ratio", type=float, default=0.7)
     parser.add_argument("--val-ratio", type=float, default=0.2)
-    parser.add_argument(
-        "--classes",
-        nargs="*",
-        default=DEFAULT_CLASSES,
-        help="Class names in order",
-    )
+    parser.add_argument("--classes", nargs="*", default=TARGET_CLASSES)
     parser.add_argument("--seed", type=int, default=42)
     args = parser.parse_args()
 
-    random.seed(args.seed)
-
-    pairs = collect_pairs(args.source_dir)
-    if not pairs:
-        print(f"No image/label pairs found in {args.source_dir}")
-        print("Run convert_voc_to_yolo.py first, or place images in source/images/.")
-        return
-
-    test_ratio = 1.0 - args.train_ratio - args.val_ratio
-    if test_ratio < 0:
-        parser.error("train_ratio + val_ratio must be <= 1.0")
-
-    splits = split_dataset(pairs, args.train_ratio, args.val_ratio)
-
-    for split_name, items in splits.items():
-        copy_split(split_name, items, args.output_dir)
-        print(f"{split_name}: {len(items)} images")
-
-    yaml_path = generate_data_yaml(args.output_dir, args.classes)
-    print(f"Generated {yaml_path}")
-    print("\nTrain with:")
-    print(f"  yolo detect train model=yolo11n.pt data={yaml_path} epochs=100 imgsz=640")
+    preparer = DatasetPreparer(
+        source_dir=args.source_dir,
+        output_dir=args.output_dir,
+        classes=args.classes,
+        train_ratio=args.train_ratio,
+        val_ratio=args.val_ratio,
+        seed=args.seed,
+    )
+    yaml_path = preparer.prepare()
+    if yaml_path:
+        print("\nTrain with:")
+        print(f"  yolo detect train model=yolo11n.pt data={yaml_path} epochs=100 imgsz=640")
+        print("\nOr tune hyperparameters with:")
+        print(f"  python training_scripts/tune_yolo.py --data {yaml_path}")
 
 
 if __name__ == "__main__":

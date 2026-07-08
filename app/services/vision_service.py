@@ -3,6 +3,7 @@ from pathlib import Path
 
 import cv2
 import numpy as np
+import torch
 from ultralytics import YOLO
 
 from app.core.config import Settings, get_settings
@@ -14,13 +15,25 @@ FALLBACK_MODEL = "yolo11n.pt"
 MAX_IMAGE_DIM = 640
 
 
-class VisionService:
+class VisionProcessor:
+    """Handles OpenCV preprocessing, PyTorch YOLOv11n inference, and NMS control."""
+
     def __init__(self, settings: Settings | None = None) -> None:
         self.settings = settings or get_settings()
         self.model: YOLO | None = None
         self.model_path: str = ""
+        self.device: str = self._select_device()
+
+    def _select_device(self) -> str:
+        """Select compute device: explicit setting, MPS on Apple Silicon, or CPU."""
+        if self.settings.device != "auto":
+            return self.settings.device
+        if torch.backends.mps.is_available():
+            return "mps"
+        return "cpu"
 
     def load_model(self) -> None:
+        """Load YOLOv11n weights onto the selected PyTorch device."""
         weights_path = self.settings.model_weights_path
         if weights_path.exists():
             self.model_path = str(weights_path)
@@ -34,8 +47,10 @@ class VisionService:
             )
 
         self.model = YOLO(self.model_path)
+        logger.info("VisionProcessor using device: %s", self.device)
 
     def preprocess(self, image_path: Path) -> np.ndarray:
+        """Read, resize, and normalize an image using OpenCV."""
         image = cv2.imread(str(image_path))
         if image is None:
             raise ValueError(f"Unable to read image: {image_path}")
@@ -56,6 +71,7 @@ class VisionService:
         return cv2.cvtColor(enhanced, cv2.COLOR_LAB2BGR)
 
     def detect(self, image_path: Path) -> list[DetectionResult]:
+        """Run YOLOv11n inference with explicit NMS parameters (conf + iou)."""
         if self.model is None:
             raise RuntimeError("Vision model is not loaded.")
 
@@ -63,6 +79,8 @@ class VisionService:
         results = self.model.predict(
             source=processed,
             conf=self.settings.confidence_threshold,
+            iou=self.settings.iou_threshold,
+            device=self.device,
             verbose=False,
         )
 
@@ -93,11 +111,12 @@ class VisionService:
         return detections
 
 
-_vision_service: VisionService | None = None
+_vision_processor: VisionProcessor | None = None
 
 
-def get_vision_service() -> VisionService:
-    global _vision_service
-    if _vision_service is None:
-        _vision_service = VisionService()
-    return _vision_service
+def get_vision_service() -> VisionProcessor:
+    """Return the singleton VisionProcessor instance."""
+    global _vision_processor
+    if _vision_processor is None:
+        _vision_processor = VisionProcessor()
+    return _vision_processor

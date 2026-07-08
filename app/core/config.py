@@ -10,8 +10,19 @@ logger = logging.getLogger(__name__)
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 
+TARGET_CLASSES: list[str] = [
+    "nasi_lemak",
+    "roti_canai",
+    "char_kuey_teow",
+    "chicken_rice",
+    "laksa",
+    "mee_goreng",
+]
+
 
 class Settings(BaseSettings):
+    """Application settings loaded from environment variables and .env file."""
+
     model_config = SettingsConfigDict(
         env_file=PROJECT_ROOT / ".env",
         env_file_encoding="utf-8",
@@ -27,7 +38,9 @@ class Settings(BaseSettings):
     model_weights_path: Path = Path("data/weights/best.pt")
     knowledge_base_path: Path = Path("data/knowledge_base.json")
 
-    confidence_threshold: float = 0.25
+    confidence_threshold: float = 0.5
+    iou_threshold: float = 0.45
+    device: Literal["auto", "mps", "cpu"] = "auto"
     max_upload_size_mb: int = 10
 
     api_key_enabled: bool = False

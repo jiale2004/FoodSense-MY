@@ -158,6 +158,11 @@ analyzeBtn.addEventListener("click", async () => {
     advisoryText.textContent = data.advisory_text;
     processingTime.textContent = `Processed in ${data.processing_ms} ms`;
 
+    const footerDisclaimer = document.querySelector(".footer p");
+    if (footerDisclaimer && data.disclaimer) {
+      footerDisclaimer.textContent = data.disclaimer;
+    }
+
     results.classList.remove("hidden");
   } catch (err) {
     showError(err.message || "Something went wrong. Please try again.");
