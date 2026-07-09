@@ -38,3 +38,6 @@ Thumbs.db
 # Ultralytics
 runs/
 *.cache
+
+# SeleniumBase / UC scraper temp files
+downloaded_files/
