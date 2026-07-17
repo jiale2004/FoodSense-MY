@@ -77,6 +77,57 @@ python training_scripts/tune_yolo.py --data data/dataset/data.yaml --n-trials 20
 yolo detect train model=yolo11n.pt data=data/dataset/data.yaml epochs=100 imgsz=640
 ```
 
+## Scraping and Image Curation
+
+New downloads are appended to `data/manifests/downloads.jsonl`. UC mode records
+the source URL and exact query; icrawler engines record the query and engine but
+cannot always recover the original image URL.
+
+```bash
+# Scrape candidates. Raw images are not treated as verified labels.
+python training_scripts/scrape_images.py \
+  --engine uc \
+  --classes char_kuey_teow chicken_rice \
+  --max-images 1100 \
+  --google-fallback
+
+# Pilot technical validation, global deduplication, and semantic filtering.
+python training_scripts/curate_images.py \
+  --input-dir data/dataset3 \
+  --output-dir data/curation \
+  --limit-per-class 100
+
+# Full curation run. This creates hard-linked, run-scoped accepted/review/
+# rejected/duplicate views and never modifies the source image folders.
+python training_scripts/curate_images.py \
+  --input-dir data/dataset3 \
+  --output-dir data/curation
+```
+
+Each curation run writes `curation.jsonl` and `summary.json` under
+`data/curation/runs/<UTC timestamp>/`. Review the configured thresholds and
+prompts in `training_scripts/configs/curation.yaml` after the pilot. Use
+`--skip-semantic` to run only technical validation and deduplication, or
+`--materialize none` to create manifests without image views.
+
+After manually moving every pilot image from `review/` into `accepted/` or
+`rejected/`, use that completed run to calibrate the full pass:
+
+```bash
+python training_scripts/curate_images.py \
+  --input-dir data/scraped_raw \
+  --output-dir data/curation \
+  --run-id two-class-full \
+  --decisions-from data/curation/runs/two-class-pilot \
+  --target-precision 0.98
+```
+
+Calibrated mode preserves the pilot decisions, auto-rejects only technical
+failures, and routes semantic uncertainty into `manual_review/`. The saved
+`calibration.json` contains out-of-fold precision, recall, and coverage for
+each class. Manually sort only `manual_review/`, then audit a sample of
+`accepted/` before training.
+
 ## Project Structure
 
 ```

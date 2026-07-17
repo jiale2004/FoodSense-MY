@@ -187,6 +187,7 @@ class UCImageScraper:
         self.wait_for_captcha = wait_for_captcha and not headless
         self.session = requests.Session()
         self.session.headers.update({"User-Agent": USER_AGENT})
+        self.download_log: list[dict[str, str]] = []
 
     def _dismiss_consent(self, sb) -> None:
         for selector in CONSENT_SELECTORS:
@@ -325,12 +326,13 @@ class UCImageScraper:
         file_index: int,
         needed: int,
         downloaded: int,
+        query: str,
     ) -> tuple[int, int]:
         for url in sorted(urls, key=_url_priority):
             if downloaded >= needed:
                 break
             dest = class_dir / f"{file_index:06d}"
-            if self._download_image(url, dest):
+            if self._download_image(url, dest, query=query):
                 downloaded += 1
                 file_index += 1
                 if downloaded % 50 == 0 or downloaded == needed:
@@ -345,6 +347,7 @@ class UCImageScraper:
     def scrape(self, keyword: str | list[str], class_dir: Path, max_images: int) -> int:
         """Download up to max_images for keyword(s) into class_dir. Returns total image count."""
         class_dir.mkdir(parents=True, exist_ok=True)
+        self.download_log = []
         starting = sum(1 for path in class_dir.iterdir() if path.suffix.lower() in IMAGE_SUFFIXES)
         if starting >= max_images:
             return starting
@@ -378,14 +381,14 @@ class UCImageScraper:
                             logger.warning("No URLs found for query=%r", query)
                         break
                     downloaded, file_index = self._download_batch(
-                        page_urls, class_dir, file_index, needed, downloaded
+                        page_urls, class_dir, file_index, needed, downloaded, query
                     )
 
         total = starting + downloaded
         logger.info("UC scrape finished: %d/%d images in %s", total, max_images, class_dir)
         return total
 
-    def _download_image(self, url: str, dest: Path) -> bool:
+    def _download_image(self, url: str, dest: Path, query: str = "") -> bool:
         try:
             response = self.session.get(url, timeout=self.request_timeout, stream=True)
             response.raise_for_status()
@@ -414,4 +417,5 @@ class UCImageScraper:
             target.unlink(missing_ok=True)
             return False
 
+        self.download_log.append({"path": str(target), "source_url": url, "query": query})
         return True

@@ -8,6 +8,7 @@ from pathlib import Path
 from icrawler.builtin import BingImageCrawler
 
 from google_crawler import FixedGoogleImageCrawler
+from curation import append_jsonl, build_download_record
 from uc_crawler import UCImageScraper, _normalize_queries
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -61,6 +62,10 @@ QUERY_VARIANTS: dict[str, list[str]] = {
 
 IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".webp", ".bmp", ".gif"}
 
+# Classes still being filled in dataset3 (max 1100 each).
+DEFAULT_SCRAPE_CLASSES = ["char_kuey_teow", "chicken_rice"]
+DEFAULT_MAX_IMAGES = 1100
+
 
 class ImageScraper:
     """Downloads food images per class using icrawler or SeleniumBase UC mode."""
@@ -69,7 +74,7 @@ class ImageScraper:
         self,
         output_dir: Path,
         keywords: dict[str, str] | None = None,
-        max_images: int = 50,
+        max_images: int = DEFAULT_MAX_IMAGES,
         engine: str = "google",
         google_fallback: bool = False,
         uc_headless: bool = False,
@@ -77,12 +82,14 @@ class ImageScraper:
         uc_max_scrolls: int = 40,
         uc_max_pages: int = 10,
         uc_wait_for_captcha: bool = True,
+        manifest_path: Path | None = None,
     ) -> None:
         self.output_dir = output_dir
         self.keywords = keywords or DEFAULT_KEYWORDS
         self.max_images = max_images
         self.engine = engine
         self.google_fallback = google_fallback
+        self.manifest_path = manifest_path
         self.uc_scraper = UCImageScraper(
             headless=uc_headless,
             scroll_pause=uc_scroll_pause,
@@ -109,6 +116,11 @@ class ImageScraper:
         """Scrape images for a single class. Returns number of images downloaded."""
         class_dir = self.output_dir / class_name
         class_dir.mkdir(parents=True, exist_ok=True)
+        before = {
+            path.resolve()
+            for path in class_dir.iterdir()
+            if path.is_file() and path.suffix.lower() in IMAGE_SUFFIXES
+        }
 
         existing = self._count_images(class_dir)
         if existing >= self.max_images:
@@ -132,6 +144,7 @@ class ImageScraper:
             crawler.crawl(keyword=keyword, max_num=to_fetch)
             downloaded = self._count_images(class_dir)
 
+        fallback_metadata: dict[Path, dict[str, str]] = {}
         if self.engine in {"google", "uc"} and downloaded < self.max_images and self.google_fallback:
             queries = self._queries_for_class(class_name, keyword)
             for query in queries:
@@ -147,9 +160,54 @@ class ImageScraper:
                     query,
                     remaining,
                 )
+                before_fallback = {
+                    path.resolve()
+                    for path in class_dir.iterdir()
+                    if path.is_file() and path.suffix.lower() in IMAGE_SUFFIXES
+                }
                 fallback = self._create_crawler(class_dir, engine="bing")
                 fallback.crawl(keyword=query, max_num=remaining)
                 downloaded = self._count_images(class_dir)
+                for path in class_dir.iterdir():
+                    resolved = path.resolve()
+                    if (
+                        path.is_file()
+                        and path.suffix.lower() in IMAGE_SUFFIXES
+                        and resolved not in before_fallback
+                    ):
+                        fallback_metadata[resolved] = {"engine": "bing", "query": query}
+
+        if self.manifest_path:
+            uc_metadata = {
+                Path(item["path"]).resolve(): item
+                for item in self.uc_scraper.download_log
+            } if self.engine == "uc" else {}
+            new_paths = sorted(
+                (
+                    path
+                    for path in class_dir.iterdir()
+                    if path.is_file()
+                    and path.suffix.lower() in IMAGE_SUFFIXES
+                    and path.resolve() not in before
+                ),
+                key=lambda path: path.name,
+            )
+            records = [
+                build_download_record(
+                    path=path,
+                    candidate_class=class_name,
+                    query=(
+                        fallback_metadata.get(path.resolve(), {}).get("query")
+                        or uc_metadata.get(path.resolve(), {}).get("query")
+                        or keyword
+                    ),
+                    engine=fallback_metadata.get(path.resolve(), {}).get("engine", self.engine),
+                    source_url=uc_metadata.get(path.resolve(), {}).get("source_url"),
+                )
+                for path in new_paths
+            ]
+            written = append_jsonl(self.manifest_path, records)
+            logger.info("  %s: appended %d provenance records to %s", class_name, written, self.manifest_path)
         logger.info("  %s: %d images in %s", class_name, downloaded, class_dir)
         return downloaded
 
@@ -168,7 +226,12 @@ class ImageScraper:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Scrape food images for dataset3")
     parser.add_argument("--output-dir", type=Path, default=Path("data/dataset3"))
-    parser.add_argument("--max-images", type=int, default=50, help="Max images per class")
+    parser.add_argument(
+        "--max-images",
+        type=int,
+        default=DEFAULT_MAX_IMAGES,
+        help="Max images per class (default: 1100)",
+    )
     parser.add_argument(
         "--engine",
         choices=["google", "bing", "uc"],
@@ -208,7 +271,23 @@ def main() -> None:
         action="store_true",
         help="Do not pause for manual CAPTCHA solving in headed UC mode",
     )
-    parser.add_argument("--classes", nargs="*", default=None, help="Specific classes to scrape")
+    parser.add_argument(
+        "--classes",
+        nargs="*",
+        default=DEFAULT_SCRAPE_CLASSES,
+        help="Classes to scrape (default: char_kuey_teow chicken_rice)",
+    )
+    parser.add_argument(
+        "--manifest",
+        type=Path,
+        default=Path("data/manifests/downloads.jsonl"),
+        help="Append provenance for newly downloaded images",
+    )
+    parser.add_argument(
+        "--no-manifest",
+        action="store_true",
+        help="Disable download provenance records",
+    )
     args = parser.parse_args()
 
     scraper = ImageScraper(
@@ -221,6 +300,7 @@ def main() -> None:
         uc_max_scrolls=args.uc_max_scrolls,
         uc_max_pages=args.uc_max_pages,
         uc_wait_for_captcha=not args.uc_no_wait_captcha,
+        manifest_path=None if args.no_manifest else args.manifest,
     )
     total = scraper.scrape_all(args.classes)
     print(f"Done. Total images across classes: {total}")

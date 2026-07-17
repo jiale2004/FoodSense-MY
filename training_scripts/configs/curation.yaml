@@ -1,0 +1,47 @@
+classes:
+  nasi_lemak:
+    prompts:
+      - "a photo of Malaysian nasi lemak with coconut rice, sambal, egg and anchovies"
+      - "a plate of nasi lemak Malaysian food"
+  roti_canai:
+    prompts:
+      - "a photo of Malaysian roti canai flatbread with curry"
+      - "a plate of roti canai at a Malaysian mamak restaurant"
+  char_kuey_teow:
+    prompts:
+      - "a photo of Malaysian char kuey teow fried flat rice noodles"
+      - "a plate of Penang char kuey teow with prawns and bean sprouts"
+  chicken_rice:
+    prompts:
+      - "a photo of Malaysian Hainanese chicken rice"
+      - "a plate of steamed or roasted chicken with seasoned rice"
+  laksa:
+    prompts:
+      - "a photo of Malaysian laksa noodle soup"
+      - "a bowl of curry laksa or asam laksa"
+  mee_goreng:
+    prompts:
+      - "a photo of Malaysian mee goreng mamak"
+      - "a plate of Malaysian fried yellow noodles"
+
+validation:
+  min_width: 256
+  min_height: 256
+  min_file_bytes: 2048
+  max_pixels: 40000000
+  max_aspect_ratio: 4.0
+  min_blur_variance: 20.0
+
+deduplication:
+  dhash_distance: 6
+
+semantic:
+  enabled: true
+  model_name: "ViT-B-32"
+  pretrained: "openai"
+  batch_size: 32
+  accept_min_score: 0.22
+  accept_min_margin: 0.02
+  reject_max_score: 0.16
+  reject_wrong_class_margin: 0.04
+
