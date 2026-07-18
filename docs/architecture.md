@@ -7,7 +7,7 @@ FoodSense-MY contains two related systems:
 1. a FastAPI application that detects six Malaysian dishes and returns verified nutrition plus an optional LLM-formatted advisory;
 2. a local data pipeline that acquires, curates, consolidates, annotates, splits, trains, and promotes the custom detector.
 
-The application is runnable. Dataset consolidation and the first CVAT pilot are complete; the leakage-safe split, custom training, and model promotion stages remain pending.
+The application is runnable. Dataset consolidation, the first CVAT pilot, its Phase A priority audit, and the Phase B leakage-safe baseline split are complete. Manual test-holdout review, custom training, and model promotion remain pending.
 
 ```mermaid
 flowchart LR
@@ -74,7 +74,8 @@ Never reorder these IDs in CVAT exports or `data.yaml`. Human annotation is auth
 | Roboflow subset import | `training_scripts/import_roboflow_subset.py` | Validate, map, deduplicate, and preserve provenance for a selected Roboflow class |
 | Dataset3 builder | `training_scripts/build_dataset3.py` | Merge approved sources, collapse exact duplicates, assign leakage groups, and generate the manifest |
 | CVAT batch preparation | `training_scripts/prepare_cvat_pilot.py` | Deterministically sample missing-label images and build an image archive |
-| CVAT merge | `training_scripts/import_cvat_annotations.py` | Validate Ultralytics-YOLO exports, merge labels, update metadata, and quarantine rejected frames |
+| CVAT merge/revision | `training_scripts/import_cvat_annotations.py` | Validate first-time or replacement exports, merge/revise labels, create recoverable backups, and quarantine rejected frames |
+| Dataset3 splitting | `training_scripts/split_dataset3.py` | Select annotated records, stratify whole leakage groups, materialize an immutable YOLO view, and validate hashes and coverage |
 | VOC conversion | `training_scripts/convert_voc_to_yolo.py` | Convert reviewed PASCAL VOC annotations to YOLO |
 | Legacy splitting | `training_scripts/prepare_dataset.py` | Random flat-folder split; not safe for dataset3 leakage groups |
 | Hyperparameter tuning | `training_scripts/tune_yolo.py` | Optuna trials for YOLO |
@@ -102,11 +103,13 @@ flowchart TD
     Merge --> Missing[Missing annotation queue]
     Merge --> Rejected[Rejected non-target quarantine]
     Merge --> Audit[Archived export and merge report]
+    Audit -->|Human QA correction| CVAT
 
-    Annotated --> Split[Group-aware annotated-only splitter pending]
+    Annotated --> Split[split_dataset3.py]
     Manifest --> Split
     Split --> Baseline[70/20/10 YOLO dataset]
-    Baseline --> Train[YOLO11 baseline training]
+    Baseline --> Holdout[Manual test candidate review]
+    Holdout --> Train[YOLO11 baseline training]
     Train --> Evaluate[Per-class metrics and error review]
     Evaluate --> Assist[CVAT assisted-label proposals]
     Assist --> CVAT
@@ -116,7 +119,7 @@ flowchart TD
 
 ## Dataset3 Data Model
 
-`data/dataset3/` is the canonical unsplit staging area. It currently contains 5,293 usable images, 832 annotated images, 847 boxes, 4,461 missing annotations, and 14 rejected pilot records.
+`data/dataset3/` is the canonical unsplit staging area. After the Phase A audited revision it contains 5,299 usable images, 838 annotated images, 855 boxes, 4,461 missing annotations, and 8 rejected pilot records.
 
 ```text
 data/dataset3/
@@ -148,10 +151,10 @@ Key rules:
 |-------|--------------:|----------:|------:|--------:|
 | Nasi Lemak | 996 | 50 | 51 | 946 |
 | Roti Canai | 995 | 46 | 55 | 949 |
-| Char Kuey Teow | 492 | 151 | 151 | 341 |
+| Char Kuey Teow | 493 | 152 | 153 | 341 |
 | Chicken Rice | 709 | 313 | 316 | 396 |
-| Laksa | 1,093 | 143 | 144 | 950 |
-| Mee Goreng | 1,008 | 129 | 130 | 879 |
+| Laksa | 1,100 | 150 | 151 | 950 |
+| Mee Goreng | 1,006 | 127 | 129 | 879 |
 
 ## CVAT Integration Boundary
 
@@ -163,7 +166,8 @@ Current pilot:
 - task `dataset3 bounding-box pilot 300`, ID `2438268`;
 - job ID `4258646`;
 - 50 initially missing images per source class, seed 42;
-- 286 labelled images, 299 boxes, and 14 rejected frames after review.
+- initial merge: 286 labelled images, 299 boxes, and 14 rejected frames;
+- Phase A audited revision: 292 labelled images, 307 pilot boxes, and 8 rejected frames.
 
 ```text
 data/cvat/pilot-300/
@@ -173,28 +177,41 @@ data/cvat/pilot-300/
 ├── cvat-export.zip            # archived Ultralytics YOLO export
 ├── merge-report.json          # validated merge outcome
 ├── rejected.jsonl             # rejected frame evidence
-└── pre-merge/                 # previous dataset metadata backup
+├── pre-merge/                 # previous dataset metadata backup
+├── cvat-audited-export-v2.zip # corrected Phase A export
+└── revisions/phase-a-v2/      # revision report, export, and pre-apply backups
 ```
 
-Import is a two-stage operation: validation is the default and `--apply` authorizes mutation only after all archive rows, IDs, paths, and coordinates pass. Rejected frames are moved recoverably into the dataset3 quarantine.
+Import is a two-stage operation: validation is the default and `--apply` authorizes mutation only after all archive rows, IDs, paths, and coordinates pass. A first merge accepts only `missing` records. A replacement export requires a unique `--revision-id`; its semantic comparison ignores row-order-only changes, backs up metadata and replaced labels, and can restore, reject, relabel, or update boxes without destroying the original merge evidence. Rejected frames are moved recoverably into the dataset3 quarantine.
 
 The annotation contract is documented in [`bounding-box-policy.md`](bounding-box-policy.md).
 
-## Split Architecture Requirement
+## Leakage-Safe Split Architecture
 
 The current `training_scripts/prepare_dataset.py` must not be used unchanged for dataset3. It expects a flat input layout, performs a file-level random split, does not filter by manifest status, and does not preserve leakage groups.
 
-The replacement splitter must:
+`training_scripts/split_dataset3.py` implements the replacement. It:
 
-1. load `manifest.jsonl` and select only usable `annotated` records;
-2. allocate entire `leakage_group` values to train, validation, or test;
-3. target 70/20/10 ratios while balancing class and object counts;
-4. use stable seed 42 and write an immutable split manifest;
-5. copy or hard-link paired images and labels into Ultralytics folders;
-6. generate `data.yaml` with the fixed six-class ID order;
-7. fail validation on cross-split leakage, invalid labels, missing pairs, or absent evaluation classes.
+1. loads `manifest.jsonl` and selects only usable `annotated` records;
+2. allocates entire `leakage_group` values to train, validation, or test;
+3. targets 70/20/10 ratios using exact primary-class image targets and object-count refinement;
+4. uses stable seed 42 and writes a content-hashed immutable split manifest;
+5. hard-links images but copies labels so later annotation changes cannot mutate the frozen baseline;
+6. generates `data.yaml` with the fixed six-class ID order;
+7. fails validation on changed source/manifests, digest mismatches, cross-split leakage, invalid labels, missing pairs, or absent evaluation classes;
+8. refuses to overwrite an existing output and creates a pending test-review queue.
 
-The first target output is `data/dataset3-baseline/`. It should contain only the 832 currently annotated usable images. The final production split should be regenerated from a frozen, more fully annotated manifest while preserving a manually verified holdout test set.
+The generated `data/dataset3-baseline/` contains only the 838 annotated usable images:
+
+| Split | Images | Leakage groups | Boxes |
+|-------|-------:|---------------:|------:|
+| Train | 587 | 584 | 598 |
+| Validation | 167 | 167 | 171 |
+| Test candidate | 84 | 83 | 86 |
+
+Its split-manifest SHA-256 is `f87d6f4ab07e463ddca111c4add9c5a6236acf4d08e0c0500b8802f1e45e7d1e`. Validation reports zero cross-split leakage groups and zero missing pairs, with all six object classes represented in validation and test. `test-review-queue.jsonl` marks all 84 test candidates as pending; the holdout is not frozen until those images and boxes are manually verified.
+
+The final production split should be regenerated from a more fully annotated manifest while preserving the manually verified holdout groups.
 
 ## Model Lifecycle
 
@@ -232,7 +249,7 @@ FoodSense-MY/
 │   ├── external/roboflow/              # Validated Roboflow source imports
 │   ├── dataset3/                       # Canonical unsplit staging dataset
 │   ├── cvat/pilot-300/                 # Pilot input, export, and audit artifacts
-│   ├── dataset3-baseline/              # Leakage-safe pilot split; pending
+│   ├── dataset3-baseline/              # Generated leakage-safe pilot split
 │   └── weights/                        # Approved custom best.pt; pending
 ├── training_scripts/
 │   ├── scrape_images.py, google_crawler.py, uc_crawler.py
@@ -241,6 +258,7 @@ FoodSense-MY/
 │   ├── build_dataset3.py
 │   ├── prepare_cvat_pilot.py
 │   ├── import_cvat_annotations.py
+│   ├── split_dataset3.py
 │   ├── convert_voc_to_yolo.py
 │   ├── prepare_dataset.py
 │   ├── tune_yolo.py

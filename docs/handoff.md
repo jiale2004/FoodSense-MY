@@ -8,17 +8,21 @@
 
 The FastAPI application and its static frontend are runnable, but the custom six-class detector has not yet been trained. The current inference fallback is Ultralytics `yolo11n.pt`, whose COCO classes are not suitable for the target dishes.
 
-Image acquisition and consolidation are paused. The canonical staging dataset is now `data/dataset3/`. It combines approved content from dataset1, dataset2, the manually curated two-class web run, and two Roboflow imports. Exact duplicates were collapsed, near-duplicate leakage groups were recorded, and an initial CVAT pilot has been completed and merged.
+Image acquisition and consolidation are paused. The canonical staging dataset is now `data/dataset3/`. It combines approved content from dataset1, dataset2, the manually curated two-class web run, and two Roboflow imports. Exact duplicates were collapsed, near-duplicate leakage groups were recorded, and the initial CVAT pilot plus its Phase A priority audit have been completed and merged.
 
 Current dataset3 totals:
 
-- 5,293 usable images
-- 832 annotated images
-- 847 bounding boxes
+- 5,299 usable images
+- 838 annotated images
+- 855 bounding boxes
 - 4,461 images still missing bounding-box annotations
-- 14 CVAT pilot images rejected because none of the six target classes was present
+- 8 CVAT pilot images rejected because none of the six target classes was present
 - 5,253 leakage groups; 52 groups contain more than one image
 - no custom `data/weights/best.pt` yet
+
+Phase B has also materialized the 838 annotated images as the validated
+`data/dataset3-baseline/` training view. Its 84 test candidates are not yet a
+frozen holdout because their final manual review is pending.
 
 Do not treat an empty YOLO label as an accepted background image. Images confirmed to contain none of the six classes are quarantined under `data/dataset3/rejected/` and marked `rejected` in the manifest.
 
@@ -30,11 +34,11 @@ Class IDs are fixed and must not be reordered:
 |---:|-----------|--------------:|-----------------:|------:|--------------------:|
 | 0 | `nasi_lemak` | 996 | 50 | 51 | 946 |
 | 1 | `roti_canai` | 995 | 46 | 55 | 949 |
-| 2 | `char_kuey_teow` | 492 | 151 | 151 | 341 |
+| 2 | `char_kuey_teow` | 493 | 152 | 153 | 341 |
 | 3 | `chicken_rice` | 709 | 313 | 316 | 396 |
-| 4 | `laksa` | 1,093 | 143 | 144 | 950 |
-| 5 | `mee_goreng` | 1,008 | 129 | 130 | 879 |
-| **Total** | — | **5,293** | **832** | **847** | **4,461** |
+| 4 | `laksa` | 1,100 | 150 | 151 | 950 |
+| 5 | `mee_goreng` | 1,006 | 127 | 129 | 879 |
+| **Total** | — | **5,299** | **838** | **855** | **4,461** |
 
 The class folder records an image's primary/source class. The YOLO label content is authoritative and may contain more than one class when multiple target dishes are visible.
 
@@ -57,7 +61,7 @@ Important assembly decisions:
 - Two exact dataset2 cross-folder conflicts were resolved by content hash: one belongs to `chicken_rice`, the other to `roti_canai`.
 - One duplicated Mee Goreng annotation pair was resolved with the union bounding box.
 - 75 exact duplicate source occurrences were collapsed during assembly.
-- The resulting 5,293 images form 5,253 leakage groups. Any train/validation/test splitter must keep each group in exactly one split.
+- The initial assembly produced 5,293 usable images in 5,253 leakage groups. Phase A restored six valid Laksa images from the pilot quarantine, producing the current 5,299 usable images. Any train/validation/test splitter must keep each group in exactly one split.
 
 Dataset3 is a staging dataset, not a finished 70/20/10 training split:
 
@@ -95,7 +99,7 @@ python training_scripts/prepare_cvat_pilot.py \
   --seed 42
 ```
 
-Manual annotation outcome:
+Initial manual annotation outcome before the Phase A audit:
 
 - 286 images labelled
 - 299 new boxes
@@ -114,7 +118,7 @@ Pilot boxes by the annotator's actual class:
 | `laksa` | 41 |
 | `mee_goreng` | 26 |
 
-The pilot also exposed meaningful source-class errors:
+The initial pilot also exposed meaningful source-class errors:
 
 - 33 source `mee_goreng` images were labelled `char_kuey_teow`
 - 8 source `char_kuey_teow` images were labelled `mee_goreng`
@@ -142,8 +146,48 @@ data/cvat/pilot-300/
 ├── cvat-export.zip
 ├── merge-report.json
 ├── rejected.jsonl
-└── pre-merge/
+├── pre-merge/
+├── cvat-audited-export-v2.zip
+└── revisions/phase-a-v2/
 ```
+
+### Phase A audit and correction
+
+Phase A was executed on 18 July 2026. The audit covered 63 priority frames: all 42 initial source-to-label transitions, all 14 initially rejected frames, the multi-class frame, and one ordinary example per class.
+
+Ten high-confidence corrections were applied in CVAT:
+
+- six valid Laksa images were restored from the rejected quarantine;
+- one Mee Goreng label was corrected to Char Kuey Teow;
+- the initial Laksa-to-Mee Goreng transition was corrected back to Laksa Johor;
+- one second Char Kuey Teow serving box was added;
+- one second Mee Goreng serving box was added.
+
+The audited export contains 292 labelled images and 307 boxes, with eight frames remaining rejected. Five additional export differences were row-order-only and were intentionally ignored by the semantic comparison.
+
+The corrected export was validated and applied with the revision-safe importer:
+
+```bash
+python training_scripts/import_cvat_annotations.py \
+  --dataset-dir data/dataset3 \
+  --pilot-dir data/cvat/pilot-300 \
+  --archive data/cvat/pilot-300/cvat-audited-export-v2.zip \
+  --revision-id phase-a-v2 \
+  --task-id 2438268 \
+  --job-id 4258646
+
+# Run only after inspecting the dry-run report above.
+python training_scripts/import_cvat_annotations.py \
+  --dataset-dir data/dataset3 \
+  --pilot-dir data/cvat/pilot-300 \
+  --archive data/cvat/pilot-300/cvat-audited-export-v2.zip \
+  --revision-id phase-a-v2 \
+  --task-id 2438268 \
+  --job-id 4258646 \
+  --apply
+```
+
+`data/cvat/pilot-300/revisions/phase-a-v2/` contains the audited export, revision report, pre-apply dataset metadata, pilot reports, and every replaced label. The original first-merge export and report remain unchanged.
 
 ## 5. Bounding-Box Policy
 
@@ -164,7 +208,8 @@ The full policy is [`docs/bounding-box-policy.md`](bounding-box-policy.md). Its 
 | [`import_roboflow_subset.py`](../training_scripts/import_roboflow_subset.py) | Import a selected Roboflow class, validate labels, preserve source metadata, and deduplicate |
 | [`build_dataset3.py`](../training_scripts/build_dataset3.py) | Consolidate all approved sources into the canonical six-class staging dataset |
 | [`prepare_cvat_pilot.py`](../training_scripts/prepare_cvat_pilot.py) | Select a deterministic class-balanced missing-label batch and package it for CVAT |
-| [`import_cvat_annotations.py`](../training_scripts/import_cvat_annotations.py) | Validate a CVAT Ultralytics-YOLO export, merge labels, and quarantine empty/rejected frames |
+| [`import_cvat_annotations.py`](../training_scripts/import_cvat_annotations.py) | Validate first-time or replacement CVAT exports, merge or revise labels, retain recoverable backups, and quarantine rejected frames |
+| [`split_dataset3.py`](../training_scripts/split_dataset3.py) | Build and validate a deterministic annotated-only split while preserving leakage groups and immutable label snapshots |
 | [`scrape_images.py`](../training_scripts/scrape_images.py) | Acquire Google/Bing/UC image candidates with provenance |
 | [`curate_images.py`](../training_scripts/curate_images.py) | Validate, deduplicate, score, calibrate, and route scraped candidates |
 | [`convert_voc_to_yolo.py`](../training_scripts/convert_voc_to_yolo.py) | Convert reviewed PASCAL VOC boxes to YOLO labels |
@@ -182,7 +227,7 @@ The full policy is [`docs/bounding-box-policy.md`](bounding-box-policy.md). Its 
 | Apple Silicon MPS inference | Supported |
 | Canonical dataset3 assembly | Implemented |
 | CVAT batch preparation/import | Implemented and pilot-tested |
-| Group-aware annotated-only splitter | Not implemented |
+| Group-aware annotated-only splitter | Implemented and validated |
 | Custom six-class YOLO model | Not trained |
 | Production `data/weights/best.pt` | Missing |
 
@@ -190,13 +235,17 @@ Until custom weights are approved and copied to `data/weights/best.pt`, `/api/pr
 
 ## 8. Verification Completed
 
-After the pilot merge:
+After the Phase A audited revision and Phase B split:
 
-- `manifest.jsonl` contains 5,307 records: 5,293 usable plus 14 rejected
-- status totals are 832 annotated, 4,461 missing, and 14 rejected
-- all 847 YOLO rows use canonical class IDs and valid normalized coordinates
+- `manifest.jsonl` contains 5,307 records: 5,299 usable plus 8 rejected
+- status totals are 838 annotated, 4,461 missing, and 8 rejected
+- all 855 YOLO rows use canonical class IDs and valid normalized coordinates
 - every usable manifest path and annotation file is consistent
-- all seven repository regression tests pass
+- the baseline contains 587 train, 167 validation, and 84 candidate test images
+- Phase B validation reports zero cross-split leakage groups and zero missing pairs
+- every object class is represented in validation and test
+- the reproducible split-manifest hash is `f87d6f4ab07e463ddca111c4add9c5a6236acf4d08e0c0500b8802f1e45e7d1e`
+- all ten repository regression tests pass, including revision and split-integrity coverage
 - `git diff --check` passes
 
 Run the current test suite with:
@@ -207,29 +256,45 @@ python -m unittest discover -s tests -v
 
 ## 9. Recommended Next Steps
 
-### Phase A — Freeze and audit the pilot
+### Phase A — Pilot audit: completed
 
-1. Review a stratified sample of at least 60 pilot images in CVAT, with extra attention to Char Kuey Teow versus Mee Goreng and boxes containing multiple dishes.
-2. Check box tightness, integral side dishes, occluded instances, and whether all target objects in each reviewed frame were labelled.
-3. Correct any policy inconsistencies in CVAT and re-export/re-import the same task.
-4. Freeze a manually verified test subset before assisted labelling so auto-labelled images cannot leak into final evaluation.
+The 63-frame priority audit, CVAT corrections, audited export, revision-safe import, manifest reconciliation, and regression validation are complete. Phase B has generated 84 proposed test images; every one must still be manually verified before the holdout is frozen.
 
-**Gate:** zero class-ID errors, no known missing target boxes, and consistent application of the bounding-box policy.
+**Gate result:** passed for the audited priority set. Two ambiguous/low-quality noodle examples remain intentionally unchanged rather than being guessed.
 
-### Phase B — Build a leakage-safe baseline split
+### Phase B — Leakage-safe baseline split: completed
 
-Implement a dataset3-specific splitter that:
+Phase B was executed on 18 July 2026 with:
 
-- includes only `annotation_status == "annotated"` images;
-- groups by `leakage_group` before assigning splits;
-- uses a deterministic seed and approximately 70/20/10 train/validation/test ratios;
-- balances class/object coverage as far as group constraints allow;
-- writes immutable split manifests, YOLO folders, and `data.yaml`;
-- fails if a leakage group crosses splits, a label is missing, or a class is absent from validation/test.
+```bash
+python training_scripts/split_dataset3.py \
+  --dataset-dir data/dataset3 \
+  --output-dir data/dataset3-baseline \
+  --train-ratio 0.7 \
+  --val-ratio 0.2 \
+  --test-ratio 0.1 \
+  --seed 42 \
+  --materialize hardlink
+```
 
-Do not use the current `prepare_dataset.py` unchanged: it performs a random file split, does not understand the dataset3 class layout or manifest status, and does not protect leakage groups.
+| Split | Images | Leakage groups | Boxes |
+|-------|-------:|---------------:|------:|
+| Train | 587 | 584 | 598 |
+| Validation | 167 | 167 | 171 |
+| Test candidate | 84 | 83 | 86 |
 
-**Gate:** 0 cross-split leakage groups, 0 missing label pairs, all six classes represented, and repeatable split hashes.
+The output includes `data.yaml`, `split-manifest.jsonl`, `summary.json`, and `test-review-queue.jsonl`. Images are hard-linked to avoid duplicate storage; labels are copied so later dataset3 corrections cannot alter this baseline. The output is immutable by default and the CLI refuses to overwrite it.
+
+Revalidation command:
+
+```bash
+python training_scripts/split_dataset3.py \
+  --dataset-dir data/dataset3 \
+  --output-dir data/dataset3-baseline \
+  --validate-only
+```
+
+**Gate result:** passed. There are zero cross-split leakage groups, zero missing image/label pairs, all six object classes occur in validation and test, and an independent regeneration produced the same split-manifest hash.
 
 ### Phase C — Train and evaluate a pilot baseline
 
@@ -273,7 +338,7 @@ Save the first approved experiment under a versioned filename such as `data/weig
 
 ## 10. Immediate Recommended Action
 
-The next implementation should be the annotated-only, leakage-group-aware splitter, followed by one baseline training run on the 832 currently annotated images. That baseline is not expected to be production quality; its purpose is to validate class mappings, expose annotation-policy problems, and accelerate the remaining CVAT work.
+Manually verify the 84 entries in `data/dataset3-baseline/test-review-queue.jsonl`, record corrections in dataset3/CVAT rather than editing the split, then regenerate a new versioned split if anything changes. Once the test candidates are accepted and frozen, run the Phase C YOLO11n baseline. That baseline is not expected to be production quality; its purpose is to validate class mappings, expose annotation-policy problems, and accelerate the remaining CVAT work.
 
 ## 11. Environment and Runtime
 
@@ -289,11 +354,15 @@ Important environment variables include `MODEL_WEIGHTS_PATH`, `KNOWLEDGE_BASE_PA
 
 ## 12. Working Tree Note
 
-At this handoff, `.env.example` is modified and the four dataset utilities listed below are untracked:
+At this handoff, the Phase A and Phase B implementation is represented by modifications to:
 
-- `training_scripts/build_dataset3.py`
+- `README.md`
+- `docs/architecture.md`
+- `docs/bounding-box-policy.md`
+- `docs/handoff.md`
 - `training_scripts/import_cvat_annotations.py`
-- `training_scripts/import_roboflow_subset.py`
-- `training_scripts/prepare_cvat_pilot.py`
+- `training_scripts/split_dataset3.py`
+- `tests/test_cvat_revision.py`
+- `tests/test_dataset3_split.py`
 
-Dataset outputs under `data/` are intentionally gitignored. Review and commit code/documentation deliberately; do not assume the gitignored data can be recreated without the local source datasets and archived CVAT exports.
+The repository-wide documentation rule is recorded in `AGENTS.md`. Dataset outputs under `data/` are intentionally gitignored. Review and commit code/documentation deliberately; do not assume the gitignored data can be recreated without the local source datasets and archived CVAT exports.

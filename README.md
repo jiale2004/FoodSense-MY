@@ -60,22 +60,52 @@ cp runs/detect/train/weights/best.pt data/weights/best.pt
 
 ## Training Pipeline
 
+The canonical unsplit staging dataset is `data/dataset3/`. After the completed
+Phase A CVAT audit it contains 5,299 usable images, including 838 annotated
+images with 855 boxes. Another 4,461 images still require annotation.
+
+Do not run `training_scripts/prepare_dataset.py` against dataset3. That legacy
+utility performs a file-level random split and does not preserve the manifest's
+near-duplicate `leakage_group` values. Phase B generated the annotated-only,
+group-aware `data/dataset3-baseline/` split with 587 train, 167 validation, and
+84 candidate test images.
+
+To create the split in a new workspace or versioned output directory:
+
 ```bash
-# 1. Convert PASCAL VOC annotations to YOLO format (Pandas)
-python training_scripts/convert_voc_to_yolo.py --voc-dir ANNOTATIONS --images-dir IMAGES
-
-# 2. Scrape supplemental images with icrawler (optional)
-python training_scripts/scrape_images.py --output-dir data/raw_images --max-images 50
-
-# 3. Prepare train/val/test split and data.yaml
-python training_scripts/prepare_dataset.py --source-dir data/yolo_dataset --output-dir data/dataset
-
-# 4. Tune hyperparameters with Optuna (Mixup/Mosaic for similar classes)
-python training_scripts/tune_yolo.py --data data/dataset/data.yaml --n-trials 20
-
-# 5. Train YOLOv11n with best params
-yolo detect train model=yolo11n.pt data=data/dataset/data.yaml epochs=100 imgsz=640
+python training_scripts/split_dataset3.py \
+  --dataset-dir data/dataset3 \
+  --output-dir data/dataset3-baseline \
+  --seed 42 \
+  --materialize hardlink
 ```
+
+Revalidate the frozen split at any time with:
+
+```bash
+python training_scripts/split_dataset3.py \
+  --dataset-dir data/dataset3 \
+  --output-dir data/dataset3-baseline \
+  --validate-only
+```
+
+The 84 test candidates in
+`data/dataset3-baseline/test-review-queue.jsonl` still require manual review
+before the test holdout is considered frozen. The pilot training command is:
+
+```bash
+yolo detect train \
+  model=yolo11n.pt \
+  data=data/dataset3-baseline/data.yaml \
+  epochs=100 \
+  imgsz=640 \
+  seed=42 \
+  device=mps
+```
+
+See [`docs/handoff.md`](docs/handoff.md) for current counts and next-step gates,
+[`docs/architecture.md`](docs/architecture.md) for the complete data flow, and
+[`docs/bounding-box-policy.md`](docs/bounding-box-policy.md) for CVAT rules.
 
 ## Scraping and Image Curation
 
@@ -93,15 +123,10 @@ python training_scripts/scrape_images.py \
 
 # Pilot technical validation, global deduplication, and semantic filtering.
 python training_scripts/curate_images.py \
-  --input-dir data/dataset3 \
+  --input-dir data/scraped_raw \
   --output-dir data/curation \
+  --run-id two-class-pilot-new \
   --limit-per-class 100
-
-# Full curation run. This creates hard-linked, run-scoped accepted/review/
-# rejected/duplicate views and never modifies the source image folders.
-python training_scripts/curate_images.py \
-  --input-dir data/dataset3 \
-  --output-dir data/curation
 ```
 
 Each curation run writes `curation.jsonl` and `summary.json` under
@@ -111,14 +136,16 @@ prompts in `training_scripts/configs/curation.yaml` after the pilot. Use
 `--materialize none` to create manifests without image views.
 
 After manually moving every pilot image from `review/` into `accepted/` or
-`rejected/`, use that completed run to calibrate the full pass:
+`rejected/`, use that completed run to calibrate the full pass. This creates
+hard-linked, run-scoped accepted/manual-review/rejected/duplicate views and
+never modifies the source image folders:
 
 ```bash
 python training_scripts/curate_images.py \
   --input-dir data/scraped_raw \
   --output-dir data/curation \
-  --run-id two-class-full \
-  --decisions-from data/curation/runs/two-class-pilot \
+  --run-id two-class-full-new \
+  --decisions-from data/curation/runs/two-class-pilot-new \
   --target-precision 0.98
 ```
 
@@ -144,15 +171,21 @@ app/
 └── static/                 # Frontend assets
 data/
 ├── knowledge_base.json     # 6-class nutrition data
-├── weights/                # YOLO weights
-└── raw_images/             # Training images
+├── dataset3/               # Canonical unsplit staging dataset
+├── cvat/pilot-300/         # CVAT input, exports, reports, revisions
+├── dataset3-baseline/      # Generated group-safe 70/20/10 pilot split
+└── weights/                # Approved custom weights
 training_scripts/
 ├── utils.py                # ReproducibilityManager
 ├── tune_yolo.py            # Optuna hyperparameter tuning
 ├── convert_voc_to_yolo.py  # VOC → YOLO via Pandas
 ├── scrape_images.py        # icrawler image scraper
-└── prepare_dataset.py      # Dataset splits + data.yaml
-docs/                       # Architecture documentation
+├── build_dataset3.py       # Source consolidation + leakage groups
+├── prepare_cvat_pilot.py   # Deterministic CVAT batch packaging
+├── import_cvat_annotations.py # Validated first merge and revisions
+├── split_dataset3.py       # Deterministic leakage-safe baseline split
+└── prepare_dataset.py      # Legacy splitter; not safe for dataset3
+docs/                       # Handoff, architecture, annotation policy
 ```
 
 ## Disclaimer

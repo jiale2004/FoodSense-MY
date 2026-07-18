@@ -1,6 +1,6 @@
 # FoodSense-MY Bounding-Box Policy
 
-**Version:** 1.0  
+**Version:** 1.1
 **Effective date:** 18 July 2026  
 **Scope:** CVAT and YOLO annotations for the six FoodSense-MY target classes.
 
@@ -25,7 +25,7 @@ The box should contain the dish as served, including components that define the 
 - Nasi Lemak: coconut rice and the accompanying components presented as one plate or packet, such as sambal, egg, anchovies, peanuts, or cucumber.
 - Chicken Rice: the chicken and rice serving, including closely arranged standard accompaniments on the same plate or tray.
 - Roti Canai: the roti serving itself; include curry only when it is physically part of the same plated serving and a single tight box remains meaningful.
-- Laksa: the bowl or container region containing the noodles, broth, and visible toppings; avoid excessive surrounding table.
+- Laksa: the bowl, plate, or container region containing the noodles, gravy or broth, and visible toppings; avoid excessive surrounding table. The class includes visually diverse Malaysian variants such as curry laksa and the less soupy Laksa Johor, so broth colour, noodle type, or unusual seafood toppings alone are not rejection reasons.
 - Char Kuey Teow and Mee Goreng: the complete noodle portion and visible integral toppings on the plate or in the container.
 
 For a bowl or plate whose food reaches its edges, the box may closely follow the vessel because the food boundary is otherwise ambiguous. Do not routinely box the entire table setting.
@@ -52,7 +52,9 @@ Char Kuey Teow and Mee Goreng require special care. Use visible preparation cues
 - Mee Goreng commonly uses yellow wheat noodles and its characteristic fried-noodle presentation.
 - If the evidence is insufficient, flag the frame for review instead of guessing.
 
-The pilot demonstrated that source labels are unreliable for this pair, including 33 source Mee Goreng images corrected to Char Kuey Teow and 8 in the reverse direction.
+The audited pilot demonstrated that source labels are unreliable for this pair. Its final reviewed assignments include 33 source Mee Goreng images corrected to Char Kuey Teow and 7 in the reverse direction. One initial reverse correction was restored to Char Kuey Teow during Phase A.
+
+Laksa also requires regional awareness. Curry laksa may contain tofu puffs, fish cake, prawns, mixed noodles, or rich coconut broth. Laksa Johor may appear almost dry, use spaghetti-like noodles, and be garnished with cucumber, onion, herbs, and lime. When the visual evidence is plausible but the variant is unfamiliar, flag it for review instead of rejecting it as generic noodles.
 
 ## Rejection Policy
 
@@ -74,7 +76,7 @@ Rejected images are evidence, not disposable files. The import process moves the
 5. Flag uncertain class decisions for review.
 6. Leave a truly non-target frame empty; do not add a placeholder box.
 7. Export in Ultralytics YOLO Detection format.
-8. Run the repository importer without `--apply` first, inspect its report, then rerun with `--apply` only after validation succeeds.
+8. Run the repository importer without `--apply` first, inspect its report, then rerun with `--apply` only after validation succeeds. For corrections to an already-merged batch, supply a new `--revision-id` so the importer creates a recoverable revision backup.
 
 ## Quality-Control Checklist
 
