@@ -138,10 +138,10 @@ python training_scripts/curate_images.py \
   --target-precision 0.98
 ```
 
-Each run writes `curation.jsonl`, `summary.json`, `calibration.json`,
-`manual_decisions.jsonl`, and the routed class folders. Moving files between routed folders
-does not rewrite `curation.jsonl`; that folder state is imported as manual decisions when
-the run is later supplied through `--decisions-from`.
+Each run writes `curation.jsonl`, `summary.json`, and the routed class folders. Calibrated
+runs also write `calibration.json` and `manual_decisions.jsonl`. Moving files between routed
+folders does not rewrite `curation.jsonl`; that folder state is imported as manual decisions
+when the run is later supplied through `--decisions-from`.
 
 Only `two-class-full-v2/manual_review/` requires complete manual sorting. Audit a sample of `accepted/`; `rejected/` contains technical failures and preserved manual rejections, while `duplicate/` requires no review.
 
