@@ -2,194 +2,216 @@
 
 ## System Overview
 
-FoodSense-MY is a modular FastAPI application that detects 6 Malaysian food dishes in uploaded images and provides nutritional advisory information powered by a local JSON knowledge base and an optional LLM (formatting layer only). The repository also contains the acquisition, curation, annotation-conversion, dataset-preparation, tuning, and training utilities used to produce the custom detector.
+FoodSense-MY contains two related systems:
+
+1. a FastAPI application that detects six Malaysian dishes and returns verified nutrition plus an optional LLM-formatted advisory;
+2. a local data pipeline that acquires, curates, consolidates, annotates, splits, trains, and promotes the custom detector.
+
+The application is runnable. Dataset consolidation and the first CVAT pilot are complete; the leakage-safe split, custom training, and model promotion stages remain pending.
 
 ```mermaid
 flowchart LR
-    subgraph frontend [Static Frontend]
-        UI[HTML/CSS/JS]
-    end
-    subgraph api [FastAPI]
-        Routes[routes.py]
-    end
-    subgraph services [Services Layer]
-        VP[VisionProcessor]
-        KR[KnowledgeRetriever]
-        AG[AdvisoryGenerator]
-    end
-    subgraph storage [Local Storage]
-        Weights[data/weights/]
-        KB[data/knowledge_base.json]
-        Uploads[app/static/uploads/]
-    end
-    UI -->|POST /api/predict| Routes
-    Routes --> VP
-    VP -->|MPS/CPU + NMS| Weights
-    Routes --> KR
-    KR --> KB
-    Routes --> AG
-    AG -->|OpenAI or Gemini| ExternalAPI[External LLM API]
-    Routes --> UI
+    UI[Static upload UI] -->|POST /api/predict| API[FastAPI routes]
+    API --> Vision[VisionProcessor]
+    Vision --> Model[YOLO weights]
+    API --> Nutrition[KnowledgeRetriever]
+    Nutrition --> KB[knowledge_base.json]
+    API --> Advisory[AdvisoryGenerator]
+    Advisory --> LLM[OpenAI or Gemini]
+    Advisory --> Template[Local fallback]
+    API --> UI
 ```
 
-## Target Classes (6)
+## Canonical Class Contract
 
-| Class Key | Display Name |
-|-----------|-------------|
-| `nasi_lemak` | Nasi Lemak |
-| `roti_canai` | Roti Canai |
-| `char_kuey_teow` | Char Kuey Teow |
-| `chicken_rice` | Chicken Rice |
-| `laksa` | Laksa |
-| `mee_goreng` | Mee Goreng |
+Class IDs are a cross-system contract shared by dataset3 labels, CVAT, Ultralytics training, inference responses, and the nutrition knowledge base.
 
-## Request Flow
+| ID | Class key | Display name |
+|---:|-----------|--------------|
+| 0 | `nasi_lemak` | Nasi Lemak |
+| 1 | `roti_canai` | Roti Canai |
+| 2 | `char_kuey_teow` | Char Kuey Teow |
+| 3 | `chicken_rice` | Chicken Rice |
+| 4 | `laksa` | Laksa |
+| 5 | `mee_goreng` | Mee Goreng |
 
-1. User uploads a food image via the web UI.
-2. `routes.py` validates the upload and saves it to `app/static/uploads/`.
-3. `VisionProcessor` preprocesses with OpenCV, runs YOLOv11n on MPS/CPU with explicit NMS (`conf=0.5`, `iou=0.45`).
-4. `KnowledgeRetriever` looks up each detected class in `data/knowledge_base.json`.
-5. `AdvisoryGenerator` formats verified JSON data via LLM (or template fallback).
-6. Response includes detections, nutrition, advisory text, and a mandatory disclaimer.
+Never reorder these IDs in CVAT exports or `data.yaml`. Human annotation is authoritative when an image's source folder disagrees with its actual contents.
+
+## Application Request Flow
+
+1. The browser uploads an image.
+2. `app/api/routes.py` validates and stores it under `app/static/uploads/`.
+3. `VisionProcessor` preprocesses with OpenCV and runs YOLO with the configured confidence and IoU thresholds on MPS or CPU.
+4. `KnowledgeRetriever` maps detected canonical classes to verified records in `data/knowledge_base.json`.
+5. `AdvisoryGenerator` formats those records through OpenAI, Gemini, or a local template fallback.
+6. The response contains boxes, classes, confidence, nutrition, advisory text, processing time, and a mandatory disclaimer.
 
 ## Module Responsibilities
 
-| Module | Class | File | Responsibility |
-|--------|-------|------|----------------|
-| Entry point | — | `app/main.py` | FastAPI app, lifespan, static file mounting, CORS |
-| Routes | — | `app/api/routes.py` | `/api/health`, `/api/predict`, `/api/classes` with DI |
-| Config | `Settings` | `app/core/config.py` | Environment variables, TARGET_CLASSES |
-| Security | — | `app/core/security.py` | Upload validation, optional API key check |
-| Schemas | — | `app/models/schemas.py` | Pydantic request/response models |
-| Vision | `VisionProcessor` | `app/services/vision_service.py` | OpenCV preprocessing, YOLOv11n + NMS on MPS/CPU |
-| Data | `KnowledgeRetriever` | `app/services/data_service.py` | JSON knowledge base loading and lookup |
-| LLM | `AdvisoryGenerator` | `app/services/llm_service.py` | LLM as formatting-only layer |
-| Frontend | — | `app/static/` | Upload UI, results display |
+### Application modules
+
+| Module | Main class | File | Responsibility |
+|--------|------------|------|----------------|
+| Entry point | — | `app/main.py` | FastAPI construction, lifespan, CORS, static mounting |
+| Routes | — | `app/api/routes.py` | Health, classes, and prediction endpoints with dependency injection |
+| Configuration | `Settings` | `app/core/config.py` | Paths, thresholds, device, providers, and canonical classes |
+| Security | — | `app/core/security.py` | Upload validation and optional API key |
+| Schemas | — | `app/models/schemas.py` | Pydantic request and response contracts |
+| Vision | `VisionProcessor` | `app/services/vision_service.py` | OpenCV preprocessing, YOLO inference, and NMS |
+| Nutrition | `KnowledgeRetriever` | `app/services/data_service.py` | Local JSON knowledge-base lookup |
+| Advisory | `AdvisoryGenerator` | `app/services/llm_service.py` | Formatting-only LLM call and deterministic fallback |
+| Frontend | — | `app/static/` | Upload interaction and result rendering |
 
 ### Dataset and training modules
 
-| Module | Main class/function | File | Responsibility |
-|--------|---------------------|------|----------------|
-| Scraping CLI | `ImageScraper` | `training_scripts/scrape_images.py` | Coordinates Google, Bing, or UC scraping for selected classes and appends provenance |
-| Google crawler | `GoogleImageCrawler` wrapper | `training_scripts/google_crawler.py` | Hardened icrawler-based Google acquisition |
-| UC crawler | UC scraping helpers | `training_scripts/uc_crawler.py` | SeleniumBase Undetected Chrome acquisition, query logs, and recovered source URLs |
-| Curation CLI | `main` | `training_scripts/curate_images.py` | Loads configuration and runs pilot or calibrated curation |
-| Curation engine | `ImageCurator` | `training_scripts/curation.py` | Validation, SHA-256/dHash deduplication, OpenCLIP scoring, calibration, manifests, and routed views |
-| Curation policy | — | `training_scripts/configs/curation.yaml` | Class prompts and technical, deduplication, and semantic thresholds |
-| Annotation conversion | `VocToYoloConverter` | `training_scripts/convert_voc_to_yolo.py` | Converts reviewed PASCAL VOC boxes to YOLO labels |
-| Dataset preparation | `DatasetPreparer` | `training_scripts/prepare_dataset.py` | Produces train/validation/test folders and `data.yaml` |
-| Hyperparameter tuning | `YoloHyperparameterTuner` | `training_scripts/tune_yolo.py` | Runs Optuna trials for YOLOv11n |
-| Reproducibility | `ReproducibilityManager` | `training_scripts/utils.py` | Fixes Python, NumPy, PyTorch, and MPS seeds |
+| Module | File | Responsibility |
+|--------|------|----------------|
+| Image acquisition | `training_scripts/scrape_images.py` | Coordinate Google, Bing, or SeleniumBase UC scraping and provenance |
+| Google crawler | `training_scripts/google_crawler.py` | Hardened icrawler Google acquisition |
+| UC crawler | `training_scripts/uc_crawler.py` | Undetected Chrome acquisition and recovered source URLs |
+| Curation CLI | `training_scripts/curate_images.py` | Run pilot or calibrated curation |
+| Curation engine | `training_scripts/curation.py` | Technical validation, SHA-256/dHash deduplication, OpenCLIP scoring, calibration, and routed views |
+| Roboflow subset import | `training_scripts/import_roboflow_subset.py` | Validate, map, deduplicate, and preserve provenance for a selected Roboflow class |
+| Dataset3 builder | `training_scripts/build_dataset3.py` | Merge approved sources, collapse exact duplicates, assign leakage groups, and generate the manifest |
+| CVAT batch preparation | `training_scripts/prepare_cvat_pilot.py` | Deterministically sample missing-label images and build an image archive |
+| CVAT merge | `training_scripts/import_cvat_annotations.py` | Validate Ultralytics-YOLO exports, merge labels, update metadata, and quarantine rejected frames |
+| VOC conversion | `training_scripts/convert_voc_to_yolo.py` | Convert reviewed PASCAL VOC annotations to YOLO |
+| Legacy splitting | `training_scripts/prepare_dataset.py` | Random flat-folder split; not safe for dataset3 leakage groups |
+| Hyperparameter tuning | `training_scripts/tune_yolo.py` | Optuna trials for YOLO |
+| Reproducibility | `training_scripts/utils.py` | Fix Python, NumPy, PyTorch, and MPS seeds |
 
-## Environment Variables
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `LLM_PROVIDER` | `openai` or `gemini` | `openai` |
-| `OPENAI_API_KEY` | OpenAI API key | — |
-| `OPENAI_MODEL` | OpenAI model | `gpt-4o-mini` |
-| `GEMINI_API_KEY` | Gemini API key | — |
-| `GEMINI_MODEL` | Gemini model | `gemini-2.0-flash` |
-| `MODEL_WEIGHTS_PATH` | YOLO weights path | `data/weights/best.pt` |
-| `KNOWLEDGE_BASE_PATH` | Nutrition JSON path | `data/knowledge_base.json` |
-| `CONFIDENCE_THRESHOLD` | NMS confidence threshold | `0.5` |
-| `IOU_THRESHOLD` | NMS IoU threshold | `0.45` |
-| `DEVICE` | Compute device (`auto`, `mps`, `cpu`) | `auto` |
-| `MAX_UPLOAD_SIZE_MB` | Max upload size | `10` |
-| `API_KEY_ENABLED` | Require API key | `false` |
-| `API_KEY` | API key value | — |
-
-## Dataset, Training, and Deployment Workflow
+## Dataset and Training Data Flow
 
 ```mermaid
 flowchart TD
-    A[scrape_images.py<br/>Google / Bing / UC] --> B[data/scraped_raw/class]
-    A --> C[data/manifests/downloads.jsonl]
-    B --> D[curate_images.py]
-    D --> E[Technical validation<br/>SHA-256 and dHash deduplication]
-    E --> F[OpenCLIP pilot scoring]
-    F --> G[Manual pilot decisions]
-    G --> H[Class-specific calibrated routing]
-    H --> I[accepted]
-    H --> J[manual_review]
-    H --> K[rejected]
-    H --> V[duplicate]
-    J -->|Human decision| I
-    J -->|Human decision| K
-    I --> L[CVAT bounding-box annotation<br/>external, not automated yet]
-    M[Existing reviewed VOC boxes] --> N[convert_voc_to_yolo.py]
-    L --> O[data/yolo_dataset]
-    N --> O
-    O --> P[prepare_dataset.py]
-    P --> Q[data/dataset/data.yaml]
-    Q --> R[tune_yolo.py / YOLO training]
-    R --> S[runs/detect/train/weights/best.pt]
-    S --> T[data/weights/best.pt]
-    T --> U[Restart FastAPI]
+    D1[dataset1 approved classes] --> Build[build_dataset3.py]
+    D2[dataset2 approved classes] --> Build
+    Web[two-class-full-v2 reviewed accepts] --> Build
+    RF[Roboflow imports] --> Build
+    Build --> Stage[data/dataset3 staging]
+    Build --> Manifest[manifest.jsonl + summary.json]
+    Build --> Reject0[Assembly exclusions and duplicates]
+
+    Stage --> Select[prepare_cvat_pilot.py]
+    Manifest --> Select
+    Select --> Zip[images.zip + selection metadata]
+    Zip --> CVAT[CVAT project and task]
+    CVAT --> Export[Ultralytics YOLO export]
+    Export --> Merge[import_cvat_annotations.py]
+    Merge --> Annotated[Annotated records and YOLO labels]
+    Merge --> Missing[Missing annotation queue]
+    Merge --> Rejected[Rejected non-target quarantine]
+    Merge --> Audit[Archived export and merge report]
+
+    Annotated --> Split[Group-aware annotated-only splitter pending]
+    Manifest --> Split
+    Split --> Baseline[70/20/10 YOLO dataset]
+    Baseline --> Train[YOLO11 baseline training]
+    Train --> Evaluate[Per-class metrics and error review]
+    Evaluate --> Assist[CVAT assisted-label proposals]
+    Assist --> CVAT
+    Evaluate --> Promote[Approved data/weights/best.pt]
+    Promote --> App[FastAPI restart and end-to-end test]
 ```
 
-### Acquisition and curation
+## Dataset3 Data Model
 
-The implemented two-class acquisition defaults to `char_kuey_teow` and `chicken_rice`. Raw source files are immutable inputs; curation creates run-scoped hard-linked views instead of modifying them.
-
-```bash
-python training_scripts/scrape_images.py \
-  --output-dir data/scraped_raw \
-  --classes char_kuey_teow chicken_rice \
-  --max-images 1500 \
-  --engine uc \
-  --google-fallback
-```
-
-New downloads append records to `data/manifests/downloads.jsonl` by default. A provenance record may include the requested class, search query, engine, URL, hash, dimensions, and local path; URL availability depends on the crawler engine.
-
-Create a small pilot, manually move every pilot image into its run's matching `accepted/<class>/` or `rejected/<class>/` folder, and then use that completed run for calibrated routing:
-
-```bash
-python training_scripts/curate_images.py \
-  --input-dir data/scraped_raw \
-  --output-dir data/curation \
-  --run-id two-class-pilot-new \
-  --limit-per-class 100
-
-python training_scripts/curate_images.py \
-  --input-dir data/scraped_raw \
-  --output-dir data/curation \
-  --run-id two-class-full-new \
-  --decisions-from data/curation/runs/two-class-pilot-new \
-  --target-precision 0.98
-```
-
-Calibrated mode auto-accepts only when the pilot's out-of-fold precision target supports a class-specific threshold. It does not semantically auto-reject new valid images: uncertain candidates go to the single `manual_review/` queue. Technical failures go to `rejected/`, while exact or near-duplicates go to `duplicate/`.
-
-Every run contains the routed folders, `curation.jsonl`, and `summary.json`. A calibrated
-run created with `--decisions-from` additionally contains `manual_decisions.jsonl` and
-`calibration.json`:
+`data/dataset3/` is the canonical unsplit staging area. It currently contains 5,293 usable images, 832 annotated images, 847 boxes, 4,461 missing annotations, and 14 rejected pilot records.
 
 ```text
-data/curation/runs/<run-id>/
-├── accepted/<class>/
-├── manual_review/<class>/
-├── rejected/<class>/
-├── duplicate/<class>/
-├── curation.jsonl
+data/dataset3/
+├── <primary-class>/
+│   ├── images/<image-id>.<ext>
+│   └── labels/<image-id>.txt
+├── rejected/
+│   └── cvat_pilot_300/<primary-class>/images/
+├── manifest.jsonl
 ├── summary.json
-├── manual_decisions.jsonl              # calibrated runs only
-└── calibration.json                    # calibrated runs only
+└── README.md
 ```
 
-Folder moves made during review do not rewrite the immutable `curation.jsonl`. Supplying the completed run through `--decisions-from` imports its current accepted/rejected folder state as authoritative manual decisions.
+The six primary class directories are `nasi_lemak`, `roti_canai`, `char_kuey_teow`, `chicken_rice`, `laksa`, and `mee_goreng`.
 
-### Annotation through deployment
+Key rules:
 
-1. Import accepted images into CVAT and create or correct real bounding boxes for every visible target dish. CVAT task creation and export are not automated in this repository.
-2. Export Ultralytics YOLO Detection directly, or convert reviewed VOC XML with `python training_scripts/convert_voc_to_yolo.py --voc-dir ... --images-dir ... --output-dir data/yolo_dataset`.
-3. Validate image/label pairing, canonical class IDs, normalized box bounds, and duplicate grouping before splitting. A final export validator is not implemented yet.
-4. Prepare splits with `python training_scripts/prepare_dataset.py --source-dir data/yolo_dataset --output-dir data/dataset`. This script currently retains pre-existing output, so clean or version the output directory before rerunning with different sources or seeds.
-5. Tune with `python training_scripts/tune_yolo.py --data data/dataset/data.yaml --n-trials 20`.
-6. Train with `yolo detect train model=yolo11n.pt data=data/dataset/data.yaml epochs=100 imgsz=640`.
-7. Deploy with `cp runs/detect/train/weights/best.pt data/weights/best.pt`.
-8. Restart with `uvicorn app.main:app --reload --host 0.0.0.0 --port 8000`.
+- Image IDs are content-derived and stable across materialization.
+- One usable image is materialized per exact SHA-256 digest.
+- `leakage_group` joins exact or near-duplicate images that must stay in one split.
+- `annotation_status` is `annotated`, `missing`, or `rejected`.
+- A primary/source class describes provenance, not necessarily every object in the image.
+- The YOLO label file is authoritative and may contain multiple classes or instances.
+- A rejected non-target image is moved outside the six usable class trees and is not represented by an empty training label.
+
+### Current annotation coverage
+
+| Class | Usable images | Annotated | Boxes | Missing |
+|-------|--------------:|----------:|------:|--------:|
+| Nasi Lemak | 996 | 50 | 51 | 946 |
+| Roti Canai | 995 | 46 | 55 | 949 |
+| Char Kuey Teow | 492 | 151 | 151 | 341 |
+| Chicken Rice | 709 | 313 | 316 | 396 |
+| Laksa | 1,093 | 143 | 144 | 950 |
+| Mee Goreng | 1,008 | 129 | 130 | 879 |
+
+## CVAT Integration Boundary
+
+The repository automates batch preparation and validated result import; CVAT hosts the interactive human review.
+
+Current pilot:
+
+- project `FoodSense-MY dataset3`, ID `425516`;
+- task `dataset3 bounding-box pilot 300`, ID `2438268`;
+- job ID `4258646`;
+- 50 initially missing images per source class, seed 42;
+- 286 labelled images, 299 boxes, and 14 rejected frames after review.
+
+```text
+data/cvat/pilot-300/
+├── images.zip                 # CVAT input package
+├── selection.jsonl           # source record for each frame
+├── summary.json               # deterministic selection summary
+├── cvat-export.zip            # archived Ultralytics YOLO export
+├── merge-report.json          # validated merge outcome
+├── rejected.jsonl             # rejected frame evidence
+└── pre-merge/                 # previous dataset metadata backup
+```
+
+Import is a two-stage operation: validation is the default and `--apply` authorizes mutation only after all archive rows, IDs, paths, and coordinates pass. Rejected frames are moved recoverably into the dataset3 quarantine.
+
+The annotation contract is documented in [`bounding-box-policy.md`](bounding-box-policy.md).
+
+## Split Architecture Requirement
+
+The current `training_scripts/prepare_dataset.py` must not be used unchanged for dataset3. It expects a flat input layout, performs a file-level random split, does not filter by manifest status, and does not preserve leakage groups.
+
+The replacement splitter must:
+
+1. load `manifest.jsonl` and select only usable `annotated` records;
+2. allocate entire `leakage_group` values to train, validation, or test;
+3. target 70/20/10 ratios while balancing class and object counts;
+4. use stable seed 42 and write an immutable split manifest;
+5. copy or hard-link paired images and labels into Ultralytics folders;
+6. generate `data.yaml` with the fixed six-class ID order;
+7. fail validation on cross-split leakage, invalid labels, missing pairs, or absent evaluation classes.
+
+The first target output is `data/dataset3-baseline/`. It should contain only the 832 currently annotated usable images. The final production split should be regenerated from a frozen, more fully annotated manifest while preserving a manually verified holdout test set.
+
+## Model Lifecycle
+
+```text
+yolo11n.pt pretrained initialization
+    → pilot baseline experiment
+    → per-class metrics and qualitative QA
+    → CVAT assisted-labelling proposals
+    → human correction and validated batch merge
+    → frozen final leakage-safe split
+    → final training and threshold calibration
+    → versioned candidate weights
+    → accepted data/weights/best.pt
+    → FastAPI restart and smoke test
+```
+
+Model promotion is deliberate. Training outputs must first be saved under a versioned candidate name. `data/weights/best.pt` represents the application-approved detector, not merely the most recent experiment.
 
 ## Repository Structure
 
@@ -201,47 +223,60 @@ FoodSense-MY/
 │   ├── core/config.py, security.py
 │   ├── models/schemas.py
 │   ├── services/vision_service.py, data_service.py, llm_service.py
-│   └── static/                         # HTML/CSS/JS and runtime uploads
-├── data/                               # Mostly gitignored runtime/dataset state
+│   └── static/
+├── data/                               # Mostly gitignored local state
 │   ├── knowledge_base.json
-│   ├── dataset1/, dataset2/, dataset3/
-│   ├── scraped_raw/                    # Immutable scraped candidates
-│   ├── manifests/downloads.jsonl       # Acquisition provenance
-│   ├── curation/runs/                  # Run-scoped routed views and manifests
-│   ├── yolo_dataset/                   # Reviewed YOLO images/labels; pending
-│   ├── dataset/                        # Prepared splits/data.yaml; pending
-│   └── weights/                        # Custom best.pt; pending
+│   ├── dataset1/, dataset2/
+│   ├── scraped_raw/
+│   ├── curation/runs/
+│   ├── external/roboflow/              # Validated Roboflow source imports
+│   ├── dataset3/                       # Canonical unsplit staging dataset
+│   ├── cvat/pilot-300/                 # Pilot input, export, and audit artifacts
+│   ├── dataset3-baseline/              # Leakage-safe pilot split; pending
+│   └── weights/                        # Approved custom best.pt; pending
 ├── training_scripts/
 │   ├── scrape_images.py, google_crawler.py, uc_crawler.py
 │   ├── curate_images.py, curation.py
-│   ├── configs/curation.yaml
-│   ├── convert_voc_to_yolo.py, prepare_dataset.py, tune_yolo.py
+│   ├── import_roboflow_subset.py
+│   ├── build_dataset3.py
+│   ├── prepare_cvat_pilot.py
+│   ├── import_cvat_annotations.py
+│   ├── convert_voc_to_yolo.py
+│   ├── prepare_dataset.py
+│   ├── tune_yolo.py
 │   └── utils.py
-├── tests/test_curation.py
-├── docs/architecture.md, handoff.md
+├── tests/
+├── docs/architecture.md, handoff.md, bounding-box-policy.md
 ├── requirements.txt
-├── .env.example
-└── README.md
+└── .env.example
 ```
 
-`docs/handoff.md` is the source for current local dataset counts and run status; this document describes the stable system boundaries and workflow.
+## Environment Variables
 
-## LLM Safety Design
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `LLM_PROVIDER` | `openai` or `gemini` | `openai` |
+| `OPENAI_API_KEY` | Optional OpenAI key | — |
+| `OPENAI_MODEL` | OpenAI advisory model | `gpt-4o-mini` |
+| `GEMINI_API_KEY` | Optional Gemini key | — |
+| `GEMINI_MODEL` | Gemini advisory model | `gemini-2.0-flash` |
+| `MODEL_WEIGHTS_PATH` | Application YOLO weights | `data/weights/best.pt` |
+| `KNOWLEDGE_BASE_PATH` | Verified nutrition JSON | `data/knowledge_base.json` |
+| `CONFIDENCE_THRESHOLD` | Inference confidence threshold | `0.5` |
+| `IOU_THRESHOLD` | Inference IoU threshold | `0.45` |
+| `DEVICE` | `auto`, `mps`, or `cpu` | `auto` |
+| `MAX_UPLOAD_SIZE_MB` | Upload size limit | `10` |
+| `API_KEY_ENABLED` | Require an API key | `false` |
+| `API_KEY` | Optional API key value | — |
 
-- Verified nutrition numbers come exclusively from `knowledge_base.json`.
-- The LLM acts as a **text-formatting layer only** — it must not invent calories, macros, ingredients, or medical advice.
-- A fixed `DISCLAIMER` string is always returned server-side in the JSON response.
-- A template-based fallback is used when API keys are missing or LLM calls fail.
+## Safety and Reproducibility
 
-## PyTorch / MPS Notes
+- Nutrition values originate only from `data/knowledge_base.json`; the LLM is a formatting layer.
+- A fixed disclaimer is always returned by the API.
+- Raw acquisition inputs and CVAT exports are retained as provenance.
+- Exact hashes and near-duplicate groups prevent avoidable split leakage.
+- Batch imports validate before mutation and back up dataset metadata.
+- Fixed seeds are used for selection and future splits, but MPS training may still have nondeterministic kernels.
+- Empty/non-target images are quarantined rather than silently treated as background training samples.
 
-- On Apple Silicon Macs, `VisionProcessor` auto-selects `mps` device for YOLOv11n inference.
-- Falls back to `cpu` when MPS is unavailable.
-- Override with `DEVICE=mps` or `DEVICE=cpu` in `.env`.
-- `ReproducibilityManager` in `training_scripts/utils.py` fixes seeds across random, numpy, and torch (including MPS).
-
-## Development Notes
-
-- Until custom weights are trained, the app falls back to Ultralytics pretrained `yolo11n.pt` (COCO classes).
-- Model and knowledge base are loaded once at startup via FastAPI lifespan.
-- Uploaded images are stored in `app/static/uploads/` and served at `/uploads/`.
+See [`handoff.md`](handoff.md) for live counts, completed milestone evidence, and the staged next-step plan.
