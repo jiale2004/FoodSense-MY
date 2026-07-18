@@ -6,7 +6,7 @@
 
 ## 1. Current State
 
-The FastAPI application and its static frontend are runnable, but the custom six-class detector has not yet been trained. The current inference fallback is Ultralytics `yolo11n.pt`, whose COCO classes are not suitable for the target dishes.
+The FastAPI application and its static frontend are runnable. The first custom six-class YOLO11n pilot has completed, but it is retained as an experiment and has not been promoted to the application. The current inference fallback is still Ultralytics `yolo11n.pt`, whose COCO classes are not suitable for the target dishes.
 
 Image acquisition and consolidation are paused. The canonical staging dataset is now `data/dataset3/`. It combines approved content from dataset1, dataset2, the manually curated two-class web run, and two Roboflow imports. Exact duplicates were collapsed, near-duplicate leakage groups were recorded, and the initial CVAT pilot plus its Phase A priority audit have been completed and merged.
 
@@ -19,6 +19,7 @@ Current dataset3 totals:
 - 8 CVAT pilot images rejected because none of the six target classes was present
 - 5,253 leakage groups; 52 groups contain more than one image
 - no custom `data/weights/best.pt` yet
+- Phase C pilot checkpoint available at `runs/detect/dataset3_pilot_v1/weights/best.pt`
 
 Phase B has also materialized the 838 annotated images as the validated
 `data/dataset3-baseline/` training view. Its 84 test candidates are not yet a
@@ -228,14 +229,14 @@ The full policy is [`docs/bounding-box-policy.md`](bounding-box-policy.md). Its 
 | Canonical dataset3 assembly | Implemented |
 | CVAT batch preparation/import | Implemented and pilot-tested |
 | Group-aware annotated-only splitter | Implemented and validated |
-| Custom six-class YOLO model | Not trained |
+| Custom six-class YOLO model | Phase C pilot trained and evaluated; assisted-labelling use only |
 | Production `data/weights/best.pt` | Missing |
 
 Until custom weights are approved and copied to `data/weights/best.pt`, `/api/predict` is only a scaffold test and does not reliably identify the six Malaysian dishes.
 
 ## 8. Verification Completed
 
-After the Phase A audited revision and Phase B split:
+After the Phase A audited revision, Phase B split, and Phase C pilot evaluation:
 
 - `manifest.jsonl` contains 5,307 records: 5,299 usable plus 8 rejected
 - status totals are 838 annotated, 4,461 missing, and 8 rejected
@@ -245,6 +246,9 @@ After the Phase A audited revision and Phase B split:
 - Phase B validation reports zero cross-split leakage groups and zero missing pairs
 - every object class is represented in validation and test
 - the reproducible split-manifest hash is `f87d6f4ab07e463ddca111c4add9c5a6236acf4d08e0c0500b8802f1e45e7d1e`
+- the best Phase C checkpoint is epoch 85 with precision 0.928, recall 0.867, mAP50 0.925, and mAP50–95 0.689
+- the checkpoint's six IDs match the canonical class order
+- the pilot artifacts and evaluation are recorded in [`docs/experiments/dataset3_pilot_v1.md`](experiments/dataset3_pilot_v1.md)
 - all ten repository regression tests pass, including revision and split-integrity coverage
 - `git diff --check` passes
 
@@ -296,9 +300,11 @@ python training_scripts/split_dataset3.py \
 
 **Gate result:** passed. There are zero cross-split leakage groups, zero missing image/label pairs, all six object classes occur in validation and test, and an independent regeneration produced the same split-manifest hash.
 
-### Phase C — Train and evaluate a pilot baseline
+### Phase C — Train and evaluate a pilot baseline: completed
 
-Start with YOLO11n at 640 pixels rather than tuning immediately:
+Start with YOLO11n at 640 pixels rather than tuning immediately.
+
+macOS Apple Silicon:
 
 ```bash
 yolo detect train \
@@ -310,11 +316,28 @@ yolo detect train \
   device=mps
 ```
 
-Evaluate per-class precision, recall, AP50, AP50–95, confusion matrix, and a qualitative error gallery. Overall mAP alone will hide the current imbalance: Nasi Lemak and Roti Canai have only 50 and 46 annotated images, while Chicken Rice has 313.
+Linux HPC NVIDIA GPU — install with [`requirements-hpc.txt`](../requirements-hpc.txt) so PyTorch uses CUDA 12.4 wheels compatible with driver CUDA 12.8 (API `12080`). A newer CUDA wheel fails with `NVIDIA driver on your system is too old (found version 12080)`. Fix `data.yaml` `path:` to the cluster absolute path, transfer `data/dataset3-baseline/` with `rsync -aL` (images are hardlinks into dataset3), then train with `device=0`:
 
-Save the first approved experiment under a versioned filename such as `data/weights/foodsense_dataset3_pilot_v1.pt`. Do not replace the application's `best.pt` until evaluation is accepted.
+```bash
+pip install -r requirements-hpc.txt
+python -c "import torch; print(torch.cuda.is_available(), torch.cuda.get_device_name(0))"
 
-**Gate:** inference works for all six canonical IDs, no pipeline mapping errors, and baseline results are recorded for comparison.
+yolo detect train \
+  model=yolo11n.pt \
+  data=data/dataset3-baseline/data.yaml \
+  epochs=100 \
+  imgsz=640 \
+  seed=42 \
+  device=0 \
+  project=runs/detect \
+  name=dataset3_pilot_v1
+```
+
+Training completed on 18 July 2026. The best checkpoint was selected at epoch 85 with precision 0.928, recall 0.867, mAP50 0.925, and mAP50–95 0.689. Training used Ultralytics `8.4.100`; the full configuration, artifact hashes, per-class revalidation, confusion-matrix findings, and limitations are recorded in [`docs/experiments/dataset3_pilot_v1.md`](experiments/dataset3_pilot_v1.md).
+
+The model is accepted as a CVAT assisted-labelling baseline, not as a production application model. Char Kuey Teow is the weakest class, the validation set has only 10 Nasi Lemak and 11 Roti Canai objects, and the test candidates remain unreviewed. Keep the checkpoint in its versioned run directory and do not replace the application's `best.pt` until a reviewed holdout evaluation is accepted.
+
+**Gate result:** passed for pipeline and assisted-labelling use. Production promotion remains pending.
 
 ### Phase D — Use the baseline for assisted labelling
 
@@ -338,9 +361,11 @@ Save the first approved experiment under a versioned filename such as `data/weig
 
 ## 10. Immediate Recommended Action
 
-Manually verify the 84 entries in `data/dataset3-baseline/test-review-queue.jsonl`, record corrections in dataset3/CVAT rather than editing the split, then regenerate a new versioned split if anything changes. Once the test candidates are accepted and frozen, run the Phase C YOLO11n baseline. That baseline is not expected to be production quality; its purpose is to validate class mappings, expose annotation-policy problems, and accelerate the remaining CVAT work.
+Use the completed Phase C checkpoint to propose boxes in CVAT, with human correction required. Prioritize Char Kuey Teow, Nasi Lemak, and Roti Canai, plus noodle images on which Char Kuey Teow and Mee Goreng disagree. In parallel, manually verify the 84 entries in `data/dataset3-baseline/test-review-queue.jsonl`. If any test annotation changes, correct dataset3/CVAT and regenerate a new versioned split; do not edit the immutable baseline directly. Freeze the accepted test groups before running the final holdout evaluation exactly once.
 
 ## 11. Environment and Runtime
+
+Local app / macOS:
 
 ```bash
 python3 -m venv .venv
@@ -350,16 +375,30 @@ cp .env.example .env
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
+Linux HPC GPU training:
+
+```bash
+python3 -m venv .venv-hpc
+source .venv-hpc/bin/activate
+pip install -U pip
+pip install -r requirements-hpc.txt
+```
+
+`requirements-hpc.txt` pulls torch/torchvision from the CUDA 12.4 wheel index, then installs [`requirements.txt`](../requirements.txt). This avoids the driver mismatch seen when a newer CUDA build is installed on nodes with NVIDIA driver API `12080` (CUDA 12.8). Comments in `requirements.txt` document the same constraint.
+
 Important environment variables include `MODEL_WEIGHTS_PATH`, `KNOWLEDGE_BASE_PATH`, `CONFIDENCE_THRESHOLD`, `IOU_THRESHOLD`, `DEVICE`, `LLM_PROVIDER`, and the optional OpenAI/Gemini credentials.
 
 ## 12. Working Tree Note
 
-At this handoff, the Phase A and Phase B implementation is represented by modifications to:
+At this handoff, the Phase A and Phase B implementation plus HPC install notes are represented by modifications to:
 
 - `README.md`
 - `docs/architecture.md`
 - `docs/bounding-box-policy.md`
+- `docs/experiments/dataset3_pilot_v1.md`
 - `docs/handoff.md`
+- `requirements.txt`
+- `requirements-hpc.txt`
 - `training_scripts/import_cvat_annotations.py`
 - `training_scripts/split_dataset3.py`
 - `tests/test_cvat_revision.py`

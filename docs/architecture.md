@@ -7,7 +7,7 @@ FoodSense-MY contains two related systems:
 1. a FastAPI application that detects six Malaysian dishes and returns verified nutrition plus an optional LLM-formatted advisory;
 2. a local data pipeline that acquires, curates, consolidates, annotates, splits, trains, and promotes the custom detector.
 
-The application is runnable. Dataset consolidation, the first CVAT pilot, its Phase A priority audit, and the Phase B leakage-safe baseline split are complete. Manual test-holdout review, custom training, and model promotion remain pending.
+The application is runnable. Dataset consolidation, the first CVAT pilot, its Phase A priority audit, the Phase B leakage-safe split, and the Phase C YOLO11n pilot are complete. The pilot is approved for assisted-labelling proposals only. Manual test-holdout review, final evaluation, and production model promotion remain pending.
 
 ```mermaid
 flowchart LR
@@ -217,8 +217,8 @@ The final production split should be regenerated from a more fully annotated man
 
 ```text
 yolo11n.pt pretrained initialization
-    → pilot baseline experiment
-    → per-class metrics and qualitative QA
+    → pilot baseline experiment [completed: dataset3_pilot_v1]
+    → per-class metrics and qualitative QA [completed]
     → CVAT assisted-labelling proposals
     → human correction and validated batch merge
     → frozen final leakage-safe split
@@ -229,6 +229,8 @@ yolo11n.pt pretrained initialization
 ```
 
 Model promotion is deliberate. Training outputs must first be saved under a versioned candidate name. `data/weights/best.pt` represents the application-approved detector, not merely the most recent experiment.
+
+The current Phase C artifact is `runs/detect/dataset3_pilot_v1/weights/best.pt`. Its best epoch is 85 with validation mAP50 0.925 and mAP50–95 0.689. Its class mapping is correct, but it is not production-approved: the 84 candidate test images are not frozen, Char Kuey Teow remains the weakest validation class, and Nasi Lemak/Roti Canai have very small validation support. See [`experiments/dataset3_pilot_v1.md`](experiments/dataset3_pilot_v1.md) for the complete evaluation.
 
 ## Repository Structure
 
@@ -251,6 +253,7 @@ FoodSense-MY/
 │   ├── cvat/pilot-300/                 # Pilot input, export, and audit artifacts
 │   ├── dataset3-baseline/              # Generated leakage-safe pilot split
 │   └── weights/                        # Approved custom best.pt; pending
+├── runs/detect/dataset3_pilot_v1/      # Phase C pilot artifacts; not production-promoted
 ├── training_scripts/
 │   ├── scrape_images.py, google_crawler.py, uc_crawler.py
 │   ├── curate_images.py, curation.py
@@ -265,9 +268,19 @@ FoodSense-MY/
 │   └── utils.py
 ├── tests/
 ├── docs/architecture.md, handoff.md, bounding-box-policy.md
-├── requirements.txt
+├── docs/experiments/dataset3_pilot_v1.md
+├── requirements.txt                 # Default / macOS MPS install
+├── requirements-hpc.txt             # NVIDIA CUDA 12.4 index for HPC GPUs
 └── .env.example
 ```
+
+## PyTorch / CUDA Install Boundary
+
+- Local macOS development installs [`requirements.txt`](../requirements.txt) and uses MPS when available.
+- HPC NVIDIA training should install [`requirements-hpc.txt`](../requirements-hpc.txt), which selects CUDA 12.4 wheels via `--extra-index-url https://download.pytorch.org/whl/cu124`.
+- Observed failure mode on CUDA 12.8 drivers (API `12080`): installing a newer CUDA torch wheel raises `RuntimeError: The NVIDIA driver on your system is too old (found version 12080)`. Prefer `cu124` (or `cu126` if `cu124` is unavailable) rather than the newest CUDA index.
+- Ultralytics training on HPC must use `device=0` (or another CUDA device id), not `device=mps`.
+- `data/dataset3-baseline/data.yaml` embeds an absolute `path:`; rewrite it for the cluster. Baseline images are hardlinks into `data/dataset3/`, so transfers must dereference (`rsync -aL`) unless the full staging tree is copied and the split is regenerated on the cluster.
 
 ## Environment Variables
 
@@ -282,7 +295,7 @@ FoodSense-MY/
 | `KNOWLEDGE_BASE_PATH` | Verified nutrition JSON | `data/knowledge_base.json` |
 | `CONFIDENCE_THRESHOLD` | Inference confidence threshold | `0.5` |
 | `IOU_THRESHOLD` | Inference IoU threshold | `0.45` |
-| `DEVICE` | `auto`, `mps`, or `cpu` | `auto` |
+| `DEVICE` | `auto`, `mps`, `cuda`, or `cpu` | `auto` |
 | `MAX_UPLOAD_SIZE_MB` | Upload size limit | `10` |
 | `API_KEY_ENABLED` | Require an API key | `false` |
 | `API_KEY` | Optional API key value | — |

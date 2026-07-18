@@ -3,6 +3,16 @@ uvicorn[standard]>=0.32.0
 python-multipart>=0.0.12
 opencv-python>=4.10.0
 ultralytics>=8.3.0
+# PyTorch install notes:
+# - macOS (MPS): `pip install -r requirements.txt` is enough.
+# - Linux HPC with NVIDIA driver CUDA 12.8 (API 12080 / nvidia-smi "CUDA Version: 12.8"):
+#   a too-new CUDA wheel fails with:
+#     RuntimeError: The NVIDIA driver on your system is too old (found version 12080)
+#   Install CUDA 12.4 wheels first, then this file:
+#     pip install -r requirements-hpc.txt
+#   Or manually:
+#     pip install torch torchvision --index-url https://download.pytorch.org/whl/cu124
+#     pip install -r requirements.txt
 torch>=2.2.0,<2.12
 torchvision>=0.17.0,<0.27
 numpy>=1.26.0

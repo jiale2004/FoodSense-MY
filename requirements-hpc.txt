@@ -1,0 +1,24 @@
+# FoodSense-MY HPC / NVIDIA CUDA install
+#
+# Use on GPU nodes whose driver reports CUDA 12.x (for example CUDA 12.8,
+# driver API 12080). Prefer the CUDA 12.4 wheels below. Newer cu128/cu130
+# builds can fail with:
+#   RuntimeError: The NVIDIA driver on your system is too old (found version 12080)
+#
+# Install:
+#   python3 -m venv .venv-hpc
+#   source .venv-hpc/bin/activate
+#   pip install -U pip
+#   pip install -r requirements-hpc.txt
+#
+# Verify:
+#   python -c "import torch; print(torch.__version__, torch.version.cuda, torch.cuda.is_available(), torch.cuda.get_device_name(0))"
+#
+# Train with device=0 (not device=mps).
+
+--extra-index-url https://download.pytorch.org/whl/cu124
+
+torch>=2.2.0,<2.12
+torchvision>=0.17.0,<0.27
+
+-r requirements.txt

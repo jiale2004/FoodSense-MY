@@ -9,7 +9,7 @@ Nasi Lemak, Roti Canai, Char Kuey Teow, Chicken Rice, Laksa, Mee Goreng
 ## Requirements
 
 - Python 3.10+
-- macOS (Apple Silicon recommended for MPS acceleration) or Windows
+- macOS (Apple Silicon recommended for MPS acceleration), Windows, or Linux HPC with NVIDIA GPU
 
 ## Setup (macOS)
 
@@ -21,6 +21,29 @@ pip install -r requirements.txt
 cp .env.example .env
 # Edit .env with your API keys
 ```
+
+## Setup (Linux HPC / NVIDIA GPU)
+
+Do not install the newest CUDA PyTorch wheel blindly. On nodes whose driver
+reports CUDA 12.8 (driver API `12080`), a too-new wheel fails with:
+
+```text
+RuntimeError: The NVIDIA driver on your system is too old (found version 12080)
+```
+
+Use the CUDA 12.4 pin in [`requirements-hpc.txt`](requirements-hpc.txt):
+
+```bash
+cd FoodSense-MY
+python3 -m venv .venv-hpc
+source .venv-hpc/bin/activate
+pip install -U pip
+pip install -r requirements-hpc.txt
+python -c "import torch; print(torch.cuda.is_available(), torch.cuda.get_device_name(0))"
+```
+
+See comments in [`requirements.txt`](requirements.txt) for the manual
+`cu124` index-url alternative. Train with `device=0`, not `device=mps`.
 
 ## Run
 
@@ -50,12 +73,12 @@ Open [http://localhost:8000](http://localhost:8000) in your browser.
 
 ## Model Weights
 
-Place your trained YOLOv11n weights at `data/weights/best.pt`. Until custom weights are available, the app falls back to Ultralytics pretrained `yolo11n.pt` (COCO classes).
+Place only an approved YOLO detector at `data/weights/best.pt`. Until approved custom weights are available, the app falls back to Ultralytics pretrained `yolo11n.pt` (COCO classes).
 
-After training:
+After training and accepted holdout evaluation:
 
 ```bash
-cp runs/detect/train/weights/best.pt data/weights/best.pt
+cp runs/detect/<approved-run>/weights/best.pt data/weights/best.pt
 ```
 
 ## Training Pipeline
@@ -91,9 +114,10 @@ python training_scripts/split_dataset3.py \
 
 The 84 test candidates in
 `data/dataset3-baseline/test-review-queue.jsonl` still require manual review
-before the test holdout is considered frozen. The pilot training command is:
+before the test holdout is considered frozen. Pilot training commands:
 
 ```bash
+# macOS Apple Silicon
 yolo detect train \
   model=yolo11n.pt \
   data=data/dataset3-baseline/data.yaml \
@@ -101,7 +125,31 @@ yolo detect train \
   imgsz=640 \
   seed=42 \
   device=mps
+
+# Linux HPC NVIDIA GPU (after pip install -r requirements-hpc.txt)
+yolo detect train \
+  model=yolo11n.pt \
+  data=data/dataset3-baseline/data.yaml \
+  epochs=100 \
+  imgsz=640 \
+  seed=42 \
+  device=0 \
+  project=runs/detect \
+  name=dataset3_pilot_v1
 ```
+
+The Phase C run `runs/detect/dataset3_pilot_v1/` completed successfully. Its best
+epoch reached mAP50 0.925 and mAP50–95 0.689 on validation. It is approved for
+CVAT proposals, not production deployment; do not copy it to
+`data/weights/best.pt` before the 84-image test candidate set is reviewed,
+frozen, and evaluated. See
+[`docs/experiments/dataset3_pilot_v1.md`](docs/experiments/dataset3_pilot_v1.md)
+for the per-class assessment and limitations.
+
+Before training on HPC, fix the absolute `path:` in
+`data/dataset3-baseline/data.yaml` to the cluster path, and transfer the
+baseline with hardlinks dereferenced (`rsync -aL`) because baseline images are
+hardlinked into `data/dataset3/`.
 
 See [`docs/handoff.md`](docs/handoff.md) for current counts and next-step gates,
 [`docs/architecture.md`](docs/architecture.md) for the complete data flow, and
