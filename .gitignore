@@ -3,6 +3,7 @@
 .venv/
 venv/
 env/
+.venv-hpc
 
 # Python
 __pycache__/
