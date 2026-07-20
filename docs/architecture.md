@@ -7,7 +7,7 @@ FoodSense-MY contains two related systems:
 1. a FastAPI application that detects six Malaysian dishes and returns verified nutrition plus an optional LLM-formatted advisory;
 2. a local data pipeline that acquires, curates, consolidates, annotates, splits, trains, and promotes the custom detector.
 
-The application is runnable. Dataset consolidation, the first CVAT pilot, its Phase A priority audit, the Phase B leakage-safe split, the Phase C YOLO11n pilot, the reviewed Phase D batch 001 and 002 merges, the no-proposal test-holdout audit, and the locked incremental split are complete. Interim HPC retraining, further assisted annotation, final evaluation, and production model promotion remain pending.
+The application is runnable. Dataset consolidation, the first CVAT pilot, its Phase A priority audit, the Phase B leakage-safe split, the Phase C YOLO11n pilot, the reviewed Phase D batch 001–003 merges, the no-proposal test-holdout audit, the locked incremental split, and interim HPC retraining are complete. Assisted batch 004, further annotation, final evaluation, and production model promotion remain pending.
 
 ```mermaid
 flowchart LR
@@ -127,7 +127,7 @@ flowchart TD
 
 ## Dataset3 Data Model
 
-`data/dataset3/` is the canonical unsplit staging area. After the holdout audit revision it contains 5,277 usable images, 1,416 annotated images, 1,466 boxes, 3,861 missing annotations, and 30 rejected records.
+`data/dataset3/` is the canonical unsplit staging area. After assisted batch 003 it contains 5,266 usable images, 1,705 annotated images, 1,770 boxes, 3,561 missing annotations, and 41 rejected records.
 
 ```text
 data/dataset3/
@@ -157,12 +157,12 @@ Key rules:
 
 | Class | Usable images | Annotated | Boxes | Missing |
 |-------|--------------:|----------:|------:|--------:|
-| Nasi Lemak | 995 | 169 | 179 | 826 |
-| Roti Canai | 990 | 161 | 184 | 829 |
-| Char Kuey Teow | 540 | 319 | 324 | 221 |
-| Chicken Rice | 711 | 395 | 401 | 316 |
-| Laksa | 1,095 | 225 | 229 | 870 |
-| Mee Goreng | 946 | 147 | 149 | 799 |
+| Nasi Lemak | 994 | 228 | 242 | 766 |
+| Roti Canai | 986 | 217 | 247 | 769 |
+| Char Kuey Teow | 565 | 404 | 412 | 161 |
+| Chicken Rice | 712 | 436 | 442 | 276 |
+| Laksa | 1,094 | 264 | 269 | 830 |
+| Mee Goreng | 915 | 156 | 158 | 759 |
 
 ## CVAT Integration Boundary
 
@@ -227,6 +227,21 @@ archive validation. Human review accepted 304 rectangles on 287 images,
 rejected 13 non-target frames, retained two multi-class images, and made 36
 primary-class corrections. The reviewed export SHA-256 is
 `05c841a65aac8477d7cefadcf516718989fbc37b4b95eac0be1cb2faedff75fa`.
+Dry validation passed and the guarded merge created the archived export,
+`pre-merge/`, `merge-report.json`, and recoverable rejection evidence.
+
+Phase D batch 003 is local at `data/cvat/assisted-batch-003/`. Seed 45 selected
+300 missing-label records from 300 distinct leakage groups using the same
+60/60/60/40/40/40 source-class quotas and the interim v2 checkpoint. The
+selector excluded all 81 locked test groups and all 951 groups selected by the
+original pilot plus batches 001 and 002. The model proposed 342 boxes on 298
+images at confidence 0.20; 213 frames are marked high priority in
+`predictions.jsonl`. Both ZIP archives pass structural validation. CVAT task
+`2441914` and completed job `4262530` contained all 300 images. Human review
+accepted 304 rectangles on 289 images, rejected 11 non-target frames, retained
+one multi-class image, and made 30 primary-class corrections, including 26
+`mee_goreng` → `char_kuey_teow`. The reviewed export SHA-256 is
+`5df6061b5d34beb971aacb05d53dad5b564372e25c7ada6461885b0ea2ec9c2b`.
 Dry validation passed and the guarded merge created the archived export,
 `pre-merge/`, `merge-report.json`, and recoverable rejection evidence.
 
@@ -331,11 +346,12 @@ immutable Phase B test manifest + pending queue
 yolo11n.pt pretrained initialization
     → pilot baseline experiment [completed: dataset3_pilot_v1]
     → per-class metrics and qualitative QA [completed]
-    → CVAT assisted-labelling proposals [batches 001 and 002 completed]
-    → human correction and validated batch merge [batches 001 and 002 completed]
+    → CVAT assisted-labelling proposals [batches 001–003 completed]
+    → human correction and validated batch merge [batches 001–003 completed]
     → no-proposal holdout verification [task 2441672; completed and applied]
     → locked reviewed holdout in a new leakage-safe split [completed]
-    → interim HPC retraining for assisted batch 003 [pending]
+    → interim HPC retraining [completed: dataset3_interim_v2]
+    → assisted batch 004 proposals and human review [pending]
     → final training and threshold calibration after annotation freeze
     → versioned candidate weights
     → accepted data/weights/best.pt
@@ -344,7 +360,15 @@ yolo11n.pt pretrained initialization
 
 Model promotion is deliberate. Training outputs must first be saved under a versioned candidate name. `data/weights/best.pt` represents the application-approved detector, not merely the most recent experiment.
 
-The current Phase C artifact is `runs/detect/dataset3_pilot_v1/weights/best.pt`. Its best epoch is 85 with validation mAP50 0.925 and mAP50–95 0.689. Its class mapping is correct, but it is not production-approved: 3,861 images remain unannotated, Char Kuey Teow remains the weakest validation class, and the locked holdout must stay unevaluated until final model selection. See [`experiments/dataset3_pilot_v1.md`](experiments/dataset3_pilot_v1.md) for the complete evaluation.
+The current assisted-labelling artifact is
+`runs/detect/dataset3_interim_v2/weights/best.pt`. Ultralytics `8.4.100`
+selected epoch 75 with validation mAP50 0.938 and mAP50–95 0.747, improving
+the pilot's 0.925 and 0.689 on the expanded validation view. It is not
+production-approved: 3,561 images remain unannotated, noodle-class confusion
+and Chicken Rice localization still need targeted review, and the locked test
+set must stay unevaluated until final model selection. See
+[`experiments/dataset3_interim_v2.md`](experiments/dataset3_interim_v2.md) for
+the complete evaluation.
 
 ## Repository Structure
 
@@ -367,11 +391,13 @@ FoodSense-MY/
 │   ├── cvat/pilot-300/                 # Pilot input, export, and audit artifacts
 │   ├── cvat/assisted-batch-001/         # Phase D input, proposals, and review metadata
 │   ├── cvat/assisted-batch-002/         # Reviewed export and recovery metadata
+│   ├── cvat/assisted-batch-003/         # Interim-v2 proposals, reviewed export, merge report
 │   ├── cvat/test-holdout-review-v1/      # No-proposal candidate-test verification package
 │   ├── dataset3-baseline/              # Generated leakage-safe pilot split
 │   ├── dataset3-interim-v2/            # Locked holdout + expanded train/validation
 │   └── weights/                        # Approved custom best.pt; pending
 ├── runs/detect/dataset3_pilot_v1/      # Phase C pilot artifacts; not production-promoted
+├── runs/detect/dataset3_interim_v2/    # HPC interim artifacts; batch-003 proposal model
 ├── training_scripts/
 │   ├── scrape_images.py, google_crawler.py, uc_crawler.py
 │   ├── curate_images.py, curation.py
@@ -390,6 +416,7 @@ FoodSense-MY/
 ├── docs/architecture.md, handoff.md, bounding-box-policy.md
 ├── docs/cvat-collaborator-guide.md    # Group-member upload/review/export procedure
 ├── docs/experiments/dataset3_pilot_v1.md
+├── docs/experiments/dataset3_interim_v2.md
 ├── requirements.txt                 # Default / macOS MPS install
 ├── requirements-hpc.txt             # NVIDIA CUDA 12.4 index for HPC GPUs
 └── .env.example

@@ -83,10 +83,10 @@ cp runs/detect/<approved-run>/weights/best.pt data/weights/best.pt
 
 ## Training Pipeline
 
-The canonical unsplit staging dataset is `data/dataset3/`. After the completed
-holdout audit revision it contains 5,277 usable images, including 1,416
-annotated images with 1,466 boxes. Another 3,861 images still require
-annotation; 30 reviewed non-target images are quarantined.
+The canonical unsplit staging dataset is `data/dataset3/`. After assisted
+batch 003 it contains 5,266 usable images, including 1,705 annotated images
+with 1,770 boxes. Another 3,561 images still require annotation; 41 reviewed
+non-target images are quarantined.
 
 Do not run `training_scripts/prepare_dataset.py` against dataset3. That legacy
 utility performs a file-level random split and does not preserve the manifest's
@@ -259,17 +259,27 @@ archival. Human review accepted 304 boxes on 287 images and
 quarantined 13 non-target frames. The reviewed export passed dry validation and
 was applied with a recoverable pre-merge backup.
 
+Phase D batch 003 was prepared at `data/cvat/assisted-batch-003/` using seed 45
+and `runs/detect/dataset3_interim_v2/weights/best.pt`. It contains 300 new
+leakage groups, has zero overlap with the 81 locked test groups or 951 prior
+CVAT groups, and provides 342 proposal boxes on 298 images. CVAT task
+`2441914`, job `4262530`, reviewed the batch: human review accepted 304 boxes
+on 289 images and quarantined 11 non-target frames. The reviewed export passed
+dry validation and was applied with a recoverable pre-merge backup.
+
 The reserved holdout package contains 84 images, 86 existing human boxes, and
 83 leakage groups. It includes all six object classes and no model-generated
 annotations. `selection.jsonl` makes the later correction import revision-safe,
 and package creation fails if the baseline queue, current images, or labels
 have drifted.
 
-For the next HPC run, transfer `data/dataset3-interim-v2/` with hardlinks
-dereferenced (`rsync -aL`) and change its `data.yaml` absolute `path:` to the
-cluster directory. Train a new run from the pilot checkpoint without using
-`resume=True`; use validation for model selection and leave `split=test`
-untouched during interim annotation cycles.
+The HPC run `runs/detect/dataset3_interim_v2/` is complete. Ultralytics
+`8.4.100` selected epoch 75 with precision 0.912, recall 0.868, mAP50 0.938,
+and mAP50–95 0.747, then stopped normally at epoch 95 after the configured
+20-epoch patience. The checkpoint remains accepted for assisted-batch
+proposals, not production deployment. The locked test set remains untouched. See
+[`docs/experiments/dataset3_interim_v2.md`](docs/experiments/dataset3_interim_v2.md)
+for hashes, per-class validation, and error analysis.
 
 See [`docs/handoff.md`](docs/handoff.md) for current counts and next-step gates,
 [`docs/architecture.md`](docs/architecture.md) for the complete data flow, and
@@ -346,6 +356,7 @@ data/
 ├── cvat/pilot-300/         # CVAT input, exports, reports, revisions
 ├── cvat/assisted-batch-001/ # Phase D images, proposals, and review metadata
 ├── cvat/assisted-batch-002/ # Reviewed export, merge report, and recovery metadata
+├── cvat/assisted-batch-003/ # Interim-v2 proposals, reviewed export, and merge report
 ├── dataset3-baseline/      # Generated group-safe 70/20/10 pilot split
 ├── dataset3-interim-v2/    # Locked reviewed holdout + expanded train/validation
 └── weights/                # Approved custom weights

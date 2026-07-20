@@ -63,7 +63,8 @@ Production promotion is blocked by evidence quality, not by a pipeline failure:
 
 1. the later audit accepted 82 of the 84 test candidates and
    `data/dataset3-interim-v2/` now locks the 82 images in 81 leakage groups;
-2. 3,861 Dataset3 images still need annotations, so this is not the final
+2. At the time of this pilot, thousands of Dataset3 images still needed
+   annotations, so this is not the final detector,
    production-training corpus;
 3. the model has not been evaluated once on the accepted untouched test set;
 4. class support is imbalanced, particularly for Nasi Lemak and Roti Canai;
