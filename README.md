@@ -84,8 +84,8 @@ cp runs/detect/<approved-run>/weights/best.pt data/weights/best.pt
 ## Training Pipeline
 
 The canonical unsplit staging dataset is `data/dataset3/`. After assisted
-batch 004 it contains 5,235 usable images, including 2,174 annotated images
-with 2,267 boxes. Another 3,061 images still require annotation; 72 reviewed
+batch 006 it contains 5,198 usable images, including 2,798 annotated images
+with 2,936 boxes. Another 2,400 images still require annotation; 109 reviewed
 non-target images are quarantined.
 
 Do not run `training_scripts/prepare_dataset.py` against dataset3. That legacy
@@ -278,9 +278,27 @@ and was applied with a recoverable pre-merge backup.
 Phase D batch 005 was prepared at `data/cvat/assisted-batch-005/` using seed 47
 and `runs/detect/dataset3_interim_v3/weights/best.pt`. It contains 300 new
 leakage groups, has zero overlap with the 81 locked test groups or 1,751 prior
-selection groups, and provides 358 proposal boxes on 299 images. Human review
-and guarded import are pending; upload `images.zip` first and import
-`preannotations.zip` as **Ultralytics YOLO Detection**.
+selection groups, and provides 358 proposal boxes on 299 images. CVAT task
+`2442437`, job `4263052`, reviewed the batch: human review accepted 304 boxes
+on 290 images and quarantined 10 non-target frames, including 35
+`mee_goreng` → `char_kuey_teow` corrections. Accepted Mee Goreng boxes were only
+4, so later batches should deliberately raise Mee Goreng quotas. The reviewed
+export passed dry validation and was applied with a recoverable pre-merge
+backup.
+
+Phase D batch 006 was prepared at `data/cvat/assisted-batch-006/` using seed 48
+with raised Mee Goreng / Roti Canai / Laksa quotas and zero Char Kuey Teow
+selections. It contains 361 new leakage groups, has zero overlap with the 81
+locked test groups or 2,051 prior selection groups, and provides 441 proposal
+boxes on all 361 images. CVAT task `2442499`, job `4263273`, reviewed the batch:
+human review accepted 365 boxes on 334 images and quarantined 27 non-target
+frames, including 81 `mee_goreng` → `char_kuey_teow` corrections. One
+multi-class frame whose source `mee_goreng` class was absent from the reviewed
+boxes was resolved with the new `import_cvat_annotations.py`
+`--primary-class-override` flag. In total 93 of the 100 source Mee Goreng frames
+were mislabeled or empty, leaving only 4 accepted Mee Goreng boxes, so genuine
+Mee Goreng images must now be recruited by web scraping. The reviewed export
+passed dry validation and was applied with a recoverable pre-merge backup.
 
 The reserved holdout package contains 84 images, 86 existing human boxes, and
 83 leakage groups. It includes all six object classes and no model-generated
@@ -378,7 +396,8 @@ data/
 ├── cvat/assisted-batch-002/ # Reviewed export, merge report, and recovery metadata
 ├── cvat/assisted-batch-003/ # Interim-v2 proposals, reviewed export, and merge report
 ├── cvat/assisted-batch-004/ # 500-image reviewed export and merge report
-├── cvat/assisted-batch-005/ # Interim-v3 proposal package; review pending
+├── cvat/assisted-batch-005/ # Interim-v3 reviewed export and merge report
+├── cvat/assisted-batch-006/ # Mee Goreng-priority reviewed export and merge report
 ├── dataset3-baseline/      # Generated group-safe 70/20/10 pilot split
 ├── dataset3-interim-v2/    # Locked reviewed holdout + expanded train/validation
 ├── dataset3-interim-v3/    # Interim-v3 locked split (1,674/418/82)

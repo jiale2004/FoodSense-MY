@@ -7,7 +7,7 @@ FoodSense-MY contains two related systems:
 1. a FastAPI application that detects six Malaysian dishes and returns verified nutrition plus an optional LLM-formatted advisory;
 2. a local data pipeline that acquires, curates, consolidates, annotates, splits, trains, and promotes the custom detector.
 
-The application is runnable. Dataset consolidation, the first CVAT pilot, its Phase A priority audit, the Phase B leakage-safe split, the Phase C YOLO11n pilot, the reviewed Phase D batch 001–004 merges, the no-proposal test-holdout audit, two locked incremental splits, and two interim HPC retrains (`dataset3_interim_v2` and `dataset3_interim_v3`) are complete. Assisted batch 005 review, further annotation, final evaluation, and production model promotion remain pending.
+The application is runnable. Dataset consolidation, the first CVAT pilot, its Phase A priority audit, the Phase B leakage-safe split, the Phase C YOLO11n pilot, the reviewed Phase D batch 001–006 merges, the no-proposal test-holdout audit, two locked incremental splits, and two interim HPC retrains (`dataset3_interim_v2` and `dataset3_interim_v3`) are complete. Genuine Mee Goreng recruitment (web scraping), further annotation, an interim v4 retrain, final evaluation, and production model promotion remain pending.
 
 ```mermaid
 flowchart LR
@@ -75,7 +75,7 @@ Never reorder these IDs in CVAT exports or `data.yaml`. Human annotation is auth
 | Dataset3 builder | `training_scripts/build_dataset3.py` | Merge approved sources, collapse exact duplicates, assign leakage groups, and generate the manifest |
 | CVAT batch preparation | `training_scripts/prepare_cvat_pilot.py` | Deterministically sample missing-label images and build an image archive |
 | CVAT assisted batch | `training_scripts/prepare_cvat_assisted_batch.py` | Exclude candidate-test and prior-selection groups, apply class quotas, generate pilot-model proposals, and package CVAT artifacts |
-| CVAT merge/revision | `training_scripts/import_cvat_annotations.py` | Validate first-time or replacement exports, merge/revise labels, create recoverable backups, and quarantine rejected frames |
+| CVAT merge/revision | `training_scripts/import_cvat_annotations.py` | Validate first-time or replacement exports, merge/revise labels, create recoverable backups, quarantine rejected frames, and (via `--primary-class-override`) reassign a multi-class frame whose source class is absent from the reviewed boxes |
 | Dataset3 splitting | `training_scripts/split_dataset3.py` | Build a fresh group-stratified split or preserve base train/validation assignments while locking a reviewed holdout; materialize immutable YOLO views and validate hashes and coverage |
 | VOC conversion | `training_scripts/convert_voc_to_yolo.py` | Convert reviewed PASCAL VOC annotations to YOLO |
 | Legacy splitting | `training_scripts/prepare_dataset.py` | Random flat-folder split; not safe for dataset3 leakage groups |
@@ -127,7 +127,7 @@ flowchart TD
 
 ## Dataset3 Data Model
 
-`data/dataset3/` is the canonical unsplit staging area. After assisted batch 004 it contains 5,235 usable images, 2,174 annotated images, 2,267 boxes, 3,061 missing annotations, and 72 rejected records.
+`data/dataset3/` is the canonical unsplit staging area. After assisted batch 006 it contains 5,198 usable images, 2,798 annotated images, 2,936 boxes, 2,400 missing annotations, and 109 rejected records.
 
 ```text
 data/dataset3/
@@ -157,12 +157,12 @@ Key rules:
 
 | Class | Usable images | Annotated | Boxes | Missing |
 |-------|--------------:|----------:|------:|--------:|
-| Nasi Lemak | 989 | 323 | 342 | 666 |
-| Roti Canai | 981 | 312 | 351 | 669 |
-| Char Kuey Teow | 612 | 551 | 561 | 61 |
-| Chicken Rice | 708 | 499 | 512 | 209 |
-| Laksa | 1,087 | 324 | 334 | 763 |
-| Mee Goreng | 858 | 165 | 167 | 693 |
+| Nasi Lemak | 994 | 448 | 473 | 546 |
+| Roti Canai | 974 | 445 | 506 | 529 |
+| Char Kuey Teow | 726 | 725 | 742 | 1 |
+| Chicken Rice | 703 | 575 | 593 | 128 |
+| Laksa | 1,075 | 432 | 446 | 643 |
+| Mee Goreng | 726 | 173 | 176 | 553 |
 
 ## CVAT Integration Boundary
 
@@ -259,15 +259,38 @@ and made 61 primary-class corrections, including 51 `mee_goreng` →
 Dry validation passed and the guarded merge created the archived export,
 `pre-merge/`, `merge-report.json`, and recoverable rejection evidence.
 
-Phase D batch 005 is staged at `data/cvat/assisted-batch-005/`. Seed 47 selected
+Phase D batch 005 is local at `data/cvat/assisted-batch-005/`. Seed 47 selected
 300 missing-label records from 300 distinct leakage groups using 60/60/60/40/40/40
 source-class quotas and the interim v3 checkpoint. The selector excluded all 81
 locked test groups and 1,751 prior selection groups. The model proposed 358
-boxes on 299 images at confidence 0.20; 239 frames are high priority and one has
-no proposal. Only four Mee Goreng boxes were proposed, reflecting the interim v3
-recall gap, so reviewers must add missing Mee Goreng instances manually. Both ZIP
-archives pass integrity checks and the embedded class mapping is canonical. Human
-review and guarded import remain pending.
+boxes on 299 images at confidence 0.20; 239 frames are high priority and one had
+no proposal. CVAT task `2442437` and completed job `4263052` contained all 300
+images. Human review accepted 304 rectangles on 290 images, rejected 10
+non-target frames, and made 43 primary-class corrections, including 35
+`mee_goreng` → `char_kuey_teow`. Accepted Mee Goreng boxes were only 4. The
+reviewed export SHA-256 is
+`1e9940052a5d52cf5b7f5c874bd7a5fe3162498751d4bfed0a50da348a7b73f1`.
+Dry validation passed and the guarded merge created the archived export,
+`pre-merge/`, `merge-report.json`, and recoverable rejection evidence.
+
+Phase D batch 006 is local at `data/cvat/assisted-batch-006/`. Seed 48 selected
+361 missing-label records from 361 distinct leakage groups using raised Mee
+Goreng / Roti Canai / Laksa quotas (100/80/80) plus 60 Nasi Lemak and 41 Chicken
+Rice, with zero Char Kuey Teow because no selectable missing Char Kuey Teow
+groups remain outside locked test/prior sets. The selector excluded all 81
+locked test groups and 2,051 prior selection groups. The model proposed 441
+boxes on all 361 images at confidence 0.20. CVAT task `2442499` and completed
+job `4263273` contained all 361 images. Human review accepted 365 rectangles on
+334 images, rejected 27 non-target frames, and made 86 primary-class
+corrections, including 81 `mee_goreng` → `char_kuey_teow`. One multi-class frame
+whose source `mee_goreng` class was absent from the reviewed boxes was resolved
+with `--primary-class-override <sha>=char_kuey_teow`. In total 93 of the 100
+source Mee Goreng frames were mislabeled or empty, leaving only 4 accepted Mee
+Goreng boxes, so genuine Mee Goreng images must be recruited by web scraping. The
+reviewed export SHA-256 is
+`b7ffe0f860266848f11aae3eb1e8f59b0e6b38569361b00ed87230d956bd1dd4`. Dry
+validation passed and the guarded merge created the archived export, `pre-merge/`,
+`merge-report.json`, and recoverable rejection evidence.
 
 `training_scripts/prepare_test_holdout_review.py` is the boundary between the
 immutable Phase B candidate set and manual holdout verification. It requires an
@@ -376,8 +399,12 @@ yolo11n.pt pretrained initialization
     → locked reviewed holdout in a new leakage-safe split [completed]
     → interim HPC retraining v2 [completed: dataset3_interim_v2]
     → locked incremental split + interim HPC retraining v3 [completed: dataset3_interim_v3]
-    → assisted batch 005 proposals [prepared]
-    → assisted batch 005 human review and guarded merge [pending]
+    → assisted batch 005 proposals [completed]
+    → assisted batch 005 human review and guarded merge [completed]
+    → assisted batch 006 with Mee Goreng priority [completed]
+    → assisted batch 006 human review and guarded merge [completed]
+    → genuine Mee Goreng recruitment via web scraping [pending]
+    → assisted batch 007 + interim HPC retraining v4 (lower lr0) [pending]
     → final training and threshold calibration after annotation freeze
     → versioned candidate weights
     → accepted data/weights/best.pt
@@ -390,7 +417,7 @@ The current assisted-labelling artifact is
 `runs/detect/dataset3_interim_v3/weights/best.pt`. It was fine-tuned from the
 interim v2 checkpoint on the expanded `dataset3-interim-v3` split and selected
 epoch 1 with validation mAP50 0.932 and mAP50–95 0.761. It is not
-production-approved: 3,061 images remain unannotated, Mee Goreng recall dropped
+production-approved: 2,400 images remain unannotated, Mee Goreng recall dropped
 to 0.513, noodle-class confusion and Chicken Rice localization still need
 targeted review, and the locked test set must stay unevaluated until final model
 selection. The epoch-1 peak indicates the fine-tuning learning rate should be
@@ -422,7 +449,8 @@ FoodSense-MY/
 │   ├── cvat/assisted-batch-002/         # Reviewed export and recovery metadata
 │   ├── cvat/assisted-batch-003/         # Interim-v2 proposals, reviewed export, merge report
 │   ├── cvat/assisted-batch-004/         # 500-image reviewed export and merge report
-│   ├── cvat/assisted-batch-005/         # Interim-v3 proposal package; review pending
+│   ├── cvat/assisted-batch-005/         # Interim-v3 reviewed export and merge report
+│   ├── cvat/assisted-batch-006/         # Mee Goreng-priority reviewed export and merge report
 │   ├── cvat/test-holdout-review-v1/      # No-proposal candidate-test verification package
 │   ├── dataset3-baseline/              # Generated leakage-safe pilot split
 │   ├── dataset3-interim-v2/            # Locked holdout + expanded train/validation
@@ -430,7 +458,7 @@ FoodSense-MY/
 │   └── weights/                        # Approved custom best.pt; pending
 ├── runs/detect/dataset3_pilot_v1/      # Phase C pilot artifacts; not production-promoted
 ├── runs/detect/dataset3_interim_v2/    # HPC interim v2 artifacts
-├── runs/detect/dataset3_interim_v3/    # HPC interim v3 artifacts; batch-005 proposal model
+├── runs/detect/dataset3_interim_v3/    # HPC interim v3 artifacts; current proposal model
 ├── training_scripts/
 │   ├── scrape_images.py, google_crawler.py, uc_crawler.py
 │   ├── curate_images.py, curation.py

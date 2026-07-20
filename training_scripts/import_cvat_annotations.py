@@ -575,8 +575,10 @@ def apply_merge(
     task_id: int,
     job_id: int,
     batch_id: str,
+    primary_overrides: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     batch_id = validated_batch_id(batch_id)
+    primary_overrides = primary_overrides or {}
     backup_dir = pilot_dir / "pre-merge"
     if backup_dir.exists():
         raise FileExistsError(f"Pre-merge backup already exists: {backup_dir}")
@@ -628,10 +630,18 @@ def apply_merge(
             primary_class = TARGET_CLASSES[next(iter(classes))]
         elif CLASS_IDS[original_class] in classes:
             primary_class = original_class
+        elif image_id in primary_overrides:
+            primary_class = primary_overrides[image_id]
+            if CLASS_IDS[primary_class] not in classes:
+                raise ValueError(
+                    f"Primary-class override {primary_class!r} for {image_id} "
+                    "is not present among the reviewed boxes"
+                )
         else:
             raise ValueError(
                 f"Multi-class image {image_id} does not contain its original class; "
-                "a primary class decision is required"
+                "supply --primary-class-override "
+                f"{image_id}=<one of {sorted(TARGET_CLASSES[c] for c in classes)}>"
             )
 
         if primary_class != original_class:
@@ -722,8 +732,29 @@ def main() -> None:
         "--revision-id",
         help="Apply a replacement export to an already-merged selection",
     )
+    parser.add_argument(
+        "--primary-class-override",
+        action="append",
+        default=[],
+        metavar="SHA256=CLASS",
+        help=(
+            "Resolve a multi-class image whose original source class is absent by "
+            "assigning its primary (folder) class; repeatable"
+        ),
+    )
     parser.add_argument("--apply", action="store_true")
     args = parser.parse_args()
+
+    primary_overrides: dict[str, str] = {}
+    for item in args.primary_class_override:
+        sha, _, cls = item.partition("=")
+        sha, cls = sha.strip(), cls.strip()
+        if not sha or cls not in CLASS_IDS:
+            parser.error(
+                f"Invalid --primary-class-override {item!r}; "
+                "expected SHA256=<one of the six target classes>"
+            )
+        primary_overrides[sha] = cls
 
     selection_path = args.pilot_dir / "selection.jsonl"
     if args.revision_id:
@@ -761,6 +792,7 @@ def main() -> None:
                 args.task_id,
                 args.job_id,
                 batch_id,
+                primary_overrides,
             )
     print(json.dumps(report, indent=2, sort_keys=True))
 

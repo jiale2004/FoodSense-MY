@@ -96,7 +96,9 @@ frame, prioritizing Mee Goreng and Roti Canai recruitment and Char Kuey
 Teow/Mee Goreng disagreements.
 
 Do not copy this checkpoint to `data/weights/best.pt` and do not run
-`split=test`. The dataset still has 3,061 missing annotations, so the locked
-holdout remains untouched until the final annotation freeze and validation-only
-model selection are complete. For the next interim retrain, lower `lr0` and
-consider `yolo11s` if the small model is capacity-limited on the noodle classes.
+`split=test`. After batch 005, Dataset3 still has 2,761 missing annotations, so
+the locked holdout remains untouched until the final annotation freeze and
+validation-only model selection are complete. For the next interim retrain,
+lower `lr0` and consider `yolo11s` if the small model is capacity-limited on the
+noodle classes. Prioritize genuine Mee Goreng recruitment in later assisted
+batches.
