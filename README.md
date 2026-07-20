@@ -84,8 +84,8 @@ cp runs/detect/<approved-run>/weights/best.pt data/weights/best.pt
 ## Training Pipeline
 
 The canonical unsplit staging dataset is `data/dataset3/`. After assisted
-batch 006 it contains 5,198 usable images, including 2,798 annotated images
-with 2,936 boxes. Another 2,400 images still require annotation; 109 reviewed
+batch 007 it contains 5,177 usable images, including 3,277 annotated images
+with 3,464 boxes. Another 1,900 images still require annotation; 130 reviewed
 non-target images are quarantined.
 
 Do not run `training_scripts/prepare_dataset.py` against dataset3. That legacy
@@ -303,12 +303,12 @@ passed dry validation and was applied with a recoverable pre-merge backup.
 Phase D batch 007 was prepared at `data/cvat/assisted-batch-007/` using seed 49
 and `runs/detect/dataset3_interim_v3/weights/best.pt`. It contains 500 new
 leakage groups, has zero overlap with the 81 locked test groups or 2,361 prior
-selection groups, and provides 617 proposal boxes on 497 images. Quotas favor
-remaining volume (Laksa 130, Nasi Lemak 120, Roti Canai 120, Chicken Rice 70,
-Mee Goreng 60, Char Kuey Teow 0). Only five Mee Goreng boxes were proposed.
-Upload `images.zip` first and import `preannotations.zip` as **Ultralytics YOLO
-Detection**. Web scraping for genuine Mee Goreng is deferred until after this
-remaining-folder review.
+selection groups, and provides 617 proposal boxes on 497 images. CVAT task
+`2443011`, job `4263873`, reviewed the batch: human review accepted 528 boxes
+on 479 images and quarantined 21 non-target frames, including 50
+`mee_goreng` → `char_kuey_teow` corrections. Accepted Mee Goreng boxes were only
+5. The reviewed export passed dry validation and was applied with a recoverable
+pre-merge backup. Web scraping for genuine Mee Goreng is the next decision gate.
 
 The reserved holdout package contains 84 images, 86 existing human boxes, and
 83 leakage groups. It includes all six object classes and no model-generated
@@ -408,7 +408,7 @@ data/
 ├── cvat/assisted-batch-004/ # 500-image reviewed export and merge report
 ├── cvat/assisted-batch-005/ # Interim-v3 reviewed export and merge report
 ├── cvat/assisted-batch-006/ # Mee Goreng-priority reviewed export and merge report
-├── cvat/assisted-batch-007/ # 500-image proposal package; review pending
+├── cvat/assisted-batch-007/ # 500-image reviewed export and merge report
 ├── dataset3-baseline/      # Generated group-safe 70/20/10 pilot split
 ├── dataset3-interim-v2/    # Locked reviewed holdout + expanded train/validation
 ├── dataset3-interim-v3/    # Interim-v3 locked split (1,674/418/82)

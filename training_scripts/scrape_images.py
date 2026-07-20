@@ -54,9 +54,11 @@ QUERY_VARIANTS: dict[str, list[str]] = {
         "sarawak laksa malaysia",
     ],
     "mee_goreng": [
-        "mee goreng mamak malaysia",
-        "fried noodles malaysia mamak",
-        "mee goreng hawker malaysia",
+        "mee goreng mamak malaysia yellow noodles",
+        "indian mee goreng malaysia mamak plate",
+        "mee goreng mamak egg tomato malaysia",
+        "mee goreng mamak restaurant malaysia",
+        "malaysian mee goreng yellow noodle wok",
     ],
 }
 

@@ -7,7 +7,7 @@ FoodSense-MY contains two related systems:
 1. a FastAPI application that detects six Malaysian dishes and returns verified nutrition plus an optional LLM-formatted advisory;
 2. a local data pipeline that acquires, curates, consolidates, annotates, splits, trains, and promotes the custom detector.
 
-The application is runnable. Dataset consolidation, the first CVAT pilot, its Phase A priority audit, the Phase B leakage-safe split, the Phase C YOLO11n pilot, the reviewed Phase D batch 001–006 merges, the no-proposal test-holdout audit, two locked incremental splits, and two interim HPC retrains (`dataset3_interim_v2` and `dataset3_interim_v3`) are complete. Assisted batch 007 review, optional Mee Goreng web scraping after that review, an interim v4 retrain, final evaluation, and production model promotion remain pending.
+The application is runnable. Dataset consolidation, the first CVAT pilot, its Phase A priority audit, the Phase B leakage-safe split, the Phase C YOLO11n pilot, the reviewed Phase D batch 001–007 merges, the no-proposal test-holdout audit, two locked incremental splits, and two interim HPC retrains (`dataset3_interim_v2` and `dataset3_interim_v3`) are complete. Optional Mee Goreng web scraping, further annotation or interim v4 retrain, final evaluation, and production model promotion remain pending.
 
 ```mermaid
 flowchart LR
@@ -127,7 +127,7 @@ flowchart TD
 
 ## Dataset3 Data Model
 
-`data/dataset3/` is the canonical unsplit staging area. After assisted batch 006 it contains 5,198 usable images, 2,798 annotated images, 2,936 boxes, 2,400 missing annotations, and 109 rejected records.
+`data/dataset3/` is the canonical unsplit staging area. After assisted batch 007 it contains 5,177 usable images, 3,277 annotated images, 3,464 boxes, 1,900 missing annotations, and 130 rejected records.
 
 ```text
 data/dataset3/
@@ -157,12 +157,12 @@ Key rules:
 
 | Class | Usable images | Annotated | Boxes | Missing |
 |-------|--------------:|----------:|------:|--------:|
-| Nasi Lemak | 994 | 448 | 473 | 546 |
-| Roti Canai | 974 | 445 | 506 | 529 |
-| Char Kuey Teow | 726 | 725 | 742 | 1 |
-| Chicken Rice | 703 | 575 | 593 | 128 |
-| Laksa | 1,075 | 432 | 446 | 643 |
-| Mee Goreng | 726 | 173 | 176 | 553 |
+| Nasi Lemak | 993 | 567 | 599 | 426 |
+| Roti Canai | 971 | 562 | 643 | 409 |
+| Char Kuey Teow | 776 | 775 | 792 | 1 |
+| Chicken Rice | 699 | 641 | 676 | 58 |
+| Laksa | 1,067 | 554 | 573 | 513 |
+| Mee Goreng | 671 | 178 | 181 | 493 |
 
 ## CVAT Integration Boundary
 
@@ -292,15 +292,18 @@ reviewed export SHA-256 is
 validation passed and the guarded merge created the archived export, `pre-merge/`,
 `merge-report.json`, and recoverable rejection evidence.
 
-Phase D batch 007 is staged at `data/cvat/assisted-batch-007/`. Seed 49 selected
+Phase D batch 007 is local at `data/cvat/assisted-batch-007/`. Seed 49 selected
 500 missing-label records from 500 distinct leakage groups using Laksa 130 /
 Nasi Lemak 120 / Roti Canai 120 / Chicken Rice 70 / Mee Goreng 60 / Char Kuey
 Teow 0. The selector excluded all 81 locked test groups and 2,361 prior
-selection groups. The model proposed 617 boxes on 497 images at confidence 0.20;
-330 frames are high priority and three had no proposal. Only five Mee Goreng
-boxes were proposed. Both ZIP archives pass integrity checks and the embedded
-class mapping is canonical. Human review and guarded import remain pending; web
-scraping is deferred until after this remaining-folder review.
+selection groups. The model proposed 617 boxes on 497 images at confidence 0.20.
+CVAT task `2443011` and completed job `4263873` contained all 500 images. Human
+review accepted 528 rectangles on 479 images, rejected 21 non-target frames, and
+made 54 primary-class corrections, including 50 `mee_goreng` → `char_kuey_teow`.
+Accepted Mee Goreng boxes were only 5. The reviewed export SHA-256 is
+`4a819912b755c28c224ec64c54806964b232b3c163be71a5122f8b871d6ea4ea`. Dry
+validation passed and the guarded merge created the archived export, `pre-merge/`,
+`merge-report.json`, and recoverable rejection evidence.
 
 `training_scripts/prepare_test_holdout_review.py` is the boundary between the
 immutable Phase B candidate set and manual holdout verification. It requires an
@@ -413,9 +416,9 @@ yolo11n.pt pretrained initialization
     → assisted batch 005 human review and guarded merge [completed]
     → assisted batch 006 with Mee Goreng priority [completed]
     → assisted batch 006 human review and guarded merge [completed]
-    → assisted batch 007 remaining-folder review package [prepared]
-    → assisted batch 007 human review and guarded merge [pending]
-    → optional genuine Mee Goreng recruitment via web scraping [deferred]
+    → assisted batch 007 remaining-folder review package [completed]
+    → assisted batch 007 human review and guarded merge [completed]
+    → optional genuine Mee Goreng recruitment via web scraping [decision gate]
     → interim HPC retraining v4 (lower lr0) [pending]
     → final training and threshold calibration after annotation freeze
     → versioned candidate weights
@@ -429,7 +432,7 @@ The current assisted-labelling artifact is
 `runs/detect/dataset3_interim_v3/weights/best.pt`. It was fine-tuned from the
 interim v2 checkpoint on the expanded `dataset3-interim-v3` split and selected
 epoch 1 with validation mAP50 0.932 and mAP50–95 0.761. It is not
-production-approved: 2,400 images remain unannotated, Mee Goreng recall dropped
+production-approved: 1,900 images remain unannotated, Mee Goreng recall dropped
 to 0.513, noodle-class confusion and Chicken Rice localization still need
 targeted review, and the locked test set must stay unevaluated until final model
 selection. The epoch-1 peak indicates the fine-tuning learning rate should be
@@ -463,7 +466,7 @@ FoodSense-MY/
 │   ├── cvat/assisted-batch-004/         # 500-image reviewed export and merge report
 │   ├── cvat/assisted-batch-005/         # Interim-v3 reviewed export and merge report
 │   ├── cvat/assisted-batch-006/         # Mee Goreng-priority reviewed export and merge report
-│   ├── cvat/assisted-batch-007/         # 500-image proposal package; review pending
+│   ├── cvat/assisted-batch-007/         # 500-image reviewed export and merge report
 │   ├── cvat/test-holdout-review-v1/      # No-proposal candidate-test verification package
 │   ├── dataset3-baseline/              # Generated leakage-safe pilot split
 │   ├── dataset3-interim-v2/            # Locked holdout + expanded train/validation
