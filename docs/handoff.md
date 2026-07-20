@@ -112,9 +112,17 @@ source `mee_goreng` class was entirely absent from the reviewed boxes was
 resolved with the new `--primary-class-override` importer flag, assigning
 `char_kuey_teow` (the larger box). Combined with the 11 `mee_goreng` rejections,
 93 of the 100 source Mee Goreng frames in this batch were mislabeled or empty,
-leaving only 4 accepted Mee Goreng boxes. Genuine Mee Goreng recruitment (web
-scraping curated sources) is now the top data priority. The guarded import
-created a recoverable pre-merge backup and updated dataset3.
+leaving only 4 accepted Mee Goreng boxes. The guarded import created a
+recoverable pre-merge backup and updated dataset3.
+
+`data/cvat/assisted-batch-007/` is prepared for review. Seed 49 selected 500 new
+leakage groups with zero overlap against the 81 locked test groups or 2,361 prior
+CVAT selection groups (pilot + batches 001–006). Quotas favor remaining volume
+classes (Laksa 130, Nasi Lemak 120, Roti Canai 120, Chicken Rice 70, Mee Goreng
+60, Char Kuey Teow 0). The interim v3 checkpoint proposed 617 boxes on 497 of
+500 images (only five Mee Goreng boxes). Web scraping is deferred until after
+this remaining-folder review cycle. This package has not been imported into CVAT
+or merged into Dataset3.
 
 Do not treat an empty YOLO label as an accepted background image. Images confirmed to contain none of the six classes are quarantined under `data/dataset3/rejected/` and marked `rejected` in the manifest.
 
@@ -379,6 +387,7 @@ Phase D batch 001–006 merges, locked interim split, and interim HPC run:
 - assisted batch 006 contains 361 images from 361 new leakage groups, with zero overlap against 81 locked test groups and 2,051 prior selection groups, and 441 proposals on 361 images
 - CVAT task `2442499`, completed job `4263273`, reviewed those proposals into 365 accepted boxes on 334 images and 27 rejects
 - batch 006 recorded 86 primary-class corrections, including 81 `mee_goreng` → `char_kuey_teow`, and used one `--primary-class-override` (`char_kuey_teow`) for a source `mee_goreng` frame whose original class was absent from the reviewed boxes; 93 of 100 source Mee Goreng frames were mislabeled or empty, retaining only 4 accepted Mee Goreng boxes
+- assisted batch 007 contains 500 images from 500 new leakage groups, with zero overlap against 81 locked test groups and 2,361 prior selection groups, and 617 proposals on 497 images
 - the locked test split was not evaluated
 - all seventeen repository regression tests pass, including locked incremental assignment, assisted selection, holdout packaging, README reconciliation, batch-path safety, revision, and split-integrity coverage
 - `git diff --check` passes
@@ -1057,6 +1066,43 @@ SHA-256 values:
 - `cvat-reviewed-export.zip`: `b7ffe0f860266848f11aae3eb1e8f59b0e6b38569361b00ed87230d956bd1dd4`
 - `merge-report.json`: `11c806755761a84998a4f28373b2d3c3f2e00509ccd8eaf2696e1fcd6e5d5e31`
 
+Batch 007 was generated on 20 July 2026 with seed 49 from
+`runs/detect/dataset3_interim_v3/weights/best.pt`, confidence 0.20, IoU 0.50,
+and MPS inference:
+
+| Source class | Images | Proposal boxes of class |
+|--------------|-------:|------------------------:|
+| Nasi Lemak | 120 | 159 |
+| Roti Canai | 120 | 182 |
+| Char Kuey Teow | 0 | 46 |
+| Chicken Rice | 70 | 87 |
+| Laksa | 130 | 138 |
+| Mee Goreng | 60 | 5 |
+| **Total** | **500** | **617** |
+
+It has 497 images with proposals, 3 without proposals, and 330 high-priority
+frames. The 500 selections use 500 unique leakage groups, with zero overlap
+against the 81 locked test groups and 2,361 prior CVAT selection groups. Both
+input archives pass ZIP integrity checks. Human review and guarded import are
+pending. Current artifacts are:
+
+```text
+data/cvat/assisted-batch-007/
+├── images.zip
+├── preannotations.zip
+├── selection.jsonl
+├── predictions.jsonl
+└── summary.json
+```
+
+SHA-256 values:
+
+- `images.zip`: `c878f8d7881afbc2e49fdfe24df973df139c064efbdb95ad667fa89e0b3f6cac`
+- `preannotations.zip`: `cbb20e9730487ec75aed031bca7eb85b9006ad8a59e810712a9e0823d03b9ad5`
+- `selection.jsonl`: `66a0280be91ff4cb736395287a48be251ec2ea3dff95a9e1f23f2ae47ed6e3f0`
+- `predictions.jsonl`: `65ca1edcfd78549881d0c794e27bb70db1b913dc6ae1eb5a10e789f8611ea704`
+- `summary.json`: `89933c0e55c76a9ca03c114d8c8ec64fc1be5a6551ccc9b60c3fc0a219c66723`
+
 ### Phase E — Final split, training, and deployment
 
 1. Freeze the final annotated manifest and preserve the untouched test groups.
@@ -1068,32 +1114,14 @@ SHA-256 values:
 
 ## 10. Immediate Recommended Action
 
-Batch 006 is merged. The batch confirmed that the `mee_goreng` source folder is
-largely mislabeled: of its 100 sampled frames, 81 were actually Char Kuey Teow,
-4 other dishes, and 11 empty/non-target, leaving only 4 genuine Mee Goreng
-boxes. Dataset3 now holds only 173 annotated Mee Goreng images against 553
-missing, so continued sampling of the existing folder will not close the gap.
-
-The next action is genuine Mee Goreng recruitment by web scraping curated
-sources, then re-running assisted labelling on the new images. Suggested
-sequence:
-
-1. Scrape and de-duplicate genuine Mee Goreng images from curated queries, hash
-   them into `data/dataset3` under `mee_goreng/` via the builder so leakage
-   groups and provenance are assigned consistently.
-2. Prepare assisted batch 007 emphasizing the new Mee Goreng images (and any
-   other under-annotated classes: Laksa 643 missing, Nasi Lemak 546, Roti Canai
-   529, Chicken Rice 128) with `prepare_cvat_assisted_batch.py` against
-   `data/dataset3-interim-v3/split-manifest.jsonl`.
-3. Review in CVAT, then import with the guarded first-merge apply. If a
-   multi-class frame's source class is entirely absent from the reviewed boxes,
-   resolve it with `--primary-class-override <sha256>=<class>`.
-4. After Mee Goreng coverage materially improves, rebuild
-   `dataset3-interim-v4` and retrain from the interim v3 checkpoint with a lower
-   fine-tuning learning rate (`lr0=0.002`), since interim v3 peaked at epoch 1
-   under the default `lr0=0.01`.
-
-The guarded first-merge apply pattern (dry run, inspect, then `--apply`):
+Review assisted batch 007 in CVAT, then import it. The package
+`data/cvat/assisted-batch-007/` holds 500 interim-v3 proposal images (617 boxes
+on 497 images, zero test/prior overlap). Create a task from `images.zip`, import
+`preannotations.zip` as **Ultralytics YOLO Detection**, and review all 500
+frames. Expect many source-folder corrections on Mee Goreng frames (only five
+Mee Goreng boxes were proposed). Export to
+`data/cvat/assisted-batch-007/cvat-reviewed-export.zip`, then run the guarded
+importer:
 
 ```bash
 python training_scripts/import_cvat_annotations.py \
@@ -1104,12 +1132,41 @@ python training_scripts/import_cvat_annotations.py \
   --task-id <TASK_ID> \
   --job-id <JOB_ID>
 
-# Only after inspecting the dry-run report, append --apply (and any
-# --primary-class-override SHA256=CLASS the report requires).
+# Only after inspecting the dry-run report:
+python training_scripts/import_cvat_annotations.py \
+  --dataset-dir data/dataset3 \
+  --pilot-dir data/cvat/assisted-batch-007 \
+  --archive data/cvat/assisted-batch-007/cvat-reviewed-export.zip \
+  --batch-id cvat_assisted_batch_007 \
+  --task-id <TASK_ID> \
+  --job-id <JOB_ID> \
+  --apply
 ```
 
-Optionally delete hosted CVAT tasks `2442437` and `2442499` after local archive
-checks.
+Batch 007 was prepared with:
+
+```bash
+python training_scripts/prepare_cvat_assisted_batch.py \
+  --dataset-dir data/dataset3 \
+  --split-manifest data/dataset3-interim-v3/split-manifest.jsonl \
+  --output-dir data/cvat/assisted-batch-007 \
+  --model runs/detect/dataset3_interim_v3/weights/best.pt \
+  --seed 49 \
+  --confidence 0.20 \
+  --iou 0.50 \
+  --device mps \
+  --class-count laksa=130 \
+  --class-count nasi_lemak=120 \
+  --class-count roti_canai=120 \
+  --class-count chicken_rice=70 \
+  --class-count mee_goreng=60 \
+  --class-count char_kuey_teow=0
+```
+
+Web scraping for genuine Mee Goreng is deferred until after this remaining-folder
+review. After batch 007 (and optionally one more), decide whether to scrape, then
+rebuild `dataset3-interim-v4` and retrain with `lr0=0.002`. Optionally delete
+hosted CVAT tasks `2442437` and `2442499` after local archive checks.
 
 ## 11. Environment and Runtime
 
@@ -1153,7 +1210,7 @@ The validation-only diagnostic directories
 `runs/detect/dataset3_interim_v2_local_val/` and
 `runs/detect/dataset3_interim_v3_local_val/` are intentionally ignored. The
 repository-wide documentation rule is recorded in `AGENTS.md`. Dataset outputs
-under `data/` (including `data/cvat/assisted-batch-006/` and
+under `data/` (including `data/cvat/assisted-batch-007/` and
 `data/dataset3-interim-v3/`) are intentionally gitignored. Review and commit
 documentation deliberately; do not assume gitignored data can be recreated
 without the local source datasets and archived CVAT exports.

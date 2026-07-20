@@ -300,6 +300,16 @@ were mislabeled or empty, leaving only 4 accepted Mee Goreng boxes, so genuine
 Mee Goreng images must now be recruited by web scraping. The reviewed export
 passed dry validation and was applied with a recoverable pre-merge backup.
 
+Phase D batch 007 was prepared at `data/cvat/assisted-batch-007/` using seed 49
+and `runs/detect/dataset3_interim_v3/weights/best.pt`. It contains 500 new
+leakage groups, has zero overlap with the 81 locked test groups or 2,361 prior
+selection groups, and provides 617 proposal boxes on 497 images. Quotas favor
+remaining volume (Laksa 130, Nasi Lemak 120, Roti Canai 120, Chicken Rice 70,
+Mee Goreng 60, Char Kuey Teow 0). Only five Mee Goreng boxes were proposed.
+Upload `images.zip` first and import `preannotations.zip` as **Ultralytics YOLO
+Detection**. Web scraping for genuine Mee Goreng is deferred until after this
+remaining-folder review.
+
 The reserved holdout package contains 84 images, 86 existing human boxes, and
 83 leakage groups. It includes all six object classes and no model-generated
 annotations. `selection.jsonl` makes the later correction import revision-safe,
@@ -398,6 +408,7 @@ data/
 ├── cvat/assisted-batch-004/ # 500-image reviewed export and merge report
 ├── cvat/assisted-batch-005/ # Interim-v3 reviewed export and merge report
 ├── cvat/assisted-batch-006/ # Mee Goreng-priority reviewed export and merge report
+├── cvat/assisted-batch-007/ # 500-image proposal package; review pending
 ├── dataset3-baseline/      # Generated group-safe 70/20/10 pilot split
 ├── dataset3-interim-v2/    # Locked reviewed holdout + expanded train/validation
 ├── dataset3-interim-v3/    # Interim-v3 locked split (1,674/418/82)

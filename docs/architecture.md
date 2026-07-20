@@ -7,7 +7,7 @@ FoodSense-MY contains two related systems:
 1. a FastAPI application that detects six Malaysian dishes and returns verified nutrition plus an optional LLM-formatted advisory;
 2. a local data pipeline that acquires, curates, consolidates, annotates, splits, trains, and promotes the custom detector.
 
-The application is runnable. Dataset consolidation, the first CVAT pilot, its Phase A priority audit, the Phase B leakage-safe split, the Phase C YOLO11n pilot, the reviewed Phase D batch 001–006 merges, the no-proposal test-holdout audit, two locked incremental splits, and two interim HPC retrains (`dataset3_interim_v2` and `dataset3_interim_v3`) are complete. Genuine Mee Goreng recruitment (web scraping), further annotation, an interim v4 retrain, final evaluation, and production model promotion remain pending.
+The application is runnable. Dataset consolidation, the first CVAT pilot, its Phase A priority audit, the Phase B leakage-safe split, the Phase C YOLO11n pilot, the reviewed Phase D batch 001–006 merges, the no-proposal test-holdout audit, two locked incremental splits, and two interim HPC retrains (`dataset3_interim_v2` and `dataset3_interim_v3`) are complete. Assisted batch 007 review, optional Mee Goreng web scraping after that review, an interim v4 retrain, final evaluation, and production model promotion remain pending.
 
 ```mermaid
 flowchart LR
@@ -292,6 +292,16 @@ reviewed export SHA-256 is
 validation passed and the guarded merge created the archived export, `pre-merge/`,
 `merge-report.json`, and recoverable rejection evidence.
 
+Phase D batch 007 is staged at `data/cvat/assisted-batch-007/`. Seed 49 selected
+500 missing-label records from 500 distinct leakage groups using Laksa 130 /
+Nasi Lemak 120 / Roti Canai 120 / Chicken Rice 70 / Mee Goreng 60 / Char Kuey
+Teow 0. The selector excluded all 81 locked test groups and 2,361 prior
+selection groups. The model proposed 617 boxes on 497 images at confidence 0.20;
+330 frames are high priority and three had no proposal. Only five Mee Goreng
+boxes were proposed. Both ZIP archives pass integrity checks and the embedded
+class mapping is canonical. Human review and guarded import remain pending; web
+scraping is deferred until after this remaining-folder review.
+
 `training_scripts/prepare_test_holdout_review.py` is the boundary between the
 immutable Phase B candidate set and manual holdout verification. It requires an
 exact match between the test split and pending review queue, resolves every SHA
@@ -403,8 +413,10 @@ yolo11n.pt pretrained initialization
     → assisted batch 005 human review and guarded merge [completed]
     → assisted batch 006 with Mee Goreng priority [completed]
     → assisted batch 006 human review and guarded merge [completed]
-    → genuine Mee Goreng recruitment via web scraping [pending]
-    → assisted batch 007 + interim HPC retraining v4 (lower lr0) [pending]
+    → assisted batch 007 remaining-folder review package [prepared]
+    → assisted batch 007 human review and guarded merge [pending]
+    → optional genuine Mee Goreng recruitment via web scraping [deferred]
+    → interim HPC retraining v4 (lower lr0) [pending]
     → final training and threshold calibration after annotation freeze
     → versioned candidate weights
     → accepted data/weights/best.pt
@@ -451,6 +463,7 @@ FoodSense-MY/
 │   ├── cvat/assisted-batch-004/         # 500-image reviewed export and merge report
 │   ├── cvat/assisted-batch-005/         # Interim-v3 reviewed export and merge report
 │   ├── cvat/assisted-batch-006/         # Mee Goreng-priority reviewed export and merge report
+│   ├── cvat/assisted-batch-007/         # 500-image proposal package; review pending
 │   ├── cvat/test-holdout-review-v1/      # No-proposal candidate-test verification package
 │   ├── dataset3-baseline/              # Generated leakage-safe pilot split
 │   ├── dataset3-interim-v2/            # Locked holdout + expanded train/validation
