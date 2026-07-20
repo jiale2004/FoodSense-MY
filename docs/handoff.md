@@ -24,7 +24,8 @@ Current dataset3 totals:
 - 5,181 usable leakage groups; 52 groups contain more than one usable image
 - no custom `data/weights/best.pt` yet
 - Phase C pilot checkpoint available at `runs/detect/dataset3_pilot_v1/weights/best.pt`
-- interim proposal checkpoint available at `runs/detect/dataset3_interim_v2/weights/best.pt`
+- interim v2 checkpoint available at `runs/detect/dataset3_interim_v2/weights/best.pt`
+- interim v3 checkpoint available at `runs/detect/dataset3_interim_v3/weights/best.pt` (current assisted-labelling model)
 
 Phase B materialized the then-current 838 annotated images as the validated
 `data/dataset3-baseline/` training view. Its 84 test candidates have now been
@@ -78,6 +79,21 @@ three multi-class images, and recorded 61 primary-class corrections including
 51 `mee_goreng` → `char_kuey_teow`. The guarded import created a recoverable
 pre-merge backup and updated dataset3. Batches 003 and 004 together add enough
 new labels for the next locked incremental split and interim HPC retrain.
+
+The interim v3 retrain is complete. `data/dataset3-interim-v3/` (1,674 train /
+418 validation / 82 locked test) was materialized from the interim v2 base
+split, and `runs/detect/dataset3_interim_v3/` trained from the interim v2
+checkpoint. Its best epoch reached validation mAP50 0.932 and mAP50–95 0.761;
+Mee Goreng recall is the current weakness at 0.513. The checkpoint is accepted
+for assisted-batch-005 proposals only, not production. Full metrics are in
+[`experiments/dataset3_interim_v3.md`](experiments/dataset3_interim_v3.md).
+
+`data/cvat/assisted-batch-005/` is prepared for review. Seed 47 selected 300
+missing-label images from 300 new leakage groups using the interim v3
+checkpoint, with zero overlap against the 81 locked test groups or 1,751 prior
+CVAT selection groups. The model proposed 358 boxes on 299 images; reviewers
+must inspect all 300 frames. This package has not been imported into CVAT or
+merged into Dataset3, so the dataset totals above are unchanged.
 
 Do not treat an empty YOLO label as an accepted background image. Images confirmed to contain none of the six classes are quarantined under `data/dataset3/rejected/` and marked `rejected` in the manifest.
 
@@ -291,7 +307,7 @@ The full policy is [`docs/bounding-box-policy.md`](bounding-box-policy.md). Its 
 | Canonical dataset3 assembly | Implemented |
 | CVAT batch preparation/import | Implemented; assisted batches 001–004 reviewed, validated, and applied |
 | Group-aware annotated-only splitter | Implemented and validated |
-| Custom six-class YOLO model | Interim v2 trained and validated; approved for assisted-batch proposals only |
+| Custom six-class YOLO model | Interim v3 trained and validated; approved for assisted-batch proposals only |
 | Production `data/weights/best.pt` | Missing |
 
 Until custom weights are approved and copied to `data/weights/best.pt`, `/api/predict` is only a scaffold test and does not reliably identify the six Malaysian dishes.
@@ -332,9 +348,11 @@ Phase D batch 001–004 merges, locked interim split, and interim HPC run:
 - `dataset3-interim-v3` contains 1,674 train, 418 validation, and 82 reviewed test images with zero cross-split leakage
 - all 1,334 surviving interim-v2 train/validation images keep their original split and all 758 new annotations remain outside test
 - the interim-v3 split-manifest SHA-256 is `74560af5a330fde8005ae953552a17a2bb84abc419c76ac0a3418ddae0574091`
-- interim training stopped normally at epoch 95 after selecting epoch 75 by mAP50–95 fitness
-- interim best metrics are precision 0.912, recall 0.868, mAP50 0.938, and mAP50–95 0.747
-- interim checkpoint SHA-256 is `0babcfc246b9af4c003277a4f50bc33c79f4a32b34c4473ee0aa0d36329f3705`
+- interim v2 training stopped normally at epoch 95 after selecting epoch 75 by mAP50–95 fitness; its best metrics are precision 0.912, recall 0.868, mAP50 0.938, and mAP50–95 0.747
+- interim v2 checkpoint SHA-256 is `0babcfc246b9af4c003277a4f50bc33c79f4a32b34c4473ee0aa0d36329f3705`
+- interim v3 training stopped normally at epoch 21 after selecting epoch 1 by mAP50–95 fitness; its best metrics are precision 0.891, recall 0.859, mAP50 0.932, and mAP50–95 0.761
+- interim v3 checkpoint SHA-256 is `5d6dde4b927c53dd1697ffbb759046608f492d47f2f7349452b7e01b3c5b8080`
+- assisted batch 005 contains 300 images from 300 new leakage groups, with zero overlap against 81 locked test groups and 1,751 prior selection groups, and 358 proposals on 299 images pending human review
 - the locked test split was not evaluated
 - all seventeen repository regression tests pass, including locked incremental assignment, assisted selection, holdout packaging, README reconciliation, batch-path safety, revision, and split-integrity coverage
 - `git diff --check` passes
@@ -588,7 +606,33 @@ ineligible for `data/weights/best.pt`. Full configuration, hashes, per-class
 metrics, and confusion findings are recorded in
 [`docs/experiments/dataset3_interim_v2.md`](experiments/dataset3_interim_v2.md).
 
-### Phase D — Use the baseline for assisted labelling: batches 001–004 applied
+### Interim HPC retraining v3: completed
+
+`runs/detect/dataset3_interim_v3/` was trained from the interim v2 checkpoint on
+`data/dataset3-interim-v3/` (1,674 train / 418 validation / 82 locked test),
+image size 640, batch 16, seed 42, deterministic mode, and `resume: false`.
+Because it started from an already-converged checkpoint on a larger validation
+view, epoch 1 achieved the best mAP50–95 fitness; early stopping ended the run
+normally at epoch 21.
+
+| Run | Precision | Recall | mAP50 | mAP50–95 |
+|-----|----------:|-------:|------:|----------:|
+| Interim v2 best | 0.912 | 0.868 | 0.938 | 0.747 |
+| Interim v3 best | 0.891 | 0.859 | 0.932 | 0.761 |
+
+A validation-only local pass found per-class mAP50–95 of 0.810 Nasi Lemak,
+0.728 Roti Canai, 0.783 Char Kuey Teow, 0.690 Chicken Rice, 0.822 Laksa, and
+0.731 Mee Goreng. Mee Goreng recall dropped to 0.513 and is the current
+weakness; it is also the most under-annotated class. The best epoch landing at
+epoch 1 indicates the default `lr0=0.01` is too high for fine-tuning from a
+converged checkpoint; lower it next retrain. The locked test split was not
+accessed.
+
+The checkpoint is approved for human-reviewed batch-005 proposals and remains
+ineligible for `data/weights/best.pt`. Full details are in
+[`docs/experiments/dataset3_interim_v3.md`](experiments/dataset3_interim_v3.md).
+
+### Phase D — Use the baseline for assisted labelling: batches 001–004 applied, batch 005 prepared
 
 1. Connect the approved baseline to CVAT auto-annotation or generate prediction labels for import.
 2. Process the remaining 3,061 images in batches of 300–500.
@@ -871,6 +915,48 @@ summary, and README, moved the 31 rejects recoverably, and reconciled every
 label and manifest path. Do not rerun the first-merge apply; later corrections
 must use a unique `--revision-id`.
 
+Batch 005 was generated on 20 July 2026 with seed 47 from
+`runs/detect/dataset3_interim_v3/weights/best.pt`, confidence 0.20, IoU 0.50,
+and MPS inference. It selects 300 missing-label images from 300 distinct leakage
+groups using the same 60/60/60/40/40/40 source-class quotas:
+
+| Source class | Images | Proposal boxes of class |
+|--------------|-------:|------------------------:|
+| Nasi Lemak | 60 | 86 |
+| Roti Canai | 60 | 95 |
+| Char Kuey Teow | 60 | 94 |
+| Chicken Rice | 40 | 39 |
+| Laksa | 40 | 40 |
+| Mee Goreng | 40 | 4 |
+| **Total** | **300** | **358** |
+
+It has 299 images with proposals, one without a proposal, and 239 high-priority
+frames. The 300 selections use 300 unique leakage groups, with zero overlap
+against the 81 locked test groups and 1,751 prior CVAT selection groups. Both
+input archives pass ZIP integrity checks. Human review and guarded import are
+pending. Current artifacts are:
+
+```text
+data/cvat/assisted-batch-005/
+├── images.zip
+├── preannotations.zip
+├── selection.jsonl
+├── predictions.jsonl
+└── summary.json
+```
+
+SHA-256 values:
+
+- `images.zip`: `84b58abad29a6c1ac06649e1f24bc96e5ec52805aba866f65ce89c8b94d58de7`
+- `preannotations.zip`: `425accb6d1e9e773b2c613a04ec48c407fc45d0d705ed7d0c46f88b7b9180b23`
+- `selection.jsonl`: `f7bf954509ac7ba32e75054aabca128755d253dde3bfecd7123eb74fd52e86cc`
+- `predictions.jsonl`: `fe75e973347b2e627cef224dcf28ece2c318c504a174c323bb6cba252277c71e`
+- `summary.json`: `17c67a741b0c93ed3c48b0b6d614b1acef432799668c2e104e51bde28e815523`
+
+The very low Mee Goreng proposal count (4 boxes) reflects the interim v3 model's
+low Mee Goreng recall; reviewers must add missing Mee Goreng boxes by hand
+rather than trusting the absence of a proposal.
+
 ### Phase E — Final split, training, and deployment
 
 1. Freeze the final annotated manifest and preserve the untouched test groups.
@@ -882,61 +968,53 @@ must use a unique `--revision-id`.
 
 ## 10. Immediate Recommended Action
 
-`data/dataset3-interim-v3/` is materialized and validated. It preserves all
-1,334 surviving interim-v2 train/validation assignments, locks the same 82
-reviewed holdout images into test, and assigns the 758 newly annotated images
-only to train or validation. Counts are 1,674 train / 418 validation / 82 test
-images with zero cross-split leakage. Split-manifest SHA-256:
-`74560af5a330fde8005ae953552a17a2bb84abc419c76ac0a3418ddae0574091`.
-
-Because interim-v2 already excludes the two rejected holdout candidates, the
-locked selection for this split is the accepted-only file
-`data/cvat/test-holdout-review-v1/accepted-selection.jsonl` (82 images), not the
-original 84-image review package.
-
-Transfer with dereferenced hardlinks, then rewrite `data.yaml` `path:` on the
-cluster:
+Review assisted batch 005 in CVAT, then import it. The package
+`data/cvat/assisted-batch-005/` holds 300 interim-v3 proposal images (358 boxes,
+zero test/prior overlap). Create a task from `images.zip`, import
+`preannotations.zip` as **Ultralytics YOLO Detection**, and review all 300
+frames. Mee Goreng has only four proposals because of the interim v3 recall gap,
+so reviewers must add missing Mee Goreng boxes by hand and pay extra attention to
+Char Kuey Teow/Mee Goreng disagreements and Chicken Rice box tightness. Export to
+`data/cvat/assisted-batch-005/cvat-reviewed-export.zip`, then run the guarded
+importer:
 
 ```bash
-rsync -aL --info=progress2 \
-  data/dataset3-interim-v3/ \
-  <hpc-user>@<hpc-host>:/home/user/22059034/FoodSense-MY/data/dataset3-interim-v3/
-```
-
-Train from the interim v2 checkpoint without `resume=True`:
-
-```bash
-yolo detect train \
-  model=/home/user/22059034/FoodSense-MY/runs/detect/dataset3_interim_v2/weights/best.pt \
-  data=/home/user/22059034/FoodSense-MY/data/dataset3-interim-v3/data.yaml \
-  epochs=100 \
-  patience=20 \
-  imgsz=640 \
-  batch=16 \
-  seed=42 \
-  deterministic=True \
-  device=0 \
-  workers=8 \
-  project=/home/user/22059034/FoodSense-MY/runs/detect \
-  name=dataset3_interim_v3
-```
-
-Use only `split=val` for checkpoint assessment. Do not evaluate `split=test`.
-After the run returns, use the new checkpoint for assisted batch 005+. The
-hosted batch-004 task `2442189` may be deleted once local archives are
-confirmed intact.
-
-Local regeneration provenance (do not overwrite the existing output):
-
-```bash
-python training_scripts/split_dataset3.py \
+python training_scripts/import_cvat_annotations.py \
   --dataset-dir data/dataset3 \
-  --output-dir data/dataset3-interim-v3 \
-  --base-split-manifest data/dataset3-interim-v2/split-manifest.jsonl \
-  --locked-test-selection data/cvat/test-holdout-review-v1/accepted-selection.jsonl \
-  --incremental-train-fraction 0.8 \
-  --seed 42 \
-  --materialize hardlink
+  --pilot-dir data/cvat/assisted-batch-005 \
+  --archive data/cvat/assisted-batch-005/cvat-reviewed-export.zip \
+  --batch-id cvat_assisted_batch_005 \
+  --task-id <TASK_ID> \
+  --job-id <JOB_ID>
+
+# Only after inspecting the dry-run report:
+python training_scripts/import_cvat_annotations.py \
+  --dataset-dir data/dataset3 \
+  --pilot-dir data/cvat/assisted-batch-005 \
+  --archive data/cvat/assisted-batch-005/cvat-reviewed-export.zip \
+  --batch-id cvat_assisted_batch_005 \
+  --task-id <TASK_ID> \
+  --job-id <JOB_ID> \
+  --apply
+```
+
+After several more batches, rebuild `dataset3-interim-v4` from the interim v3
+base split, and retrain with a lower fine-tuning learning rate (for example
+`lr0=0.002`) because interim v3 peaked at epoch 1. The hosted batch-004 task
+`2442189` may be deleted once local archives are confirmed intact.
+
+Batch 005 was prepared with:
+
+```bash
+python training_scripts/prepare_cvat_assisted_batch.py \
+  --dataset-dir data/dataset3 \
+  --split-manifest data/dataset3-interim-v3/split-manifest.jsonl \
+  --output-dir data/cvat/assisted-batch-005 \
+  --model runs/detect/dataset3_interim_v3/weights/best.pt \
+  --seed 47 \
+  --confidence 0.20 \
+  --iou 0.50 \
+  --device mps
 ```
 
 ## 11. Environment and Runtime
@@ -968,18 +1046,20 @@ Important environment variables include `MODEL_WEIGHTS_PATH`, `KNOWLEDGE_BASE_PA
 
 ## 12. Working Tree Note
 
-The returned `runs/detect/dataset3_interim_v2/` HPC artifacts are tracked in
-the repository. This validation pass adds or updates:
+The returned `runs/detect/dataset3_interim_v2/` and
+`runs/detect/dataset3_interim_v3/` HPC artifacts are tracked in the repository.
+This pass adds or updates:
 
-- `.gitignore`
 - `README.md`
 - `docs/architecture.md`
-- `docs/experiments/dataset3_interim_v2.md`
 - `docs/handoff.md`
+- `docs/experiments/dataset3_interim_v3.md` (new)
 
-The validation-only diagnostic directory
-`runs/detect/dataset3_interim_v2_local_val/` is intentionally ignored. The
+The validation-only diagnostic directories
+`runs/detect/dataset3_interim_v2_local_val/` and
+`runs/detect/dataset3_interim_v3_local_val/` are intentionally ignored. The
 repository-wide documentation rule is recorded in `AGENTS.md`. Dataset outputs
-under `data/` are intentionally gitignored. Review and commit documentation
-deliberately; do not assume gitignored data can be recreated without the local
-source datasets and archived CVAT exports.
+under `data/` (including `data/cvat/assisted-batch-005/` and
+`data/dataset3-interim-v3/`) are intentionally gitignored. Review and commit
+documentation deliberately; do not assume gitignored data can be recreated
+without the local source datasets and archived CVAT exports.

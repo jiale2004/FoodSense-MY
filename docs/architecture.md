@@ -7,7 +7,7 @@ FoodSense-MY contains two related systems:
 1. a FastAPI application that detects six Malaysian dishes and returns verified nutrition plus an optional LLM-formatted advisory;
 2. a local data pipeline that acquires, curates, consolidates, annotates, splits, trains, and promotes the custom detector.
 
-The application is runnable. Dataset consolidation, the first CVAT pilot, its Phase A priority audit, the Phase B leakage-safe split, the Phase C YOLO11n pilot, the reviewed Phase D batch 001–004 merges, the no-proposal test-holdout audit, the locked incremental split, and interim HPC retraining are complete. Building `dataset3-interim-v3`, training the next interim checkpoint, further annotation, final evaluation, and production model promotion remain pending.
+The application is runnable. Dataset consolidation, the first CVAT pilot, its Phase A priority audit, the Phase B leakage-safe split, the Phase C YOLO11n pilot, the reviewed Phase D batch 001–004 merges, the no-proposal test-holdout audit, two locked incremental splits, and two interim HPC retrains (`dataset3_interim_v2` and `dataset3_interim_v3`) are complete. Assisted batch 005 review, further annotation, final evaluation, and production model promotion remain pending.
 
 ```mermaid
 flowchart LR
@@ -259,6 +259,16 @@ and made 61 primary-class corrections, including 51 `mee_goreng` →
 Dry validation passed and the guarded merge created the archived export,
 `pre-merge/`, `merge-report.json`, and recoverable rejection evidence.
 
+Phase D batch 005 is staged at `data/cvat/assisted-batch-005/`. Seed 47 selected
+300 missing-label records from 300 distinct leakage groups using 60/60/60/40/40/40
+source-class quotas and the interim v3 checkpoint. The selector excluded all 81
+locked test groups and 1,751 prior selection groups. The model proposed 358
+boxes on 299 images at confidence 0.20; 239 frames are high priority and one has
+no proposal. Only four Mee Goreng boxes were proposed, reflecting the interim v3
+recall gap, so reviewers must add missing Mee Goreng instances manually. Both ZIP
+archives pass integrity checks and the embedded class mapping is canonical. Human
+review and guarded import remain pending.
+
 `training_scripts/prepare_test_holdout_review.py` is the boundary between the
 immutable Phase B candidate set and manual holdout verification. It requires an
 exact match between the test split and pending review queue, resolves every SHA
@@ -350,7 +360,7 @@ immutable Phase B test manifest + pending queue
     → reviewed Ultralytics YOLO export
     → dry-run semantic revision report
     → versioned Dataset3 revision with recovery backup
-    → new leakage-safe split preserving reviewed groups [completed: dataset3-interim-v2]
+    → new leakage-safe split preserving reviewed groups [completed: dataset3-interim-v2, dataset3-interim-v3]
     → frozen holdout evaluation
 ```
 
@@ -364,9 +374,10 @@ yolo11n.pt pretrained initialization
     → human correction and validated batch merge [batches 001–004 completed]
     → no-proposal holdout verification [task 2441672; completed and applied]
     → locked reviewed holdout in a new leakage-safe split [completed]
-    → interim HPC retraining [completed: dataset3_interim_v2]
-    → locked incremental split + interim v3 training [pending]
-    → assisted batch 005+ proposals and human review [pending]
+    → interim HPC retraining v2 [completed: dataset3_interim_v2]
+    → locked incremental split + interim HPC retraining v3 [completed: dataset3_interim_v3]
+    → assisted batch 005 proposals [prepared]
+    → assisted batch 005 human review and guarded merge [pending]
     → final training and threshold calibration after annotation freeze
     → versioned candidate weights
     → accepted data/weights/best.pt
@@ -376,14 +387,17 @@ yolo11n.pt pretrained initialization
 Model promotion is deliberate. Training outputs must first be saved under a versioned candidate name. `data/weights/best.pt` represents the application-approved detector, not merely the most recent experiment.
 
 The current assisted-labelling artifact is
-`runs/detect/dataset3_interim_v2/weights/best.pt`. Ultralytics `8.4.100`
-selected epoch 75 with validation mAP50 0.938 and mAP50–95 0.747, improving
-the pilot's 0.925 and 0.689 on the expanded validation view. It is not
-production-approved: 3,061 images remain unannotated, noodle-class confusion
-and Chicken Rice localization still need targeted review, and the locked test
-set must stay unevaluated until final model selection. See
-[`experiments/dataset3_interim_v2.md`](experiments/dataset3_interim_v2.md) for
-the complete evaluation.
+`runs/detect/dataset3_interim_v3/weights/best.pt`. It was fine-tuned from the
+interim v2 checkpoint on the expanded `dataset3-interim-v3` split and selected
+epoch 1 with validation mAP50 0.932 and mAP50–95 0.761. It is not
+production-approved: 3,061 images remain unannotated, Mee Goreng recall dropped
+to 0.513, noodle-class confusion and Chicken Rice localization still need
+targeted review, and the locked test set must stay unevaluated until final model
+selection. The epoch-1 peak indicates the fine-tuning learning rate should be
+lowered for the next retrain. See
+[`experiments/dataset3_interim_v2.md`](experiments/dataset3_interim_v2.md) and
+[`experiments/dataset3_interim_v3.md`](experiments/dataset3_interim_v3.md) for
+the complete evaluations.
 
 ## Repository Structure
 
@@ -408,12 +422,15 @@ FoodSense-MY/
 │   ├── cvat/assisted-batch-002/         # Reviewed export and recovery metadata
 │   ├── cvat/assisted-batch-003/         # Interim-v2 proposals, reviewed export, merge report
 │   ├── cvat/assisted-batch-004/         # 500-image reviewed export and merge report
+│   ├── cvat/assisted-batch-005/         # Interim-v3 proposal package; review pending
 │   ├── cvat/test-holdout-review-v1/      # No-proposal candidate-test verification package
 │   ├── dataset3-baseline/              # Generated leakage-safe pilot split
 │   ├── dataset3-interim-v2/            # Locked holdout + expanded train/validation
+│   ├── dataset3-interim-v3/            # Interim-v3 locked split (1,674/418/82)
 │   └── weights/                        # Approved custom best.pt; pending
 ├── runs/detect/dataset3_pilot_v1/      # Phase C pilot artifacts; not production-promoted
-├── runs/detect/dataset3_interim_v2/    # HPC interim artifacts; batch-003 proposal model
+├── runs/detect/dataset3_interim_v2/    # HPC interim v2 artifacts
+├── runs/detect/dataset3_interim_v3/    # HPC interim v3 artifacts; batch-005 proposal model
 ├── training_scripts/
 │   ├── scrape_images.py, google_crawler.py, uc_crawler.py
 │   ├── curate_images.py, curation.py

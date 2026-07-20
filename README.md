@@ -273,9 +273,14 @@ zero overlap with the 81 locked test groups or 1,251 prior selection groups,
 and provides 589 proposal boxes on 494 images. CVAT task `2442189`, job
 `4262800`, reviewed the batch: human review accepted 497 boxes on 469 images
 and quarantined 31 non-target frames. The reviewed export passed dry validation
-and was applied with a recoverable pre-merge backup. The locked incremental
-split `data/dataset3-interim-v3/` is ready for HPC transfer and training
-(`1,674` / `418` / `82`).
+and was applied with a recoverable pre-merge backup.
+
+Phase D batch 005 was prepared at `data/cvat/assisted-batch-005/` using seed 47
+and `runs/detect/dataset3_interim_v3/weights/best.pt`. It contains 300 new
+leakage groups, has zero overlap with the 81 locked test groups or 1,751 prior
+selection groups, and provides 358 proposal boxes on 299 images. Human review
+and guarded import are pending; upload `images.zip` first and import
+`preannotations.zip` as **Ultralytics YOLO Detection**.
 
 The reserved holdout package contains 84 images, 86 existing human boxes, and
 83 leakage groups. It includes all six object classes and no model-generated
@@ -283,12 +288,17 @@ annotations. `selection.jsonl` makes the later correction import revision-safe,
 and package creation fails if the baseline queue, current images, or labels
 have drifted.
 
-The HPC run `runs/detect/dataset3_interim_v2/` is complete. Ultralytics
-`8.4.100` selected epoch 75 with precision 0.912, recall 0.868, mAP50 0.938,
-and mAP50–95 0.747, then stopped normally at epoch 95 after the configured
-20-epoch patience. The checkpoint remains accepted for assisted-batch
-proposals, not production deployment. The locked test set remains untouched. See
+Two HPC interim runs are complete. `runs/detect/dataset3_interim_v2/` selected
+epoch 75 with mAP50 0.938 and mAP50–95 0.747. `runs/detect/dataset3_interim_v3/`
+trained from the v2 checkpoint on the expanded
+`data/dataset3-interim-v3/` split (1,674 / 418 / 82) and selected epoch 1 with
+mAP50 0.932 and mAP50–95 0.761; its Mee Goreng recall (0.513) is the current
+weakness, and the epoch-1 peak indicates the fine-tuning learning rate should be
+lowered next retrain. Both checkpoints are accepted for assisted-batch proposals
+only, not production deployment, and the locked test set remains untouched. See
 [`docs/experiments/dataset3_interim_v2.md`](docs/experiments/dataset3_interim_v2.md)
+and
+[`docs/experiments/dataset3_interim_v3.md`](docs/experiments/dataset3_interim_v3.md)
 for hashes, per-class validation, and error analysis.
 
 See [`docs/handoff.md`](docs/handoff.md) for current counts and next-step gates,
@@ -368,8 +378,10 @@ data/
 ├── cvat/assisted-batch-002/ # Reviewed export, merge report, and recovery metadata
 ├── cvat/assisted-batch-003/ # Interim-v2 proposals, reviewed export, and merge report
 ├── cvat/assisted-batch-004/ # 500-image reviewed export and merge report
+├── cvat/assisted-batch-005/ # Interim-v3 proposal package; review pending
 ├── dataset3-baseline/      # Generated group-safe 70/20/10 pilot split
 ├── dataset3-interim-v2/    # Locked reviewed holdout + expanded train/validation
+├── dataset3-interim-v3/    # Interim-v3 locked split (1,674/418/82)
 └── weights/                # Approved custom weights
 training_scripts/
 ├── utils.py                # ReproducibilityManager
