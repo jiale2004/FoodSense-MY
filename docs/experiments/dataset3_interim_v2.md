@@ -104,6 +104,8 @@ frame. Prioritize noodle disagreements and Chicken Rice box tightness during
 review.
 
 Do not copy this checkpoint to `data/weights/best.pt` and do not run
-`split=test`. After batch 003, Dataset3 still has 3,561 missing annotations, so
-the locked holdout remains untouched until the final annotation freeze and
-validation-only model selection are complete.
+`split=test`. After batches 003–004, Dataset3 still has 3,061 missing
+annotations, so the locked holdout remains untouched until the final annotation
+freeze and validation-only model selection are complete. Rebuild
+`dataset3-interim-v3` next and train a new interim checkpoint for later assisted
+batches.

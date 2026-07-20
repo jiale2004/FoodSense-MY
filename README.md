@@ -84,8 +84,8 @@ cp runs/detect/<approved-run>/weights/best.pt data/weights/best.pt
 ## Training Pipeline
 
 The canonical unsplit staging dataset is `data/dataset3/`. After assisted
-batch 003 it contains 5,266 usable images, including 1,705 annotated images
-with 1,770 boxes. Another 3,561 images still require annotation; 41 reviewed
+batch 004 it contains 5,235 usable images, including 2,174 annotated images
+with 2,267 boxes. Another 3,061 images still require annotation; 72 reviewed
 non-target images are quarantined.
 
 Do not run `training_scripts/prepare_dataset.py` against dataset3. That legacy
@@ -267,6 +267,16 @@ CVAT groups, and provides 342 proposal boxes on 298 images. CVAT task
 on 289 images and quarantined 11 non-target frames. The reviewed export passed
 dry validation and was applied with a recoverable pre-merge backup.
 
+Phase D batch 004 was prepared at `data/cvat/assisted-batch-004/` using seed 46
+and the same interim v2 checkpoint. It contains 500 new leakage groups, has
+zero overlap with the 81 locked test groups or 1,251 prior selection groups,
+and provides 589 proposal boxes on 494 images. CVAT task `2442189`, job
+`4262800`, reviewed the batch: human review accepted 497 boxes on 469 images
+and quarantined 31 non-target frames. The reviewed export passed dry validation
+and was applied with a recoverable pre-merge backup. Rebuild
+`data/dataset3-interim-v3/` next and train a new interim checkpoint before more
+assisted batches.
+
 The reserved holdout package contains 84 images, 86 existing human boxes, and
 83 leakage groups. It includes all six object classes and no model-generated
 annotations. `selection.jsonl` makes the later correction import revision-safe,
@@ -357,6 +367,7 @@ data/
 ├── cvat/assisted-batch-001/ # Phase D images, proposals, and review metadata
 ├── cvat/assisted-batch-002/ # Reviewed export, merge report, and recovery metadata
 ├── cvat/assisted-batch-003/ # Interim-v2 proposals, reviewed export, and merge report
+├── cvat/assisted-batch-004/ # 500-image reviewed export and merge report
 ├── dataset3-baseline/      # Generated group-safe 70/20/10 pilot split
 ├── dataset3-interim-v2/    # Locked reviewed holdout + expanded train/validation
 └── weights/                # Approved custom weights

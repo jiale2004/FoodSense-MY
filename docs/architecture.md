@@ -7,7 +7,7 @@ FoodSense-MY contains two related systems:
 1. a FastAPI application that detects six Malaysian dishes and returns verified nutrition plus an optional LLM-formatted advisory;
 2. a local data pipeline that acquires, curates, consolidates, annotates, splits, trains, and promotes the custom detector.
 
-The application is runnable. Dataset consolidation, the first CVAT pilot, its Phase A priority audit, the Phase B leakage-safe split, the Phase C YOLO11n pilot, the reviewed Phase D batch 001–003 merges, the no-proposal test-holdout audit, the locked incremental split, and interim HPC retraining are complete. Assisted batch 004, further annotation, final evaluation, and production model promotion remain pending.
+The application is runnable. Dataset consolidation, the first CVAT pilot, its Phase A priority audit, the Phase B leakage-safe split, the Phase C YOLO11n pilot, the reviewed Phase D batch 001–004 merges, the no-proposal test-holdout audit, the locked incremental split, and interim HPC retraining are complete. Building `dataset3-interim-v3`, training the next interim checkpoint, further annotation, final evaluation, and production model promotion remain pending.
 
 ```mermaid
 flowchart LR
@@ -127,7 +127,7 @@ flowchart TD
 
 ## Dataset3 Data Model
 
-`data/dataset3/` is the canonical unsplit staging area. After assisted batch 003 it contains 5,266 usable images, 1,705 annotated images, 1,770 boxes, 3,561 missing annotations, and 41 rejected records.
+`data/dataset3/` is the canonical unsplit staging area. After assisted batch 004 it contains 5,235 usable images, 2,174 annotated images, 2,267 boxes, 3,061 missing annotations, and 72 rejected records.
 
 ```text
 data/dataset3/
@@ -157,12 +157,12 @@ Key rules:
 
 | Class | Usable images | Annotated | Boxes | Missing |
 |-------|--------------:|----------:|------:|--------:|
-| Nasi Lemak | 994 | 228 | 242 | 766 |
-| Roti Canai | 986 | 217 | 247 | 769 |
-| Char Kuey Teow | 565 | 404 | 412 | 161 |
-| Chicken Rice | 712 | 436 | 442 | 276 |
-| Laksa | 1,094 | 264 | 269 | 830 |
-| Mee Goreng | 915 | 156 | 158 | 759 |
+| Nasi Lemak | 989 | 323 | 342 | 666 |
+| Roti Canai | 981 | 312 | 351 | 669 |
+| Char Kuey Teow | 612 | 551 | 561 | 61 |
+| Chicken Rice | 708 | 499 | 512 | 209 |
+| Laksa | 1,087 | 324 | 334 | 763 |
+| Mee Goreng | 858 | 165 | 167 | 693 |
 
 ## CVAT Integration Boundary
 
@@ -242,6 +242,20 @@ accepted 304 rectangles on 289 images, rejected 11 non-target frames, retained
 one multi-class image, and made 30 primary-class corrections, including 26
 `mee_goreng` → `char_kuey_teow`. The reviewed export SHA-256 is
 `5df6061b5d34beb971aacb05d53dad5b564372e25c7ada6461885b0ea2ec9c2b`.
+Dry validation passed and the guarded merge created the archived export,
+`pre-merge/`, `merge-report.json`, and recoverable rejection evidence.
+
+Phase D batch 004 is local at `data/cvat/assisted-batch-004/`. Seed 46 selected
+500 missing-label records from 500 distinct leakage groups using
+100/100/100/67/67/66 source-class quotas and the interim v2 checkpoint. The selector
+excluded all 81 locked test groups and 1,251 prior selection groups. The model
+proposed 589 boxes on 494 images at confidence 0.20; 390 frames are high
+priority and six had no proposal. CVAT task `2442189` and completed job
+`4262800` contained all 500 images. Human review accepted 497 rectangles on
+469 images, rejected 31 non-target frames, retained three multi-class images,
+and made 61 primary-class corrections, including 51 `mee_goreng` →
+`char_kuey_teow`. The reviewed export SHA-256 is
+`306ef725a76302af8d64be9048d11d7b3062fff976dd9cd51152cf4c5383bd64`.
 Dry validation passed and the guarded merge created the archived export,
 `pre-merge/`, `merge-report.json`, and recoverable rejection evidence.
 
@@ -346,12 +360,13 @@ immutable Phase B test manifest + pending queue
 yolo11n.pt pretrained initialization
     → pilot baseline experiment [completed: dataset3_pilot_v1]
     → per-class metrics and qualitative QA [completed]
-    → CVAT assisted-labelling proposals [batches 001–003 completed]
-    → human correction and validated batch merge [batches 001–003 completed]
+    → CVAT assisted-labelling proposals [batches 001–004 completed]
+    → human correction and validated batch merge [batches 001–004 completed]
     → no-proposal holdout verification [task 2441672; completed and applied]
     → locked reviewed holdout in a new leakage-safe split [completed]
     → interim HPC retraining [completed: dataset3_interim_v2]
-    → assisted batch 004 proposals and human review [pending]
+    → locked incremental split + interim v3 training [pending]
+    → assisted batch 005+ proposals and human review [pending]
     → final training and threshold calibration after annotation freeze
     → versioned candidate weights
     → accepted data/weights/best.pt
@@ -364,7 +379,7 @@ The current assisted-labelling artifact is
 `runs/detect/dataset3_interim_v2/weights/best.pt`. Ultralytics `8.4.100`
 selected epoch 75 with validation mAP50 0.938 and mAP50–95 0.747, improving
 the pilot's 0.925 and 0.689 on the expanded validation view. It is not
-production-approved: 3,561 images remain unannotated, noodle-class confusion
+production-approved: 3,061 images remain unannotated, noodle-class confusion
 and Chicken Rice localization still need targeted review, and the locked test
 set must stay unevaluated until final model selection. See
 [`experiments/dataset3_interim_v2.md`](experiments/dataset3_interim_v2.md) for
@@ -392,6 +407,7 @@ FoodSense-MY/
 │   ├── cvat/assisted-batch-001/         # Phase D input, proposals, and review metadata
 │   ├── cvat/assisted-batch-002/         # Reviewed export and recovery metadata
 │   ├── cvat/assisted-batch-003/         # Interim-v2 proposals, reviewed export, merge report
+│   ├── cvat/assisted-batch-004/         # 500-image reviewed export and merge report
 │   ├── cvat/test-holdout-review-v1/      # No-proposal candidate-test verification package
 │   ├── dataset3-baseline/              # Generated leakage-safe pilot split
 │   ├── dataset3-interim-v2/            # Locked holdout + expanded train/validation
