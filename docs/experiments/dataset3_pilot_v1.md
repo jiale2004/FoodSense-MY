@@ -61,9 +61,15 @@ Phase C passes its pilot gate: all six class IDs load correctly, the training an
 
 Production promotion is blocked by evidence quality, not by a pipeline failure:
 
-1. the 84 test candidates have not been manually reviewed and frozen;
-2. the model has not been evaluated once on an accepted untouched test set;
-3. class support is imbalanced, particularly for Nasi Lemak and Roti Canai;
-4. Char Kuey Teow needs targeted error reduction.
+1. the later audit accepted 82 of the 84 test candidates and
+   `data/dataset3-interim-v2/` now locks the 82 images in 81 leakage groups;
+2. 3,861 Dataset3 images still need annotations, so this is not the final
+   production-training corpus;
+3. the model has not been evaluated once on the accepted untouched test set;
+4. class support is imbalanced, particularly for Nasi Lemak and Roti Canai;
+5. Char Kuey Teow needs targeted error reduction.
 
-Do not copy this checkpoint to `data/weights/best.pt`. After the test review, use the same Ultralytics version as training where possible, run the final holdout evaluation exactly once, and promote only if the resulting per-class and qualitative review is accepted.
+Do not copy this checkpoint to `data/weights/best.pt`. Use it to initialize the
+new interim run without `resume=True`, keep the locked test split untouched
+during assisted-labelling cycles, and run final holdout evaluation exactly once
+after annotation freeze and validation-only model selection.

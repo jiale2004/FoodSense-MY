@@ -84,8 +84,9 @@ cp runs/detect/<approved-run>/weights/best.pt data/weights/best.pt
 ## Training Pipeline
 
 The canonical unsplit staging dataset is `data/dataset3/`. After the completed
-Phase A CVAT audit it contains 5,299 usable images, including 838 annotated
-images with 855 boxes. Another 4,461 images still require annotation.
+holdout audit revision it contains 5,277 usable images, including 1,416
+annotated images with 1,466 boxes. Another 3,861 images still require
+annotation; 30 reviewed non-target images are quarantined.
 
 Do not run `training_scripts/prepare_dataset.py` against dataset3. That legacy
 utility performs a file-level random split and does not preserve the manifest's
@@ -103,7 +104,8 @@ python training_scripts/split_dataset3.py \
   --materialize hardlink
 ```
 
-Revalidate the frozen split at any time with:
+Before dataset3 changed, the frozen split could be revalidated against its
+source snapshot with:
 
 ```bash
 python training_scripts/split_dataset3.py \
@@ -112,9 +114,83 @@ python training_scripts/split_dataset3.py \
   --validate-only
 ```
 
-The 84 test candidates in
-`data/dataset3-baseline/test-review-queue.jsonl` still require manual review
-before the test holdout is considered frozen. Pilot training commands:
+After the Phase D assisted-batch merges, that command is expected to report a source
+manifest mismatch because the baseline is an immutable pre-Phase-D snapshot.
+Do not overwrite it; create a new versioned split after the annotation cycle or
+when an interim retraining checkpoint is needed.
+
+The immutable Phase B queue still records the original 84 candidates as
+pending, but their no-proposal manual audit is now complete and applied to
+Dataset3. The package is generated with:
+
+```bash
+python training_scripts/prepare_test_holdout_review.py
+```
+
+The current package is at `data/cvat/test-holdout-review-v1/`. CVAT project
+`425516` now contains task `2441672`, job `4262178`, with all 84 images from
+`images.zip`. `current-annotations.zip` was imported as **Ultralytics YOLO
+Detection**. Human review retained 82 images with 84 boxes, rejected two
+non-target frames, adjusted boxes on 52 other images, and corrected one
+`mee_goreng` image to `char_kuey_teow`. The three completed pilot and
+assisted-batch tasks were deleted from CVAT only after their local archives
+passed integrity checks, leaving two hosted task slots free for rotation.
+
+The following completed commands are retained as provenance; do not rerun the
+same revision ID:
+
+```bash
+python training_scripts/import_cvat_annotations.py \
+  --dataset-dir data/dataset3 \
+  --pilot-dir data/cvat/test-holdout-review-v1 \
+  --archive data/cvat/test-holdout-review-v1/cvat-reviewed-export.zip \
+  --revision-id test-holdout-v1 \
+  --task-id 2441672 \
+  --job-id 4262178
+
+# Only after checking the report:
+python training_scripts/import_cvat_annotations.py \
+  --dataset-dir data/dataset3 \
+  --pilot-dir data/cvat/test-holdout-review-v1 \
+  --archive data/cvat/test-holdout-review-v1/cvat-reviewed-export.zip \
+  --revision-id test-holdout-v1 \
+  --task-id 2441672 \
+  --job-id 4262178 \
+  --apply
+```
+
+Revision `test-holdout-v1` updated Dataset3 with a recoverable pre-apply backup
+while leaving `data/dataset3-baseline/` immutable. The locked incremental split
+is now materialized at `data/dataset3-interim-v2/`:
+
+```bash
+python training_scripts/split_dataset3.py \
+  --dataset-dir data/dataset3 \
+  --output-dir data/dataset3-interim-v2 \
+  --base-split-manifest data/dataset3-baseline/split-manifest.jsonl \
+  --locked-test-selection data/cvat/test-holdout-review-v1/selection.jsonl \
+  --incremental-train-fraction 0.8 \
+  --seed 42 \
+  --materialize hardlink
+```
+
+It contains 1,067 train images, 267 validation images, and exactly the 82
+accepted reviewed holdout images in test. All 754 surviving baseline
+train/validation assignments are preserved; the 580 newly annotated images are
+assigned only to train or validation. The split has zero cross-split leakage
+groups and its split-manifest SHA-256 is
+`8e9db98b57dd53f01778afe8d1b66bc4e07975f639356c9758226102eecd90dd`.
+
+Validate it locally with:
+
+```bash
+python training_scripts/split_dataset3.py \
+  --dataset-dir data/dataset3 \
+  --output-dir data/dataset3-interim-v2 \
+  --validate-only
+```
+
+The earlier pilot training commands are retained as provenance:
 
 ```bash
 # macOS Apple Silicon
@@ -141,19 +217,66 @@ yolo detect train \
 The Phase C run `runs/detect/dataset3_pilot_v1/` completed successfully. Its best
 epoch reached mAP50 0.925 and mAP50–95 0.689 on validation. It is approved for
 CVAT proposals, not production deployment; do not copy it to
-`data/weights/best.pt` before the 84-image test candidate set is reviewed,
-frozen, and evaluated. See
+`data/weights/best.pt` before final annotation and a single accepted holdout
+evaluation. See
 [`docs/experiments/dataset3_pilot_v1.md`](docs/experiments/dataset3_pilot_v1.md)
 for the per-class assessment and limitations.
 
-Before training on HPC, fix the absolute `path:` in
-`data/dataset3-baseline/data.yaml` to the cluster path, and transfer the
-baseline with hardlinks dereferenced (`rsync -aL`) because baseline images are
-hardlinked into `data/dataset3/`.
+Phase D batch 001 has been prepared locally with model proposals:
+
+```bash
+python training_scripts/prepare_cvat_assisted_batch.py \
+  --dataset-dir data/dataset3 \
+  --split-manifest data/dataset3-baseline/split-manifest.jsonl \
+  --output-dir data/cvat/assisted-batch-001 \
+  --model runs/detect/dataset3_pilot_v1/weights/best.pt \
+  --seed 43 \
+  --confidence 0.20 \
+  --iou 0.50 \
+  --device cpu
+```
+
+This creates `images.zip` for a new task in the existing CVAT project and
+`preannotations.zip` for an Ultralytics YOLO annotation import. Batch 001 has
+300 images and 338 proposal boxes; it excludes every current candidate-test
+leakage group. Upload the images first, import the pre-annotations, then review
+every frame. A missing proposal is not an automatic rejection.
+
+Batch 001 was completed in CVAT task `2439970`, job `4260450`; the hosted task
+was deleted after its local archive passed integrity checks. All 338 proposals
+were imported successfully. The reviewed export was validated and applied: 293
+images received 309 boxes, 7 non-target images were quarantined, and recoverable
+pre-merge metadata was retained.
+
+Phase D batch 002 was prepared at `data/cvat/assisted-batch-002/` using seed 44
+and the same class quotas and inference thresholds. It contains 300 new leakage
+groups, has zero overlap with the 83 candidate-test groups or 600 prior CVAT
+groups, and provides 326 proposal boxes on 296 images. Its image and
+pre-annotation archives pass ZIP integrity checks. CVAT task `2441400`, job
+`4261934`, contained all 300 images and all 326 proposals imported as
+Ultralytics YOLO Detection rectangles; the hosted task was deleted after local
+archival. Human review accepted 304 boxes on 287 images and
+quarantined 13 non-target frames. The reviewed export passed dry validation and
+was applied with a recoverable pre-merge backup.
+
+The reserved holdout package contains 84 images, 86 existing human boxes, and
+83 leakage groups. It includes all six object classes and no model-generated
+annotations. `selection.jsonl` makes the later correction import revision-safe,
+and package creation fails if the baseline queue, current images, or labels
+have drifted.
+
+For the next HPC run, transfer `data/dataset3-interim-v2/` with hardlinks
+dereferenced (`rsync -aL`) and change its `data.yaml` absolute `path:` to the
+cluster directory. Train a new run from the pilot checkpoint without using
+`resume=True`; use validation for model selection and leave `split=test`
+untouched during interim annotation cycles.
 
 See [`docs/handoff.md`](docs/handoff.md) for current counts and next-step gates,
 [`docs/architecture.md`](docs/architecture.md) for the complete data flow, and
 [`docs/bounding-box-policy.md`](docs/bounding-box-policy.md) for CVAT rules.
+Group members should follow the end-to-end
+[`docs/cvat-collaborator-guide.md`](docs/cvat-collaborator-guide.md) for ZIP
+upload, annotation import, review, export, and reviewer handoff.
 
 ## Scraping and Image Curation
 
@@ -221,7 +344,10 @@ data/
 ├── knowledge_base.json     # 6-class nutrition data
 ├── dataset3/               # Canonical unsplit staging dataset
 ├── cvat/pilot-300/         # CVAT input, exports, reports, revisions
+├── cvat/assisted-batch-001/ # Phase D images, proposals, and review metadata
+├── cvat/assisted-batch-002/ # Reviewed export, merge report, and recovery metadata
 ├── dataset3-baseline/      # Generated group-safe 70/20/10 pilot split
+├── dataset3-interim-v2/    # Locked reviewed holdout + expanded train/validation
 └── weights/                # Approved custom weights
 training_scripts/
 ├── utils.py                # ReproducibilityManager
@@ -230,8 +356,9 @@ training_scripts/
 ├── scrape_images.py        # icrawler image scraper
 ├── build_dataset3.py       # Source consolidation + leakage groups
 ├── prepare_cvat_pilot.py   # Deterministic CVAT batch packaging
+├── prepare_cvat_assisted_batch.py # Leakage-safe selection + YOLO proposals
 ├── import_cvat_annotations.py # Validated first merge and revisions
-├── split_dataset3.py       # Deterministic leakage-safe baseline split
+├── split_dataset3.py       # Fresh or locked-incremental leakage-safe split
 └── prepare_dataset.py      # Legacy splitter; not safe for dataset3
 docs/                       # Handoff, architecture, annotation policy
 ```

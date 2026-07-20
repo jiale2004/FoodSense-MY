@@ -69,14 +69,48 @@ Rejected images are evidence, not disposable files. The import process moves the
 
 ## CVAT Workflow
 
+Group members performing the operational upload/review/export steps should use
+[`cvat-collaborator-guide.md`](cvat-collaborator-guide.md) together with this
+policy. This document is authoritative for annotation decisions; the
+collaborator guide is authoritative for the CVAT handoff procedure.
+
 1. Confirm the six CVAT labels use the fixed canonical order.
-2. Inspect the whole frame before drawing the first box.
+2. Inspect the whole frame before accepting or drawing the first box.
 3. Draw all target instances, including classes different from the source selection.
 4. Zoom in to make box edges tight and check for duplicate boxes.
 5. Flag uncertain class decisions for review.
 6. Leave a truly non-target frame empty; do not add a placeholder box.
 7. Export in Ultralytics YOLO Detection format.
 8. Run the repository importer without `--apply` first, inspect its report, then rerun with `--apply` only after validation succeeds. For corrections to an already-merged batch, supply a new `--revision-id` so the importer creates a recoverable revision backup.
+
+For model-assisted batches, every imported box is a proposal:
+
+- review every frame, including high-confidence predictions;
+- tighten, relabel, or delete incorrect boxes and add every missed target instance;
+- treat a frame with no prediction as unresolved, not automatically rejected;
+- do not use proposal confidence as annotation evidence;
+- pay extra attention to Char Kuey Teow/Mee Goreng disagreements and any proposal that differs from the source class;
+- keep the candidate test holdout free of model proposals.
+
+For candidate-test holdout verification, the imported boxes are the existing
+human annotations from the immutable baseline, not model proposals:
+
+- review every one of the 84 frames; sampling is insufficient;
+- inspect the full frame and verify class, tightness, missed target instances,
+  duplicate boxes, truncation, and occlusion under the same policy as training;
+- correct or delete an existing box when the visible evidence requires it, and
+  add every missed instance from the six target classes;
+- leave a frame empty only when it contains none of the six target classes; the
+  revision importer will quarantine it rather than create a background label;
+- do not consult Phase C predictions or add auto-label proposals to this task;
+- keep all images in the same leakage group in the holdout decision;
+- apply accepted corrections to Dataset3 through a unique revision with a
+  recovery backup, never by editing `data/dataset3-baseline/`;
+- the reviewed outcome is frozen as 82 accepted images in
+  `data/dataset3-interim-v2/`; do not evaluate or tune against its test split
+  during interim assisted-labelling retraining;
+- use validation for checkpoint and threshold decisions, then evaluate the
+  locked test set only after the final annotation freeze and model selection.
 
 ## Quality-Control Checklist
 

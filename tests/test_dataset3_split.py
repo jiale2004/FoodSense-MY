@@ -12,10 +12,13 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "training_scripts"))
 
 from split_dataset3 import (  # noqa: E402
+    INCREMENTAL_ALGORITHM_VERSION,
     TARGET_CLASSES,
     assign_groups,
     build_groups,
     build_output,
+    incremental_ratios,
+    load_incremental_constraints,
     load_annotated_records,
     parse_ratios,
     validate_output,
@@ -91,6 +94,146 @@ class Dataset3SplitTests(unittest.TestCase):
 
             with self.assertRaises(FileExistsError):
                 build_output(dataset, first, records, assignments, ratios, 42, "copy")
+
+    def test_incremental_split_preserves_base_and_locks_reviewed_test(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            dataset = root / "dataset3"
+            self.make_dataset(dataset)
+            original_records = load_annotated_records(dataset)
+            original_groups = build_groups(original_records)
+            baseline_ratios = parse_ratios(0.7, 0.2, 0.1)
+            baseline_assignments = assign_groups(original_groups, baseline_ratios, 42)
+            baseline = root / "baseline"
+            build_output(
+                dataset,
+                baseline,
+                original_records,
+                baseline_assignments,
+                baseline_ratios,
+                42,
+                "copy",
+            )
+
+            base_manifest = [
+                json.loads(line)
+                for line in (baseline / "split-manifest.jsonl")
+                .read_text(encoding="utf-8")
+                .splitlines()
+            ]
+            source_manifest_path = dataset / "manifest.jsonl"
+            source_manifest = [
+                json.loads(line)
+                for line in source_manifest_path.read_text(encoding="utf-8").splitlines()
+            ]
+            source_by_id = {record["sha256"]: record for record in source_manifest}
+            selection = [
+                source_by_id[record["sha256"]]
+                for record in base_manifest
+                if record["split"] == "test"
+            ]
+            selection_path = root / "reviewed-selection.jsonl"
+            write_jsonl(selection_path, selection)
+
+            for class_id, class_name in enumerate(TARGET_CLASSES):
+                for index in range(2):
+                    content = f"new-{class_name}-{index}".encode()
+                    image_id = hashlib.sha256(content).hexdigest()
+                    image_relative = f"{class_name}/images/{image_id}.jpg"
+                    label_relative = f"{class_name}/labels/{image_id}.txt"
+                    image = dataset / image_relative
+                    label = dataset / label_relative
+                    image.write_bytes(content)
+                    label.write_text(
+                        f"{class_id} 0.5 0.5 0.5 0.5\n", encoding="utf-8"
+                    )
+                    source_manifest.append(
+                        {
+                            "annotation_status": "annotated",
+                            "bbox_count": 1,
+                            "class_id": class_id,
+                            "class_name": class_name,
+                            "destination_image": image_relative,
+                            "destination_label": label_relative,
+                            "leakage_group": f"new-group-{image_id}",
+                            "sha256": image_id,
+                        }
+                    )
+            write_jsonl(source_manifest_path, source_manifest)
+
+            records = load_annotated_records(dataset)
+            groups = build_groups(records)
+            locked, assignment_sources, provenance = load_incremental_constraints(
+                dataset,
+                records,
+                baseline / "split-manifest.jsonl",
+                selection_path,
+            )
+            locked_test_images = sum(
+                group.images
+                for group in groups
+                if locked.get(group.group_id) == "test"
+            )
+            ratios = incremental_ratios(len(records), locked_test_images, 0.8)
+            provenance["incremental_train_fraction"] = 0.8
+            provenance["locked_groups"] = {
+                split: sum(value == split for value in locked.values())
+                for split in ("train", "val", "test")
+                if any(value == split for value in locked.values())
+            }
+            assignments = assign_groups(
+                groups,
+                ratios,
+                42,
+                locked_assignments=locked,
+                assignable_splits=("train", "val"),
+            )
+            output = root / "incremental"
+            build_output(
+                dataset,
+                output,
+                records,
+                assignments,
+                ratios,
+                42,
+                "copy",
+                algorithm=INCREMENTAL_ALGORITHM_VERSION,
+                assignment_sources=assignment_sources,
+                provenance=provenance,
+                test_review_status="accepted",
+            )
+            report = validate_output(output, dataset)
+
+            self.assertEqual(report["images"], 72)
+            self.assertEqual(report["test_review_pending"], 0)
+            self.assertEqual(report["test_review_accepted"], 6)
+            self.assertEqual(
+                [report["splits"][split]["images"] for split in ("train", "val", "test")],
+                [53, 13, 6],
+            )
+            self.assertEqual(provenance["accepted_test_images"], 6)
+            self.assertEqual(provenance["accepted_test_groups"], 6)
+
+            incremental_manifest = {
+                record["sha256"]: record
+                for record in (
+                    json.loads(line)
+                    for line in (output / "split-manifest.jsonl")
+                    .read_text(encoding="utf-8")
+                    .splitlines()
+                )
+            }
+            for record in base_manifest:
+                image_id = record["sha256"]
+                self.assertEqual(incremental_manifest[image_id]["split"], record["split"])
+            self.assertEqual(
+                {
+                    record["sha256"]
+                    for record in incremental_manifest.values()
+                    if record["split"] == "test"
+                },
+                {record["sha256"] for record in selection},
+            )
 
     def test_validation_detects_label_tampering(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

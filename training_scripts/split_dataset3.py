@@ -30,6 +30,7 @@ TARGET_CLASSES = [
 CLASS_IDS = {name: index for index, name in enumerate(TARGET_CLASSES)}
 SPLITS = ("train", "val", "test")
 ALGORITHM_VERSION = "dataset3-group-stratified-v1"
+INCREMENTAL_ALGORITHM_VERSION = "dataset3-group-stratified-locked-v2"
 
 
 @dataclass(frozen=True)
@@ -205,8 +206,22 @@ def integer_targets(total: int, ratios: dict[str, float]) -> dict[str, int]:
 
 
 def assign_groups(
-    groups: list[Group], ratios: dict[str, float], seed: int
+    groups: list[Group],
+    ratios: dict[str, float],
+    seed: int,
+    locked_assignments: dict[str, str] | None = None,
+    assignable_splits: tuple[str, ...] = SPLITS,
 ) -> dict[str, str]:
+    locked_assignments = dict(locked_assignments or {})
+    group_ids = {group.group_id for group in groups}
+    unknown_locked = sorted(set(locked_assignments) - group_ids)
+    if unknown_locked:
+        raise ValueError(f"Locked assignments reference unknown groups: {unknown_locked}")
+    if not assignable_splits or any(split not in SPLITS for split in assignable_splits):
+        raise ValueError(f"Invalid assignable splits: {assignable_splits}")
+    if any(split not in SPLITS for split in locked_assignments.values()):
+        raise ValueError("Locked assignments contain an invalid split")
+
     total_images = sum(group.images for group in groups)
     image_targets = integer_targets(total_images, ratios)
     total_primary = tuple(
@@ -255,7 +270,7 @@ def assign_groups(
         return (primary_score + (2 * object_score)) / group.images
 
     ordered = sorted(
-        groups,
+        [group for group in groups if group.group_id not in locked_assignments],
         key=lambda group: (
             -rarity(group),
             seeded_ties[group.group_id],
@@ -271,7 +286,17 @@ def assign_groups(
     current_objects = {
         split: [0] * len(TARGET_CLASSES) for split in SPLITS
     }
-    assignments: dict[str, str] = {}
+    assignments: dict[str, str] = dict(locked_assignments)
+
+    for group in groups:
+        split = locked_assignments.get(group.group_id)
+        if split is None:
+            continue
+        current_images[split] += group.images
+        current_boxes[split] += group.boxes
+        for class_id in range(len(TARGET_CLASSES)):
+            current_primary[split][class_id] += group.primary_counts[class_id]
+            current_objects[split][class_id] += group.object_counts[class_id]
 
     def squared_delta(current: int, addition: int, target: float) -> float:
         denominator = max(target, 1.0)
@@ -282,7 +307,7 @@ def assign_groups(
     for group in ordered:
         fitting_images = [
             split
-            for split in SPLITS
+            for split in assignable_splits
             if current_images[split] + group.images <= image_targets[split]
         ]
         fitting_primary = [
@@ -295,9 +320,9 @@ def assign_groups(
                 for class_id in range(len(TARGET_CLASSES))
             )
         ]
-        candidates = fitting_primary or fitting_images or list(SPLITS)
+        candidates = fitting_primary or fitting_images or list(assignable_splits)
         scores: list[tuple[float, int, str]] = []
-        for index, split in enumerate(SPLITS):
+        for index, split in enumerate(assignable_splits):
             if split not in candidates:
                 continue
             score = 8.0 * squared_delta(
@@ -331,6 +356,8 @@ def assign_groups(
     # stratification, or the leakage-group boundary.
     swap_buckets: dict[tuple[int, tuple[int, ...]], list[Group]] = defaultdict(list)
     for group in groups:
+        if group.group_id in locked_assignments:
+            continue
         swap_buckets[(group.images, group.primary_counts)].append(group)
 
     def metric_error(value: int, target: float) -> float:
@@ -410,6 +437,141 @@ def assign_groups(
     return assignments
 
 
+def load_incremental_constraints(
+    dataset_dir: Path,
+    records: list[SplitRecord],
+    base_split_manifest: Path,
+    locked_test_selection: Path,
+) -> tuple[dict[str, str], dict[str, str], dict[str, Any]]:
+    """Resolve stable train/val assignments and the reviewed test holdout."""
+    source_records = load_jsonl(dataset_dir / "manifest.jsonl")
+    source_by_id = {str(record["sha256"]): record for record in source_records}
+    if len(source_by_id) != len(source_records):
+        raise ValueError("Dataset3 manifest contains duplicate SHA-256 values")
+
+    base_records = load_jsonl(base_split_manifest)
+    selection_records = load_jsonl(locked_test_selection)
+    if not base_records or not selection_records:
+        raise ValueError("Base split manifest and locked test selection must be non-empty")
+
+    base_by_id: dict[str, dict[str, Any]] = {}
+    base_group_splits: dict[str, str] = {}
+    for record in base_records:
+        image_id = str(record["sha256"])
+        if image_id in base_by_id:
+            raise ValueError(f"Duplicate image in base split: {image_id}")
+        base_by_id[image_id] = record
+        split = str(record["split"])
+        group_id = str(record["leakage_group"])
+        previous = base_group_splits.setdefault(group_id, split)
+        if previous != split:
+            raise ValueError(f"Base leakage group crosses splits: {group_id}")
+
+    selection_by_id: dict[str, dict[str, Any]] = {}
+    for record in selection_records:
+        image_id = str(record["sha256"])
+        if image_id in selection_by_id:
+            raise ValueError(f"Duplicate image in locked test selection: {image_id}")
+        selection_by_id[image_id] = record
+
+    base_test_ids = {
+        image_id
+        for image_id, record in base_by_id.items()
+        if record["split"] == "test"
+    }
+    selection_ids = set(selection_by_id)
+    if selection_ids != base_test_ids:
+        missing = sorted(base_test_ids - selection_ids)
+        extra = sorted(selection_ids - base_test_ids)
+        raise ValueError(
+            "Locked test selection must exactly cover the base test split; "
+            f"missing={missing}, extra={extra}"
+        )
+
+    accepted_ids: set[str] = set()
+    rejected_ids: set[str] = set()
+    for image_id, selection in selection_by_id.items():
+        current = source_by_id.get(image_id)
+        if current is None:
+            raise ValueError(f"Locked test image is absent from Dataset3: {image_id}")
+        if selection.get("leakage_group") != current.get("leakage_group"):
+            raise ValueError(f"Locked test leakage group drifted: {image_id}")
+        if base_by_id[image_id].get("leakage_group") != current.get("leakage_group"):
+            raise ValueError(f"Base test leakage group drifted: {image_id}")
+        status = current.get("annotation_status")
+        if status == "annotated":
+            accepted_ids.add(image_id)
+        elif status == "rejected":
+            rejected_ids.add(image_id)
+        else:
+            raise ValueError(
+                f"Reviewed test image has unresolved status {status!r}: {image_id}"
+            )
+
+    current_groups = {group.group_id: group for group in build_groups(records)}
+    accepted_groups = {
+        str(source_by_id[image_id]["leakage_group"]) for image_id in accepted_ids
+    }
+    locked_assignments: dict[str, str] = {}
+    assignment_sources: dict[str, str] = {}
+    for group_id in current_groups:
+        if group_id in accepted_groups:
+            locked_assignments[group_id] = "test"
+            assignment_sources[group_id] = "locked_reviewed_holdout"
+            continue
+        base_split = base_group_splits.get(group_id)
+        if base_split in ("train", "val"):
+            locked_assignments[group_id] = base_split
+            assignment_sources[group_id] = "preserved_base_split"
+        elif base_split == "test":
+            raise ValueError(
+                f"Current annotated base-test group is not in the accepted holdout: {group_id}"
+            )
+
+    accepted_current_ids = {
+        member.sha256
+        for group_id in accepted_groups
+        for member in current_groups[group_id].records
+    }
+    if accepted_current_ids != accepted_ids:
+        extra = sorted(accepted_current_ids - accepted_ids)
+        raise ValueError(
+            "Accepted holdout groups contain unreviewed annotated members; "
+            f"review and add them before splitting: {extra}"
+        )
+
+    metadata = {
+        "accepted_test_groups": len(accepted_groups),
+        "accepted_test_images": len(accepted_ids),
+        "base_split_manifest": str(base_split_manifest),
+        "base_split_manifest_sha256": sha256_file(base_split_manifest),
+        "locked_test_selection": str(locked_test_selection),
+        "locked_test_selection_sha256": sha256_file(locked_test_selection),
+        "rejected_test_images": len(rejected_ids),
+    }
+    return locked_assignments, assignment_sources, metadata
+
+
+def incremental_ratios(
+    total_images: int, locked_test_images: int, train_fraction: float
+) -> dict[str, float]:
+    if not 0 < train_fraction < 1:
+        raise ValueError("Incremental train fraction must be between zero and one")
+    remaining = total_images - locked_test_images
+    if remaining <= 1:
+        raise ValueError("Incremental split needs at least two non-test images")
+    raw_train = Fraction(remaining) * Fraction(str(train_fraction))
+    train_images = math.floor(raw_train)
+    if raw_train - train_images >= Fraction(1, 2):
+        train_images += 1
+    val_images = remaining - train_images
+    return {
+        "train": train_images / total_images,
+        "val": val_images / total_images,
+        "test": locked_test_images / total_images,
+    }
+
+
 def safe_relative(path_value: str) -> Path:
     path = Path(path_value)
     if path.is_absolute() or ".." in path.parts:
@@ -457,7 +619,14 @@ def build_output(
     ratios: dict[str, float],
     seed: int,
     materialize: str,
+    *,
+    algorithm: str = ALGORITHM_VERSION,
+    assignment_sources: dict[str, str] | None = None,
+    provenance: dict[str, Any] | None = None,
+    test_review_status: str = "pending",
 ) -> None:
+    if test_review_status not in ("pending", "accepted"):
+        raise ValueError(f"Unsupported test review status: {test_review_status}")
     if output_dir.exists():
         raise FileExistsError(
             f"Output already exists and is treated as immutable: {output_dir}"
@@ -479,8 +648,7 @@ def build_output(
             # A later dataset3 annotation correction must not mutate this
             # frozen baseline through a shared label inode.
             materialize_file(source_label, temporary / label_relative, "copy")
-            manifest_records.append(
-                {
+            manifest_record = {
                     "bbox_count": len(record.label_lines),
                     "class_id": record.source["class_id"],
                     "class_name": record.source["class_name"],
@@ -497,7 +665,11 @@ def build_output(
                     "source_label": record.source["destination_label"],
                     "split": split,
                 }
-            )
+            if assignment_sources is not None:
+                manifest_record["assignment_source"] = assignment_sources.get(
+                    record.leakage_group, "new_incremental_group"
+                )
+            manifest_records.append(manifest_record)
         manifest_records.sort(key=lambda item: item["sha256"])
         manifest_path = temporary / "split-manifest.jsonl"
         write_jsonl(manifest_path, manifest_records)
@@ -507,7 +679,7 @@ def build_output(
                 "class_name": record["class_name"],
                 "destination_image": record["destination_image"],
                 "leakage_group": record["leakage_group"],
-                "review_status": "pending",
+                "review_status": test_review_status,
                 "sha256": record["sha256"],
             }
             for record in manifest_records
@@ -531,7 +703,7 @@ def build_output(
         counts = split_counts(manifest_records)
         source_manifest = dataset_dir / "manifest.jsonl"
         summary = {
-            "algorithm": ALGORITHM_VERSION,
+            "algorithm": algorithm,
             "class_ids": CLASS_IDS,
             "materialization": {"images": materialize, "labels": "copy"},
             "ratios": ratios,
@@ -540,7 +712,12 @@ def build_output(
             "source_manifest_sha256": sha256_file(source_manifest),
             "split_manifest_sha256": sha256_text(manifest_path),
             "splits": counts,
-            "test_holdout_status": "candidate_requires_manual_review",
+            "test_holdout_status": (
+                "candidate_requires_manual_review"
+                if test_review_status == "pending"
+                else "reviewed_and_locked"
+            ),
+            "test_review_status": test_review_status,
             "test_review_queue": "test-review-queue.jsonl",
             "test_review_queue_sha256": sha256_text(review_path),
             "totals": {
@@ -551,6 +728,8 @@ def build_output(
                 ),
             },
         }
+        if provenance is not None:
+            summary["incremental_provenance"] = provenance
         (temporary / "summary.json").write_text(
             json.dumps(summary, indent=2, sort_keys=True) + "\n", encoding="utf-8"
         )
@@ -618,6 +797,53 @@ def validate_output(
     counts = split_counts(records)
     if counts != summary["splits"]:
         raise ValueError("Split counts do not match summary")
+    if summary.get("algorithm") == INCREMENTAL_ALGORITHM_VERSION:
+        provenance = summary.get("incremental_provenance")
+        if not isinstance(provenance, dict):
+            raise ValueError("Locked incremental split lacks provenance")
+        expected_sources = {
+            "locked_reviewed_holdout": "test",
+            "preserved_base_split": None,
+            "new_incremental_group": None,
+        }
+        for record in records:
+            source = record.get("assignment_source")
+            if source not in expected_sources:
+                raise ValueError(f"Invalid incremental assignment source: {source!r}")
+            if source == "locked_reviewed_holdout" and record["split"] != "test":
+                raise ValueError("Reviewed holdout record escaped the test split")
+            if source != "locked_reviewed_holdout" and record["split"] == "test":
+                raise ValueError("Non-holdout record entered the locked test split")
+            if source == "preserved_base_split" and record["split"] not in (
+                "train",
+                "val",
+            ):
+                raise ValueError("Preserved base record has an invalid split")
+        locked_group_counts = Counter()
+        for split in SPLITS:
+            locked_group_counts[split] = len(
+                {
+                    record["leakage_group"]
+                    for record in records
+                    if record["split"] == split
+                    and record["assignment_source"] != "new_incremental_group"
+                }
+            )
+        expected_locked = {
+            split: int(count)
+            for split, count in provenance.get("locked_groups", {}).items()
+        }
+        actual_locked = {
+            split: count for split, count in locked_group_counts.items() if count
+        }
+        if actual_locked != expected_locked:
+            raise ValueError("Locked group counts do not match incremental provenance")
+        if counts["test"]["images"] != provenance.get("accepted_test_images"):
+            raise ValueError("Locked test image count does not match provenance")
+        if counts["test"]["leakage_groups"] != provenance.get(
+            "accepted_test_groups"
+        ):
+            raise ValueError("Locked test group count does not match provenance")
     for split in ("val", "test"):
         absent = [
             class_name
@@ -637,8 +863,14 @@ def validate_output(
     test_ids = {record["sha256"] for record in records if record["split"] == "test"}
     if {record["sha256"] for record in review_records} != test_ids:
         raise ValueError("Test review queue does not match the test split")
-    if any(record.get("review_status") != "pending" for record in review_records):
-        raise ValueError("New test review queue must start pending")
+    expected_review_status = summary.get("test_review_status", "pending")
+    if any(
+        record.get("review_status") != expected_review_status
+        for record in review_records
+    ):
+        raise ValueError(
+            f"Test review queue must use status {expected_review_status!r}"
+        )
 
     config = yaml.safe_load((output_dir / "data.yaml").read_text(encoding="utf-8"))
     if config.get("names") != TARGET_CLASSES or config.get("nc") != len(TARGET_CLASSES):
@@ -658,7 +890,12 @@ def validate_output(
         "images": len(records),
         "missing_pairs": 0,
         "splits": counts,
-        "test_review_pending": len(review_records),
+        "test_review_accepted": sum(
+            record.get("review_status") == "accepted" for record in review_records
+        ),
+        "test_review_pending": sum(
+            record.get("review_status") == "pending" for record in review_records
+        ),
     }
 
 
@@ -680,6 +917,22 @@ def main() -> None:
     parser.add_argument("--train-ratio", type=float, default=0.7)
     parser.add_argument("--val-ratio", type=float, default=0.2)
     parser.add_argument("--test-ratio", type=float, default=0.1)
+    parser.add_argument(
+        "--base-split-manifest",
+        type=Path,
+        help="Preserve train/val groups from this immutable split manifest",
+    )
+    parser.add_argument(
+        "--locked-test-selection",
+        type=Path,
+        help="Reviewed selection that exactly covers the base test split",
+    )
+    parser.add_argument(
+        "--incremental-train-fraction",
+        type=float,
+        default=0.8,
+        help="Train share of non-test images in locked incremental mode",
+    )
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument(
         "--materialize", choices=("hardlink", "copy"), default="hardlink"
@@ -694,19 +947,63 @@ def main() -> None:
     if args.validate_only:
         report = validate_output(args.output_dir, args.dataset_dir)
     else:
-        ratios = parse_ratios(args.train_ratio, args.val_ratio, args.test_ratio)
         records = load_annotated_records(args.dataset_dir)
         groups = build_groups(records)
-        assignments = assign_groups(groups, ratios, args.seed)
-        build_output(
-            args.dataset_dir,
-            args.output_dir,
-            records,
-            assignments,
-            ratios,
-            args.seed,
-            args.materialize,
-        )
+        if (args.base_split_manifest is None) != (args.locked_test_selection is None):
+            parser.error(
+                "--base-split-manifest and --locked-test-selection must be used together"
+            )
+        if args.base_split_manifest is not None:
+            locked, assignment_sources, provenance = load_incremental_constraints(
+                args.dataset_dir,
+                records,
+                args.base_split_manifest,
+                args.locked_test_selection,
+            )
+            locked_test_images = sum(
+                group.images
+                for group in groups
+                if locked.get(group.group_id) == "test"
+            )
+            ratios = incremental_ratios(
+                len(records), locked_test_images, args.incremental_train_fraction
+            )
+            assignments = assign_groups(
+                groups,
+                ratios,
+                args.seed,
+                locked_assignments=locked,
+                assignable_splits=("train", "val"),
+            )
+            provenance["incremental_train_fraction"] = args.incremental_train_fraction
+            provenance["locked_groups"] = dict(
+                Counter(locked.values())
+            )
+            build_output(
+                args.dataset_dir,
+                args.output_dir,
+                records,
+                assignments,
+                ratios,
+                args.seed,
+                args.materialize,
+                algorithm=INCREMENTAL_ALGORITHM_VERSION,
+                assignment_sources=assignment_sources,
+                provenance=provenance,
+                test_review_status="accepted",
+            )
+        else:
+            ratios = parse_ratios(args.train_ratio, args.val_ratio, args.test_ratio)
+            assignments = assign_groups(groups, ratios, args.seed)
+            build_output(
+                args.dataset_dir,
+                args.output_dir,
+                records,
+                assignments,
+                ratios,
+                args.seed,
+                args.materialize,
+            )
         report = validate_output(args.output_dir, args.dataset_dir)
     print(json.dumps(report, indent=2, sort_keys=True))
 

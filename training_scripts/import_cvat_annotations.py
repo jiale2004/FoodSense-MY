@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import shutil
 import zipfile
 from collections import Counter
@@ -24,6 +25,16 @@ TARGET_CLASSES = [
     "mee_goreng",
 ]
 CLASS_IDS = {name: index for index, name in enumerate(TARGET_CLASSES)}
+BATCH_ID_PATTERN = re.compile(r"^[a-z0-9][a-z0-9_-]*$")
+
+
+def validated_batch_id(value: str) -> str:
+    if not BATCH_ID_PATTERN.fullmatch(value):
+        raise ValueError(
+            "Batch ID must contain only lowercase letters, numbers, underscores, "
+            "and hyphens, and must start with a letter or number"
+        )
+    return value
 
 
 def load_jsonl(path: Path) -> list[dict[str, Any]]:
@@ -319,6 +330,49 @@ def summarize_classes(manifest: list[dict[str, Any]]) -> dict[str, dict[str, int
     return class_summary
 
 
+def update_dataset_readme_counts(
+    dataset_dir: Path,
+    class_summary: dict[str, dict[str, int]],
+) -> None:
+    """Refresh the generated annotation-coverage table after a CVAT mutation."""
+
+    readme_path = dataset_dir / "README.md"
+    if not readme_path.is_file():
+        return
+    lines = readme_path.read_text(encoding="utf-8").splitlines()
+    header = "| Class | Canonical ID | Images | Box-labelled | Missing boxes |"
+    if header not in lines:
+        return
+    start = lines.index(header)
+    try:
+        end = next(
+            index
+            for index in range(start + 2, len(lines))
+            if lines[index].startswith("| **Total**")
+        )
+    except StopIteration as error:
+        raise ValueError("Dataset README coverage table has no total row") from error
+
+    table = [
+        header,
+        "|---|---:|---:|---:|---:|",
+    ]
+    for class_id, class_name in enumerate(TARGET_CLASSES):
+        values = class_summary[class_name]
+        table.append(
+            f"| `{class_name}` | {class_id} | {values['images']} | "
+            f"{values['annotated']} | {values['missing_annotations']} |"
+        )
+    table.append(
+        "| **Total** |  | "
+        f"**{sum(values['images'] for values in class_summary.values())}** | "
+        f"**{sum(values['annotated'] for values in class_summary.values())}** | "
+        f"**{sum(values['missing_annotations'] for values in class_summary.values())}** |"
+    )
+    lines[start : end + 1] = table
+    readme_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
 def apply_revision(
     dataset_dir: Path,
     pilot_dir: Path,
@@ -499,6 +553,7 @@ def apply_revision(
     summary_path.write_text(
         json.dumps(summary, indent=2, sort_keys=True) + "\n", encoding="utf-8"
     )
+    update_dataset_readme_counts(dataset_dir, class_summary)
 
     report["applied_at"] = reviewed_at
     report["post_revision_classes"] = class_summary
@@ -519,7 +574,9 @@ def apply_merge(
     labels: dict[str, tuple[str, ...]],
     task_id: int,
     job_id: int,
+    batch_id: str,
 ) -> dict[str, Any]:
+    batch_id = validated_batch_id(batch_id)
     backup_dir = pilot_dir / "pre-merge"
     if backup_dir.exists():
         raise FileExistsError(f"Pre-merge backup already exists: {backup_dir}")
@@ -549,7 +606,7 @@ def apply_merge(
             rejected_image = (
                 dataset_dir
                 / "rejected"
-                / "cvat_pilot_300"
+                / batch_id
                 / original_class
                 / "images"
                 / source_image.name
@@ -635,10 +692,11 @@ def apply_merge(
         record["annotation_status"] == "rejected" for record in manifest
     )
     summary["total_manifest_records"] = len(manifest)
-    summary["cvat_pilot_300"] = report
+    summary[batch_id] = report
     summary_path.write_text(
         json.dumps(summary, indent=2, sort_keys=True) + "\n", encoding="utf-8"
     )
+    update_dataset_readme_counts(dataset_dir, class_summary)
 
     report["applied_at"] = reviewed_at
     report["post_merge_classes"] = class_summary
@@ -656,6 +714,10 @@ def main() -> None:
     parser.add_argument("--archive", type=Path, required=True)
     parser.add_argument("--task-id", type=int, default=2438268)
     parser.add_argument("--job-id", type=int, default=4258646)
+    parser.add_argument(
+        "--batch-id",
+        help="Stable manifest/summary key and rejected-image folder name; defaults to cvat_<pilot-dir>",
+    )
     parser.add_argument(
         "--revision-id",
         help="Apply a replacement export to an already-merged selection",
@@ -688,6 +750,7 @@ def main() -> None:
             args.dataset_dir, selection_path, args.archive
         )
         if args.apply:
+            batch_id = args.batch_id or f"cvat_{args.pilot_dir.name.replace('-', '_')}"
             report = apply_merge(
                 args.dataset_dir,
                 args.pilot_dir,
@@ -697,6 +760,7 @@ def main() -> None:
                 labels,
                 args.task_id,
                 args.job_id,
+                batch_id,
             )
     print(json.dumps(report, indent=2, sort_keys=True))
 
