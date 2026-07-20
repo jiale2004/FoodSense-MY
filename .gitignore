@@ -37,7 +37,7 @@ Thumbs.db
 *.swp
 
 # Ultralytics
-runs/
+runs/detect/dataset3_pilot_v1
 *.cache
 
 # SeleniumBase / UC scraper temp files
