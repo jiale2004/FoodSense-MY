@@ -273,9 +273,9 @@ zero overlap with the 81 locked test groups or 1,251 prior selection groups,
 and provides 589 proposal boxes on 494 images. CVAT task `2442189`, job
 `4262800`, reviewed the batch: human review accepted 497 boxes on 469 images
 and quarantined 31 non-target frames. The reviewed export passed dry validation
-and was applied with a recoverable pre-merge backup. Rebuild
-`data/dataset3-interim-v3/` next and train a new interim checkpoint before more
-assisted batches.
+and was applied with a recoverable pre-merge backup. The locked incremental
+split `data/dataset3-interim-v3/` is ready for HPC transfer and training
+(`1,674` / `418` / `82`).
 
 The reserved holdout package contains 84 images, 86 existing human boxes, and
 83 leakage groups. It includes all six object classes and no model-generated

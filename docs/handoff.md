@@ -329,6 +329,9 @@ Phase D batch 001–004 merges, locked interim split, and interim HPC run:
 - `dataset3-interim-v2` contains 1,067 train, 267 validation, and 82 reviewed test images with zero cross-split leakage
 - all 754 surviving baseline train/validation images keep their original split and all 580 new annotations remain outside test
 - the interim split-manifest SHA-256 is `8e9db98b57dd53f01778afe8d1b66bc4e07975f639356c9758226102eecd90dd`
+- `dataset3-interim-v3` contains 1,674 train, 418 validation, and 82 reviewed test images with zero cross-split leakage
+- all 1,334 surviving interim-v2 train/validation images keep their original split and all 758 new annotations remain outside test
+- the interim-v3 split-manifest SHA-256 is `74560af5a330fde8005ae953552a17a2bb84abc419c76ac0a3418ddae0574091`
 - interim training stopped normally at epoch 95 after selecting epoch 75 by mAP50–95 fitness
 - interim best metrics are precision 0.912, recall 0.868, mAP50 0.938, and mAP50–95 0.747
 - interim checkpoint SHA-256 is `0babcfc246b9af4c003277a4f50bc33c79f4a32b34c4473ee0aa0d36329f3705`
@@ -879,36 +882,28 @@ must use a unique `--revision-id`.
 
 ## 10. Immediate Recommended Action
 
-Rebuild a new locked incremental training view that preserves the reviewed
-holdout, then train the next interim model on HPC. Leave `dataset3-interim-v2/`
-immutable.
+`data/dataset3-interim-v3/` is materialized and validated. It preserves all
+1,334 surviving interim-v2 train/validation assignments, locks the same 82
+reviewed holdout images into test, and assigns the 758 newly annotated images
+only to train or validation. Counts are 1,674 train / 418 validation / 82 test
+images with zero cross-split leakage. Split-manifest SHA-256:
+`74560af5a330fde8005ae953552a17a2bb84abc419c76ac0a3418ddae0574091`.
+
+Because interim-v2 already excludes the two rejected holdout candidates, the
+locked selection for this split is the accepted-only file
+`data/cvat/test-holdout-review-v1/accepted-selection.jsonl` (82 images), not the
+original 84-image review package.
+
+Transfer with dereferenced hardlinks, then rewrite `data.yaml` `path:` on the
+cluster:
 
 ```bash
-python training_scripts/split_dataset3.py \
-  --dataset-dir data/dataset3 \
-  --output-dir data/dataset3-interim-v3 \
-  --base-split-manifest data/dataset3-interim-v2/split-manifest.jsonl \
-  --locked-test-selection data/cvat/test-holdout-review-v1/selection.jsonl \
-  --incremental-train-fraction 0.8 \
-  --seed 42 \
-  --materialize hardlink
-```
-
-Validate locally, then transfer with dereferenced hardlinks:
-
-```bash
-python training_scripts/split_dataset3.py \
-  --dataset-dir data/dataset3 \
-  --output-dir data/dataset3-interim-v3 \
-  --validate-only
-
 rsync -aL --info=progress2 \
   data/dataset3-interim-v3/ \
   <hpc-user>@<hpc-host>:/home/user/22059034/FoodSense-MY/data/dataset3-interim-v3/
 ```
 
-On the HPC, rewrite `data.yaml` `path:` to the absolute cluster directory, then
-train from the interim v2 checkpoint without `resume=True`:
+Train from the interim v2 checkpoint without `resume=True`:
 
 ```bash
 yolo detect train \
@@ -930,6 +925,19 @@ Use only `split=val` for checkpoint assessment. Do not evaluate `split=test`.
 After the run returns, use the new checkpoint for assisted batch 005+. The
 hosted batch-004 task `2442189` may be deleted once local archives are
 confirmed intact.
+
+Local regeneration provenance (do not overwrite the existing output):
+
+```bash
+python training_scripts/split_dataset3.py \
+  --dataset-dir data/dataset3 \
+  --output-dir data/dataset3-interim-v3 \
+  --base-split-manifest data/dataset3-interim-v2/split-manifest.jsonl \
+  --locked-test-selection data/cvat/test-holdout-review-v1/accepted-selection.jsonl \
+  --incremental-train-fraction 0.8 \
+  --seed 42 \
+  --materialize hardlink
+```
 
 ## 11. Environment and Runtime
 
