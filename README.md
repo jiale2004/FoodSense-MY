@@ -84,9 +84,11 @@ cp runs/detect/<approved-run>/weights/best.pt data/weights/best.pt
 ## Training Pipeline
 
 The canonical unsplit staging dataset is `data/dataset3/`. After assisted
-batch 007 it contains 5,177 usable images, including 3,277 annotated images
-with 3,464 boxes. Another 1,900 images still require annotation; 130 reviewed
-non-target images are quarantined.
+batch 007 and ingest `ingest_mee_goreng_full` it contains 5,428 usable images,
+including 3,277 annotated images with 3,464 boxes. Another 2,151 images still
+require annotation; 130 reviewed non-target images are quarantined. Mee Goreng
+now has 922 usable images (178 annotated / 744 missing), including 251 newly
+curated web images.
 
 Do not run `training_scripts/prepare_dataset.py` against dataset3. That legacy
 utility performs a file-level random split and does not preserve the manifest's
@@ -308,7 +310,17 @@ selection groups, and provides 617 proposal boxes on 497 images. CVAT task
 on 479 images and quarantined 21 non-target frames, including 50
 `mee_goreng` → `char_kuey_teow` corrections. Accepted Mee Goreng boxes were only
 5. The reviewed export passed dry validation and was applied with a recoverable
-pre-merge backup. Web scraping for genuine Mee Goreng is the next decision gate.
+pre-merge backup. Web scraping for genuine Mee Goreng followed: 600 candidates
+were curated as `mee-goreng-full` (251 accepted) and incrementally ingested into
+Dataset3 via `training_scripts/ingest_curated_images.py`.
+
+Phase D batch 008 was prepared at `data/cvat/assisted-batch-008/` using seed 50
+with Mee Goreng–heavy quotas (200/100/80/80/40/0). It contains 500 new leakage
+groups, has zero overlap with the 81 locked test groups or 2,912 prior
+selection groups, and provides 608 proposal boxes on 496 images (48 Mee Goreng
+boxes). Of the 200 Mee Goreng slots, 64 are from the curated ingest. Upload
+`images.zip` first and import `preannotations.zip` as **Ultralytics YOLO
+Detection**.
 
 The reserved holdout package contains 84 images, 86 existing human boxes, and
 83 leakage groups. It includes all six object classes and no model-generated
@@ -409,6 +421,7 @@ data/
 ├── cvat/assisted-batch-005/ # Interim-v3 reviewed export and merge report
 ├── cvat/assisted-batch-006/ # Mee Goreng-priority reviewed export and merge report
 ├── cvat/assisted-batch-007/ # 500-image reviewed export and merge report
+├── cvat/assisted-batch-008/ # Mee Goreng–heavy proposal package; review pending
 ├── dataset3-baseline/      # Generated group-safe 70/20/10 pilot split
 ├── dataset3-interim-v2/    # Locked reviewed holdout + expanded train/validation
 ├── dataset3-interim-v3/    # Interim-v3 locked split (1,674/418/82)
@@ -417,7 +430,8 @@ training_scripts/
 ├── utils.py                # ReproducibilityManager
 ├── tune_yolo.py            # Optuna hyperparameter tuning
 ├── convert_voc_to_yolo.py  # VOC → YOLO via Pandas
-├── scrape_images.py        # icrawler image scraper
+├── scrape_images.py        # icrawler / UC image scraper
+├── ingest_curated_images.py # Incremental curated ingest into dataset3
 ├── build_dataset3.py       # Source consolidation + leakage groups
 ├── prepare_cvat_pilot.py   # Deterministic CVAT batch packaging
 ├── prepare_cvat_assisted_batch.py # Leakage-safe selection + YOLO proposals

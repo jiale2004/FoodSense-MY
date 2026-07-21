@@ -7,7 +7,7 @@ FoodSense-MY contains two related systems:
 1. a FastAPI application that detects six Malaysian dishes and returns verified nutrition plus an optional LLM-formatted advisory;
 2. a local data pipeline that acquires, curates, consolidates, annotates, splits, trains, and promotes the custom detector.
 
-The application is runnable. Dataset consolidation, the first CVAT pilot, its Phase A priority audit, the Phase B leakage-safe split, the Phase C YOLO11n pilot, the reviewed Phase D batch 001–007 merges, the no-proposal test-holdout audit, two locked incremental splits, and two interim HPC retrains (`dataset3_interim_v2` and `dataset3_interim_v3`) are complete. Optional Mee Goreng web scraping, further annotation or interim v4 retrain, final evaluation, and production model promotion remain pending.
+The application is runnable. Dataset consolidation, the first CVAT pilot, its Phase A priority audit, the Phase B leakage-safe split, the Phase C YOLO11n pilot, the reviewed Phase D batch 001–007 merges, the no-proposal test-holdout audit, two locked incremental splits, two interim HPC retrains (`dataset3_interim_v2` and `dataset3_interim_v3`), curated Mee Goreng web ingest (`ingest_mee_goreng_full`, +251), and assisted batch 008 preparation are complete. Assisted batch 008 review, interim v4 retrain, final evaluation, and production model promotion remain pending.
 
 ```mermaid
 flowchart LR
@@ -73,6 +73,7 @@ Never reorder these IDs in CVAT exports or `data.yaml`. Human annotation is auth
 | Curation engine | `training_scripts/curation.py` | Technical validation, SHA-256/dHash deduplication, OpenCLIP scoring, calibration, and routed views |
 | Roboflow subset import | `training_scripts/import_roboflow_subset.py` | Validate, map, deduplicate, and preserve provenance for a selected Roboflow class |
 | Dataset3 builder | `training_scripts/build_dataset3.py` | Merge approved sources, collapse exact duplicates, assign leakage groups, and generate the manifest |
+| Curated ingest | `training_scripts/ingest_curated_images.py` | Append curated accepted images into Dataset3 without rebuilding; preserves CVAT merges and assigns leakage groups |
 | CVAT batch preparation | `training_scripts/prepare_cvat_pilot.py` | Deterministically sample missing-label images and build an image archive |
 | CVAT assisted batch | `training_scripts/prepare_cvat_assisted_batch.py` | Exclude candidate-test and prior-selection groups, apply class quotas, generate pilot-model proposals, and package CVAT artifacts |
 | CVAT merge/revision | `training_scripts/import_cvat_annotations.py` | Validate first-time or replacement exports, merge/revise labels, create recoverable backups, quarantine rejected frames, and (via `--primary-class-override`) reassign a multi-class frame whose source class is absent from the reviewed boxes |
@@ -127,7 +128,7 @@ flowchart TD
 
 ## Dataset3 Data Model
 
-`data/dataset3/` is the canonical unsplit staging area. After assisted batch 007 it contains 5,177 usable images, 3,277 annotated images, 3,464 boxes, 1,900 missing annotations, and 130 rejected records.
+`data/dataset3/` is the canonical unsplit staging area. After assisted batch 007 and ingest `ingest_mee_goreng_full` it contains 5,428 usable images, 3,277 annotated images, 3,464 boxes, 2,151 missing annotations, and 130 rejected records.
 
 ```text
 data/dataset3/
@@ -162,7 +163,7 @@ Key rules:
 | Char Kuey Teow | 776 | 775 | 792 | 1 |
 | Chicken Rice | 699 | 641 | 676 | 58 |
 | Laksa | 1,067 | 554 | 573 | 513 |
-| Mee Goreng | 671 | 178 | 181 | 493 |
+| Mee Goreng | 922 | 178 | 181 | 744 |
 
 ## CVAT Integration Boundary
 
@@ -305,6 +306,20 @@ Accepted Mee Goreng boxes were only 5. The reviewed export SHA-256 is
 validation passed and the guarded merge created the archived export, `pre-merge/`,
 `merge-report.json`, and recoverable rejection evidence.
 
+Curated Mee Goreng ingest `ingest_mee_goreng_full` then appended 251 accepted
+images from `data/curation/runs/mee-goreng-full/accepted/mee_goreng/` into
+Dataset3 as new `missing` records (zero exact-duplicate collisions; zero joins
+into existing leakage groups). Mee Goreng usable count rose from 671 to 922.
+
+Phase D batch 008 is staged at `data/cvat/assisted-batch-008/`. Seed 50 selected
+500 missing-label records from 500 distinct leakage groups using Mee Goreng 200 /
+Laksa 100 / Nasi Lemak 80 / Roti Canai 80 / Chicken Rice 40 / Char Kuey Teow 0.
+The selector excluded all 81 locked test groups and 2,912 prior selection
+groups. Of the 200 Mee Goreng slots, 64 are from `ingest_mee_goreng_full`. The
+model proposed 608 boxes on 496 images at confidence 0.20, including 48 Mee
+Goreng boxes. Both ZIP archives pass integrity checks. Human review and guarded
+import remain pending.
+
 `training_scripts/prepare_test_holdout_review.py` is the boundary between the
 immutable Phase B candidate set and manual holdout verification. It requires an
 exact match between the test split and pending review queue, resolves every SHA
@@ -418,7 +433,9 @@ yolo11n.pt pretrained initialization
     → assisted batch 006 human review and guarded merge [completed]
     → assisted batch 007 remaining-folder review package [completed]
     → assisted batch 007 human review and guarded merge [completed]
-    → optional genuine Mee Goreng recruitment via web scraping [decision gate]
+    → optional genuine Mee Goreng recruitment via web scraping [completed: mee-goreng-full + ingest_mee_goreng_full]
+    → assisted batch 008 Mee Goreng–heavy labelling [prepared]
+    → assisted batch 008 human review and guarded merge [pending]
     → interim HPC retraining v4 (lower lr0) [pending]
     → final training and threshold calibration after annotation freeze
     → versioned candidate weights
@@ -432,7 +449,7 @@ The current assisted-labelling artifact is
 `runs/detect/dataset3_interim_v3/weights/best.pt`. It was fine-tuned from the
 interim v2 checkpoint on the expanded `dataset3-interim-v3` split and selected
 epoch 1 with validation mAP50 0.932 and mAP50–95 0.761. It is not
-production-approved: 1,900 images remain unannotated, Mee Goreng recall dropped
+production-approved: 2,151 images remain unannotated, Mee Goreng recall dropped
 to 0.513, noodle-class confusion and Chicken Rice localization still need
 targeted review, and the locked test set must stay unevaluated until final model
 selection. The epoch-1 peak indicates the fine-tuning learning rate should be
@@ -467,6 +484,7 @@ FoodSense-MY/
 │   ├── cvat/assisted-batch-005/         # Interim-v3 reviewed export and merge report
 │   ├── cvat/assisted-batch-006/         # Mee Goreng-priority reviewed export and merge report
 │   ├── cvat/assisted-batch-007/         # 500-image reviewed export and merge report
+│   ├── cvat/assisted-batch-008/         # Mee Goreng–heavy proposal package; review pending
 │   ├── cvat/test-holdout-review-v1/      # No-proposal candidate-test verification package
 │   ├── dataset3-baseline/              # Generated leakage-safe pilot split
 │   ├── dataset3-interim-v2/            # Locked holdout + expanded train/validation
@@ -478,6 +496,7 @@ FoodSense-MY/
 ├── training_scripts/
 │   ├── scrape_images.py, google_crawler.py, uc_crawler.py
 │   ├── curate_images.py, curation.py
+│   ├── ingest_curated_images.py
 │   ├── import_roboflow_subset.py
 │   ├── build_dataset3.py
 │   ├── prepare_cvat_pilot.py

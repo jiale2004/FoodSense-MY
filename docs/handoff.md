@@ -16,12 +16,12 @@ Image acquisition and consolidation are paused. The canonical staging dataset is
 
 Current dataset3 totals:
 
-- 5,177 usable images
+- 5,428 usable images
 - 3,277 annotated images
 - 3,464 bounding boxes
-- 1,900 images still missing bounding-box annotations
+- 2,151 images still missing bounding-box annotations
 - 130 rejected images: 8 from the original pilot, 7 from batch 001, 13 from batch 002, 2 from the holdout audit, 11 from batch 003, 31 from batch 004, 10 from batch 005, 27 from batch 006, and 21 from batch 007
-- 5,123 usable leakage groups; 52 groups contain more than one usable image
+- 5,374 usable leakage groups; 52 groups contain more than one usable image
 - no custom `data/weights/best.pt` yet
 - Phase C pilot checkpoint available at `runs/detect/dataset3_pilot_v1/weights/best.pt`
 - interim v2 checkpoint available at `runs/detect/dataset3_interim_v2/weights/best.pt`
@@ -126,8 +126,24 @@ frames (10 `laksa`, 4 `mee_goreng`, 4 `roti_canai`, 2 `nasi_lemak`, 1
 `chicken_rice` reassignments. Accepted Mee Goreng boxes remain only 5. Across
 batches 005–007, the existing `mee_goreng` source folder continues to yield
 almost no genuine Mee Goreng. The guarded import created a recoverable
-pre-merge backup and updated dataset3. Web scraping for genuine Mee Goreng is
-now the decision gate after this remaining-folder review cycle.
+pre-merge backup and updated dataset3.
+
+On 20–21 July 2026, 600 Mee Goreng candidates were scraped into
+`data/scraped_raw/mee_goreng/`, curated as run `mee-goreng-full` (251 accepted /
+339 rejected / 10 duplicate after manual review of the semantic `review/`
+queue), and incrementally ingested into Dataset3 with
+`training_scripts/ingest_curated_images.py` (`ingest_mee_goreng_full`). All 251
+accepted images were new exact-unique hashes, joined no existing leakage
+groups, and are stored as `missing` under `mee_goreng/`. Do not re-run
+`build_dataset3.py` for supplemental scrapes.
+
+`data/cvat/assisted-batch-008/` is prepared for review. Seed 50 selected 500 new
+leakage groups with zero overlap against the 81 locked test groups or 2,912
+prior CVAT selection groups, using Mee Goreng–heavy quotas (200/100/80/80/40/0).
+Of the 200 Mee Goreng slots, 64 come from `ingest_mee_goreng_full` and 136 from
+older source-folder missing images. The interim v3 checkpoint proposed 608 boxes
+on 496 of 500 images, including 48 Mee Goreng boxes (up from ~5 in prior
+batches). This package has not been imported into CVAT or merged into Dataset3.
 
 Do not treat an empty YOLO label as an accepted background image. Images confirmed to contain none of the six classes are quarantined under `data/dataset3/rejected/` and marked `rejected` in the manifest.
 
@@ -148,8 +164,8 @@ Class IDs are fixed and must not be reordered:
 | 2 | `char_kuey_teow` | 776 | 775 | 792 | 1 |
 | 3 | `chicken_rice` | 699 | 641 | 676 | 58 |
 | 4 | `laksa` | 1,067 | 554 | 573 | 513 |
-| 5 | `mee_goreng` | 671 | 178 | 181 | 493 |
-| **Total** | — | **5,177** | **3,277** | **3,464** | **1,900** |
+| 5 | `mee_goreng` | 922 | 178 | 181 | 744 |
+| **Total** | — | **5,428** | **3,277** | **3,464** | **2,151** |
 
 The class folder records an image's primary/source class. The YOLO label content is authoritative and may contain more than one class when multiple target dishes are visible.
 
@@ -172,7 +188,7 @@ Important assembly decisions:
 - Two exact dataset2 cross-folder conflicts were resolved by content hash: one belongs to `chicken_rice`, the other to `roti_canai`.
 - One duplicated Mee Goreng annotation pair was resolved with the union bounding box.
 - 75 exact duplicate source occurrences were collapsed during assembly.
-- The initial assembly produced 5,293 usable images in 5,253 leakage groups. Phase A restored six valid Laksa images, reaching 5,299 usable images. Phase D batches 001–007 quarantined 120 reviewed non-target frames; the holdout audit quarantined another two. The current state is 5,177 usable images in 5,123 usable groups. Any train/validation/test splitter must keep each group in exactly one split.
+- The initial assembly produced 5,293 usable images in 5,253 leakage groups. Phase A restored six valid Laksa images, reaching 5,299 usable images. Phase D batches 001–007 quarantined 120 reviewed non-target frames; the holdout audit quarantined another two. After ingest `ingest_mee_goreng_full` (+251 curated web images), the current state is 5,428 usable images in 5,374 usable groups. Any train/validation/test splitter must keep each group in exactly one split.
 
 Dataset3 is a staging dataset, not a finished 70/20/10 training split:
 
@@ -325,6 +341,7 @@ The full policy is [`docs/bounding-box-policy.md`](bounding-box-policy.md). Its 
 | [`split_dataset3.py`](../training_scripts/split_dataset3.py) | Build and validate a deterministic annotated-only split while preserving leakage groups and immutable label snapshots |
 | [`scrape_images.py`](../training_scripts/scrape_images.py) | Acquire Google/Bing/UC image candidates with provenance |
 | [`curate_images.py`](../training_scripts/curate_images.py) | Validate, deduplicate, score, calibrate, and route scraped candidates |
+| [`ingest_curated_images.py`](../training_scripts/ingest_curated_images.py) | Append curated accepted images into Dataset3 without rebuilding (preserves CVAT merges) |
 | [`convert_voc_to_yolo.py`](../training_scripts/convert_voc_to_yolo.py) | Convert reviewed PASCAL VOC boxes to YOLO labels |
 | [`prepare_dataset.py`](../training_scripts/prepare_dataset.py) | Legacy random split utility; do not use for dataset3 without leakage-aware changes |
 | [`tune_yolo.py`](../training_scripts/tune_yolo.py) | Run Optuna hyperparameter trials for YOLO |
@@ -339,7 +356,7 @@ The full policy is [`docs/bounding-box-policy.md`](bounding-box-policy.md). Its 
 | OpenAI/Gemini advisory formatting | Implemented, optional |
 | Apple Silicon MPS inference | Supported |
 | Canonical dataset3 assembly | Implemented |
-| CVAT batch preparation/import | Implemented; assisted batches 001–005 reviewed, validated, and applied |
+| CVAT batch preparation/import | Implemented; assisted batches 001–007 reviewed, validated, and applied |
 | Group-aware annotated-only splitter | Implemented and validated |
 | Custom six-class YOLO model | Interim v3 trained and validated; approved for assisted-batch proposals only |
 | Production `data/weights/best.pt` | Missing |
@@ -351,8 +368,8 @@ Until custom weights are approved and copied to `data/weights/best.pt`, `/api/pr
 After the Phase A audited revision, Phase B split, Phase C pilot evaluation,
 Phase D batch 001–007 merges, locked interim split, and interim HPC run:
 
-- `manifest.jsonl` contains 5,307 records: 5,177 usable plus 130 rejected
-- status totals are 3,277 annotated, 1,900 missing, and 130 rejected
+- `manifest.jsonl` contains 5,558 records: 5,428 usable plus 130 rejected
+- status totals are 3,277 annotated, 2,151 missing, and 130 rejected
 - all 3,464 YOLO rows use canonical class IDs and valid normalized coordinates
 - every usable manifest path and annotation file is consistent
 - the baseline contains 587 train, 167 validation, and 84 candidate test images
@@ -395,6 +412,8 @@ Phase D batch 001–007 merges, locked interim split, and interim HPC run:
 - assisted batch 007 contains 500 images from 500 new leakage groups, with zero overlap against 81 locked test groups and 2,361 prior selection groups, and 617 proposals on 497 images
 - CVAT task `2443011`, completed job `4263873`, reviewed those proposals into 528 accepted boxes on 479 images and 21 rejects
 - batch 007 recorded 54 primary-class corrections, including 50 `mee_goreng` → `char_kuey_teow`, and retained only 5 accepted Mee Goreng boxes
+- scrape+curation run `mee-goreng-full` accepted 251 genuine Mee Goreng candidates; ingest `ingest_mee_goreng_full` appended all 251 as new `missing` Dataset3 records with zero exact-duplicate collisions
+- assisted batch 008 contains 500 images from 500 new leakage groups, with zero overlap against 81 locked test groups and 2,912 prior selection groups, and 608 proposals on 496 images (48 Mee Goreng boxes; 64 of 200 Mee Goreng slots from the curated ingest)
 - the locked test split was not evaluated
 - all seventeen repository regression tests pass, including locked incremental assignment, assisted selection, holdout packaging, README reconciliation, batch-path safety, revision, and split-integrity coverage
 - `git diff --check` passes
@@ -677,7 +696,7 @@ ineligible for `data/weights/best.pt`. Full details are in
 ### Phase D — Use the baseline for assisted labelling: batches 001–007 applied
 
 1. Connect the approved baseline to CVAT auto-annotation or generate prediction labels for import.
-2. Process the remaining 1,900 images in batches of 300–500.
+2. Process the remaining 2,151 images in batches of 300–500.
 3. Prioritize underrepresented classes (especially genuine Mee Goreng) and low-confidence/high-disagreement images.
 4. Require human correction; model predictions are proposals, not ground truth.
 5. Export each batch, run a dry validation import, then apply it and archive the export/report.
@@ -1117,6 +1136,44 @@ SHA-256 values:
 - `cvat-reviewed-export.zip`: `4a819912b755c28c224ec64c54806964b232b3c163be71a5122f8b871d6ea4ea`
 - `merge-report.json`: `ec9847649da3227bb51bff7c1da33237547608eaad31e3872645fbba72faed5a`
 
+Batch 008 was generated on 21 July 2026 with seed 50 from
+`runs/detect/dataset3_interim_v3/weights/best.pt`, confidence 0.20, IoU 0.50,
+and MPS inference after the curated Mee Goreng ingest:
+
+| Source class | Images | Proposal boxes of class |
+|--------------|-------:|------------------------:|
+| Nasi Lemak | 80 | 135 |
+| Roti Canai | 80 | 116 |
+| Char Kuey Teow | 0 | 135 |
+| Chicken Rice | 40 | 54 |
+| Laksa | 100 | 120 |
+| Mee Goreng | 200 | 48 |
+| **Total** | **500** | **608** |
+
+It has 496 images with proposals, 4 without proposals, and 351 high-priority
+frames. The 500 selections use 500 unique leakage groups, with zero overlap
+against the 81 locked test groups and 2,912 prior CVAT selection groups. Of the
+200 Mee Goreng source slots, 64 are from `ingest_mee_goreng_full`. Both ZIP
+archives pass integrity checks. Human review and guarded import are pending.
+Current artifacts are:
+
+```text
+data/cvat/assisted-batch-008/
+├── images.zip
+├── preannotations.zip
+├── selection.jsonl
+├── predictions.jsonl
+└── summary.json
+```
+
+SHA-256 values:
+
+- `images.zip`: `34a90e85119edb7f9b730e148f662ed5349b66baf67d1a8b086199e62be39ebb`
+- `preannotations.zip`: `e6860413a9d9e3f47f62b85017dcc2ead70c64ff158eeaf0491b9dd6b53a43ff`
+- `selection.jsonl`: `4fb1505cd3f59cc564e0a063faf95fdfa7960e4d0961034d1825398673c29812`
+- `predictions.jsonl`: `3f728316110d4e25258fe309228cc902a729ffbd0c59210fcd48044ba4f89aba`
+- `summary.json`: `fa96aa691204b80537a459da747360bb177ae4ac8ab51b9f9bc9d47f5816bbe5`
+
 ### Phase E — Final split, training, and deployment
 
 1. Freeze the final annotated manifest and preserve the untouched test groups.
@@ -1128,36 +1185,41 @@ SHA-256 values:
 
 ## 10. Immediate Recommended Action
 
-Batch 007 is merged. Across batches 005–007 the existing `mee_goreng` source
-folder yielded almost no genuine Mee Goreng (only 4–5 accepted boxes per batch
-despite 40–100 source-folder samples). Dataset3 now holds 178 annotated Mee
-Goreng images against 493 still-missing source-folder frames that are likely
-mostly mislabeled.
+Review assisted batch 008 in CVAT, then import it. The package
+`data/cvat/assisted-batch-008/` holds 500 interim-v3 proposal images (608 boxes
+on 496 images, zero test/prior overlap) with Mee Goreng–heavy quotas. Create a
+task from `images.zip`, import `preannotations.zip` as **Ultralytics YOLO
+Detection**, and review all 500 frames.
 
-Choose one path next:
+Expect better Mee Goreng yield than batches 005–007 (48 proposed Mee Goreng
+boxes; 64 curated-ingest frames in the Mee Goreng quota), but still correct
+many older source-folder Mee Goreng frames to Char Kuey Teow. Export to
+`data/cvat/assisted-batch-008/cvat-reviewed-export.zip`, then run the guarded
+importer:
 
-**A — Finish Mee Goreng scrape curation (in progress)**
-Scrape produced 600 candidates in `data/scraped_raw/mee_goreng/`. Semantic
-curation run `mee-goreng-full` routed them to 188 accepted / 106 rejected /
-10 duplicate / 296 review. Manually sort
-`data/curation/runs/mee-goreng-full/review/mee_goreng/` into `accepted/` or
-`rejected/` (expect Char Kuey Teow and other dish contamination in review).
-Then ask for incremental Dataset3 ingest of the accepted set and a Mee
-Goreng–heavy assisted batch.
+```bash
+python training_scripts/import_cvat_annotations.py \
+  --dataset-dir data/dataset3 \
+  --pilot-dir data/cvat/assisted-batch-008 \
+  --archive data/cvat/assisted-batch-008/cvat-reviewed-export.zip \
+  --batch-id cvat_assisted_batch_008 \
+  --task-id <TASK_ID> \
+  --job-id <JOB_ID>
 
-**B — Keep reviewing remaining folders first**
-About 1,900 missing annotations remain (Laksa 513, Mee Goreng 493, Nasi Lemak
-426, Roti Canai 409, Chicken Rice 58, Char Kuey Teow 1). Prepare batch 008 from
-those with seed 50.
+# Only after inspecting the dry-run report:
+python training_scripts/import_cvat_annotations.py \
+  --dataset-dir data/dataset3 \
+  --pilot-dir data/cvat/assisted-batch-008 \
+  --archive data/cvat/assisted-batch-008/cvat-reviewed-export.zip \
+  --batch-id cvat_assisted_batch_008 \
+  --task-id <TASK_ID> \
+  --job-id <JOB_ID> \
+  --apply
+```
 
-**C — Retrain interim v4 now**
-3,277 annotated images is enough for another locked incremental split
-(`dataset3-interim-v4`) and HPC retrain from the interim v3 checkpoint with
-`lr0=0.002`. Mee Goreng will remain the weak class until scraped images are
-ingested and labelled.
-
-Optionally delete hosted CVAT tasks `2442437`, `2442499`, and `2443011` after
-local archive checks.
+After batch 008, rebuild `dataset3-interim-v4` and retrain from the interim v3
+checkpoint with `lr0=0.002`. Optionally delete hosted CVAT tasks `2442437`,
+`2442499`, and `2443011` after local archive checks.
 
 ## 11. Environment and Runtime
 
@@ -1192,7 +1254,9 @@ The returned `runs/detect/dataset3_interim_v2/` and
 `runs/detect/dataset3_interim_v3/` HPC artifacts are tracked in the repository.
 This pass adds or updates:
 
-- `training_scripts/import_cvat_annotations.py` (adds `--primary-class-override`)
+- `training_scripts/ingest_curated_images.py` (new incremental curated ingest)
+- `training_scripts/scrape_images.py` (tighter Mee Goreng query variants)
+- `tests/test_ingest_curated_images.py`
 - `README.md`
 - `docs/architecture.md`
 - `docs/handoff.md`
@@ -1201,7 +1265,8 @@ The validation-only diagnostic directories
 `runs/detect/dataset3_interim_v2_local_val/` and
 `runs/detect/dataset3_interim_v3_local_val/` are intentionally ignored. The
 repository-wide documentation rule is recorded in `AGENTS.md`. Dataset outputs
-under `data/` (including `data/cvat/assisted-batch-007/` and
+under `data/` (including `data/cvat/assisted-batch-008/`,
+`data/scraped_raw/`, `data/curation/runs/mee-goreng-full/`, and
 `data/dataset3-interim-v3/`) are intentionally gitignored. Review and commit
 documentation deliberately; do not assume gitignored data can be recreated
 without the local source datasets and archived CVAT exports.
