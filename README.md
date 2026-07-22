@@ -360,17 +360,18 @@ annotations. `selection.jsonl` makes the later correction import revision-safe,
 and package creation fails if the baseline queue, current images, or labels
 have drifted.
 
-Three HPC interim runs are complete; interim v5 training data is ready.
-`runs/detect/dataset3_interim_v2/` selected epoch 75 with mAP50 0.938 and
-mAP50–95 0.747. `runs/detect/dataset3_interim_v3/` trained from the v2
-checkpoint on `data/dataset3-interim-v3/` (1,674 / 418 / 82) and selected epoch
-1 with mAP50 0.932 and mAP50–95 0.761. `runs/detect/dataset3_interim_v4/`
-trained from the v3 checkpoint on `data/dataset3-interim-v4/` (3,299 / 825 /
-82) with `lr0=0.002` and selected epoch 1 with mAP50 0.938 and mAP50–95 0.783;
-local Mee Goreng recall recovered to 0.717 (from 0.513). The locked incremental
-view `data/dataset3-interim-v5/` (4,131 / 1,033 / 82, zero cross-split leakage)
-is ready for the Phase E HPC retrain from the v4 checkpoint with `lr0=0.002`.
-See
+Four HPC interim runs are complete. `runs/detect/dataset3_interim_v2/` selected
+epoch 75 with mAP50 0.938 and mAP50–95 0.747. `runs/detect/dataset3_interim_v3/`
+trained from the v2 checkpoint on `data/dataset3-interim-v3/` (1,674 / 418 / 82)
+and selected epoch 1 with mAP50 0.932 and mAP50–95 0.761.
+`runs/detect/dataset3_interim_v4/` trained from the v3 checkpoint on
+`data/dataset3-interim-v4/` (3,299 / 825 / 82) with `lr0=0.002` and selected
+epoch 1 with mAP50 0.938 and mAP50–95 0.783. `runs/detect/dataset3_interim_v5/`
+trained from the v4 checkpoint on `data/dataset3-interim-v5/` (4,131 / 1,033 /
+82) with `lr0=0.002` and selected epoch 1 with mAP50 0.945 and mAP50–95 0.793 —
+the strongest interim run so far, with local Mee Goreng recall 0.778. It is the
+Phase E finalization candidate; threshold calibration and the single locked-test
+evaluation remain before promotion. See
 [`docs/experiments/dataset3_interim_v4.md`](docs/experiments/dataset3_interim_v4.md)
 and
 [`docs/experiments/dataset3_interim_v5.md`](docs/experiments/dataset3_interim_v5.md).

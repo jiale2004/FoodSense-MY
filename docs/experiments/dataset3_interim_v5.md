@@ -1,8 +1,8 @@
 # Dataset3 YOLO11n Interim — `dataset3_interim_v5`
 
-**Split materialized:** 22 July 2026  
-**Training status:** pending HPC retrain (`lr0=0.002` from interim v4)  
-**Assessment:** not started; not approved for production inference
+**Split materialized:** 22 July 2026
+**Training completed:** 22 July 2026
+**Assessment:** strongest interim run to date; candidate for final evaluation, not yet production-approved
 
 ## Split configuration and artifacts
 
@@ -54,30 +54,84 @@ manifest identity and the interim-v4 split entry were migrated to that digest
 before materializing interim-v5. Backup:
 `data/dataset3/_repair_ultralytics_jpeg_rewrite/`.
 
-## Planned training configuration
+## Configuration and training artifacts
 
-```bash
-yolo detect train \
-  model=.../runs/detect/dataset3_interim_v4/weights/best.pt \
-  data=.../data/dataset3-interim-v5/data.yaml \
-  epochs=100 \
-  patience=20 \
-  imgsz=640 \
-  batch=16 \
-  seed=42 \
-  deterministic=True \
-  lr0=0.002 \
-  device=0 \
-  workers=8 \
-  project=.../runs/detect \
-  name=dataset3_interim_v5
-```
+- initialization: `runs/detect/dataset3_interim_v4/weights/best.pt`
+- dataset: `data/dataset3-interim-v5/data.yaml`
+- image size: 640
+- batch size: 16
+- requested epochs: 100
+- early-stopping patience: 20
+- completed epochs: 21
+- `lr0`: 0.002; `resume: false`
+- seed: 42, deterministic mode enabled
+- accelerator: HPC NVIDIA GPU (`device=0`)
+- run directory: `runs/detect/dataset3_interim_v5/`
+- best checkpoint SHA-256: `3b84619b715d1f2b0c7c10f8094f799b84972b195a207b8c9c1912c270c5b892`
+- last checkpoint SHA-256: `dbf088b92a10ea801862b8e60278ba25dd85307ad451e186c569371999efb920`
+- results CSV SHA-256: `ccb7f04adee637ef6b8c180b7f1f5edcdcd94ec5181f28851c6ebc28e4d1b68e`
+- args SHA-256: `051f4191e2f5e07d23447c9bb9c11c2ffd060c3df09373a5a114f5d2391a1ff1`
+- HPC confusion matrix SHA-256: `6feb69027e88835d8e226dce0f2e0bf9e978f7685fab04a80f197e7829f60cea`
+- HPC normalized confusion matrix SHA-256: `982d5ef429ec2d26366d758a339803d2461af4a1c6bcbb4b941c2252793daeac`
 
-Rewrite `data.yaml` `path:` for the cluster. Transfer hardlinks with
-`rsync -aL` unless the full `data/dataset3/` tree is available on the cluster.
+## Training result
 
-## Gate
+Best mAP50–95 (0.7927) was reached at epoch 1, so patience stopped training
+normally after epoch 21. Validation mAP50 peaked at epoch 17 (0.9569). This is
+the best interim run to date on every headline metric.
 
-Do not evaluate `split=test`. Do not copy weights to `data/weights/best.pt`
-until validation-only model selection and the single locked-test evaluation are
-complete.
+| Checkpoint/epoch | Precision | Recall | mAP50 | mAP50–95 |
+|------------------|----------:|-------:|------:|----------:|
+| Best, epoch 1 | 0.894 | 0.899 | 0.945 | 0.793 |
+| Last, epoch 21 | 0.876 | 0.868 | 0.935 | 0.771 |
+| Peak mAP50, epoch 17 | 0.907 | 0.920 | 0.957 | 0.790 |
+
+Relative to interim v4 (embedded best mAP50–95 0.783), interim v5 improves to
+0.793 with recall rising from 0.848 to 0.899. Comparisons are directional
+because the interim v5 validation set is larger (1,033 vs 825 images), though
+every surviving interim v4 train/validation assignment was preserved.
+
+## Validation-only local review
+
+The best checkpoint was revalidated locally on the 1,033-image validation split
+using Ultralytics `8.4.90`, PyTorch `2.12.1`, and CPU. This pass did not access
+the locked test split. The embedded HPC metrics above remain authoritative; the
+local pass is used for per-class diagnosis.
+
+| Class | Validation instances | Precision | Recall | mAP50 | mAP50–95 |
+|-------|---------------------:|----------:|-------:|------:|----------:|
+| Nasi Lemak | 203 | 0.915 | 0.936 | 0.973 | 0.882 |
+| Roti Canai | 215 | 0.881 | 0.865 | 0.916 | 0.730 |
+| Char Kuey Teow | 239 | 0.871 | 0.937 | 0.949 | 0.822 |
+| Chicken Rice | 144 | 0.909 | 0.924 | 0.953 | 0.704 |
+| Laksa | 213 | 0.922 | 0.948 | 0.982 | 0.852 |
+| Mee Goreng | 90 | 0.866 | 0.778 | 0.893 | 0.772 |
+| **All classes** | **1,104** | **0.894** | **0.898** | **0.944** | **0.794** |
+
+## Error review
+
+- Mee Goreng continues to improve: local recall rose from 0.717 (interim v4) to
+  0.778, and mAP50–95 from 0.746 to 0.772. It remains the weakest class.
+- The HPC normalized confusion matrix still shows Char Kuey Teow ↔ Mee Goreng
+  as the main inter-class confusion (~21% of true Char Kuey Teow predicted as
+  Mee Goreng at that operating point) and a large Roti Canai background
+  false-positive share (~28%).
+- Chicken Rice keeps strong mAP50 (0.953) but the lowest mAP50–95 (0.704),
+  a localization/box-tightness issue rather than recognition.
+- Laksa and Nasi Lemak are strongest overall.
+
+Local diagnostic hashes:
+
+- confusion matrix: `8263d26276a6daac43f39c39d768c06d5af984e1378559dc04b65bda29b38980`
+- normalized confusion matrix: `1515b30e91a3ef8c95d645413d5198929643d429523d1f18fec01976dd3d056e`
+
+## Decision and next gate
+
+Interim v5 is the strongest interim checkpoint and the recommended candidate for
+Phase E finalization. Next: calibrate confidence/IoU on the validation split
+only, then run the single locked-test evaluation. Only after that gate copy the
+accepted weights to `data/weights/best.pt` and restart the app.
+
+Do not evaluate `split=test` before calibration is fixed. The epoch-1 fitness
+peak persists; if a future run is attempted, consider a shorter warmup or
+`cos_lr`, or evaluate `yolo11s` for the noodle classes.

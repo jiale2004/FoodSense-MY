@@ -7,7 +7,7 @@ FoodSense-MY contains two related systems:
 1. a FastAPI application that detects six Malaysian dishes and returns verified nutrition plus an optional LLM-formatted advisory;
 2. a local data pipeline that acquires, curates, consolidates, annotates, splits, trains, and promotes the custom detector.
 
-The application is runnable. Dataset consolidation, the first CVAT pilot, its Phase A priority audit, the Phase B leakage-safe split, the Phase C YOLO11n pilot, the reviewed Phase D batch 001–010 merges, the no-proposal test-holdout audit, four locked incremental splits (`dataset3-interim-v2` through `dataset3-interim-v5`), three interim HPC retrains (`dataset3_interim_v2` through `dataset3_interim_v4`), and curated Mee Goreng web ingest (`ingest_mee_goreng_full`, +251) are complete. Batch 010 drained the annotation backlog: Dataset3 now has 5,246 annotated images / 5,579 boxes, with only 43 unreachable missing frames. Interim v5 HPC retrain, threshold calibration, single locked-test evaluation, and production model promotion remain pending.
+The application is runnable. Dataset consolidation, the first CVAT pilot, its Phase A priority audit, the Phase B leakage-safe split, the Phase C YOLO11n pilot, the reviewed Phase D batch 001–010 merges, the no-proposal test-holdout audit, four locked incremental splits (`dataset3-interim-v2` through `dataset3-interim-v5`), four interim HPC retrains (`dataset3_interim_v2` through `dataset3_interim_v5`), and curated Mee Goreng web ingest (`ingest_mee_goreng_full`, +251) are complete. Batch 010 drained the annotation backlog: Dataset3 now has 5,246 annotated images / 5,579 boxes, with only 43 unreachable missing frames. Interim v5 is the strongest checkpoint (validation mAP50–95 0.793, Mee Goreng recall 0.778). Threshold calibration, the single locked-test evaluation, and production model promotion remain pending.
 
 ```mermaid
 flowchart LR
@@ -487,19 +487,23 @@ yolo11n.pt pretrained initialization
     → assisted batch 010 draining all remaining missing images [completed: 1,110 images]
     → assisted batch 010 human review and guarded merge [completed]
     → locked incremental split dataset3-interim-v5 [completed: 4,131/1,033/82]
-    → interim HPC retraining v5 (lr0=0.002) [pending]
-    → final training and threshold calibration after annotation freeze
-    → versioned candidate weights
+    → interim HPC retraining v5 (lr0=0.002) [completed: dataset3_interim_v5]
+    → threshold calibration on validation [pending]
+    → single locked-test evaluation [pending]
     → accepted data/weights/best.pt
     → FastAPI restart and smoke test
 ```
 
 Model promotion is deliberate. Training outputs must first be saved under a versioned candidate name. `data/weights/best.pt` represents the application-approved detector, not merely the most recent experiment.
 
-The current assisted-labelling / Phase E starting artifact is
-`runs/detect/dataset3_interim_v4/weights/best.pt`. The locked incremental view
-`data/dataset3-interim-v5/` (4,131 / 1,033 / 82, zero cross-split leakage) is
-ready for HPC fine-tuning from that checkpoint with `lr0=0.002`. See
+The current best checkpoint is
+`runs/detect/dataset3_interim_v5/weights/best.pt`. It was fine-tuned from the
+interim v4 checkpoint on `data/dataset3-interim-v5/` (4,131 / 1,033 / 82) with
+`lr0=0.002` and selected epoch 1 with validation mAP50 0.945 and mAP50–95 0.793
+— the strongest interim run to date. Local per-class review shows Mee Goreng
+recall improved to 0.778. It is the recommended Phase E finalization candidate
+but not yet production-approved: thresholds must be calibrated on validation and
+the locked test set evaluated exactly once. See
 [`experiments/dataset3_interim_v4.md`](experiments/dataset3_interim_v4.md) and
 [`experiments/dataset3_interim_v5.md`](experiments/dataset3_interim_v5.md).
 
@@ -542,8 +546,8 @@ FoodSense-MY/
 ├── runs/detect/dataset3_pilot_v1/      # Phase C pilot artifacts; not production-promoted
 ├── runs/detect/dataset3_interim_v2/    # HPC interim v2 artifacts
 ├── runs/detect/dataset3_interim_v3/    # HPC interim v3 artifacts
-├── runs/detect/dataset3_interim_v4/    # HPC interim v4 artifacts; Phase E init checkpoint
-├── runs/detect/dataset3_interim_v5/    # Pending HPC interim v5
+├── runs/detect/dataset3_interim_v4/    # HPC interim v4 artifacts
+├── runs/detect/dataset3_interim_v5/    # HPC interim v5 artifacts; current best checkpoint
 ├── training_scripts/
 │   ├── scrape_images.py, google_crawler.py, uc_crawler.py
 │   ├── curate_images.py, curation.py

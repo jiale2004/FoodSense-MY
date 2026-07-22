@@ -194,7 +194,15 @@ boxes), zero cross-split leakage, and an identical test set by SHA-256 to
 interim-v4. All 4,124 surviving interim-v4 train/validation images keep their
 original split; the 1,040 newly annotated batch-010 images were assigned only to
 train/validation. Split-manifest SHA-256 is
-`3f4e2fc58133e18c8a11ae41b39a66c78594a1168534b11e53c1ebb1d2108eb6`. See
+`3f4e2fc58133e18c8a11ae41b39a66c78594a1168534b11e53c1ebb1d2108eb6`.
+
+The interim v5 retrain completed the same day. `runs/detect/dataset3_interim_v5/`
+fine-tuned from the interim v4 checkpoint with `lr0=0.002`, stopped normally
+after epoch 21, and selected epoch 1 by mAP50–95 fitness (precision 0.894,
+recall 0.899, mAP50 0.945, mAP50–95 0.793) — the strongest interim run to date.
+Local validation-only review shows Mee Goreng recall improved to 0.778 (from
+0.717 in interim v4). This is the recommended candidate for Phase E
+finalization; it is not yet production-approved. Full metrics are in
 [`experiments/dataset3_interim_v5.md`](experiments/dataset3_interim_v5.md).
 
 `data/cvat/assisted-batch-010/` was reviewed in CVAT task `2449428`, completed
@@ -519,7 +527,9 @@ Phase D batch 001–010 merges, locked interim splits, interim HPC runs, and cur
 - `dataset3-interim-v5` contains 4,131 train, 1,033 validation, and 82 reviewed test images with zero cross-split leakage
 - all 4,124 surviving interim-v4 train/validation images keep their original split and all 1,040 new batch-010 annotations remain outside test
 - the interim-v5 split-manifest SHA-256 is `3f4e2fc58133e18c8a11ae41b39a66c78594a1168534b11e53c1ebb1d2108eb6`
-- interim v5 HPC retrain (`lr0=0.002` from interim v4) is pending on `data/dataset3-interim-v5/`
+- interim v5 training stopped normally at epoch 21 after selecting epoch 1 by mAP50–95 fitness; its best metrics are precision 0.894, recall 0.899, mAP50 0.945, and mAP50–95 0.793 (best interim run so far)
+- interim v5 checkpoint SHA-256 is `3b84619b715d1f2b0c7c10f8094f799b84972b195a207b8c9c1912c270c5b892`
+- local interim-v5 validation shows Mee Goreng recall 0.778 (up from 0.717 in interim v4)
 - `prepare_cvat_assisted_batch.py` gained `--predict-batch-size` (default 100) to process inference in memory-safe chunks
 - assisted batch 005 contains 300 images from 300 new leakage groups, with zero overlap against 81 locked test groups and 1,751 prior selection groups, and 358 proposals on 299 images
 - CVAT task `2442437`, completed job `4263052`, reviewed those proposals into 304 accepted boxes on 290 images and 10 rejects
@@ -1363,34 +1373,33 @@ SHA-256 values:
 
 ## 10. Immediate Recommended Action
 
-`data/dataset3-interim-v5/` is ready (4,131 / 1,033 / 82; zero leakage; locked
-test unchanged). Dataset3 annotation is effectively complete (5,246 annotated /
-5,579 boxes; 43 unreachable missing). Next: HPC retrain from interim v4.
+Interim v5 training is complete and is the strongest interim checkpoint
+(validation mAP50 0.945, mAP50–95 0.793; Mee Goreng recall 0.778). Local
+validation-only diagnosis is done. Remaining Phase E gates:
+
+1. Calibrate confidence and IoU thresholds on the validation split only
+   (`data/dataset3-interim-v5/`), never the test set. Record the chosen values.
+2. Run the single locked-test evaluation once, using
+   `runs/detect/dataset3_interim_v5/weights/best.pt`:
 
 ```bash
-# Transfer with rsync -aL (hardlinks) and rewrite data.yaml path: for the cluster
-yolo detect train \
-  model=.../runs/detect/dataset3_interim_v4/weights/best.pt \
-  data=.../data/dataset3-interim-v5/data.yaml \
-  epochs=100 \
-  patience=20 \
-  imgsz=640 \
-  batch=16 \
-  seed=42 \
-  deterministic=True \
-  lr0=0.002 \
-  device=0 \
-  workers=8 \
-  project=.../runs/detect \
-  name=dataset3_interim_v5
+yolo detect val \
+  model=runs/detect/dataset3_interim_v5/weights/best.pt \
+  data=data/dataset3-interim-v5/data.yaml \
+  split=test imgsz=640 device=0 \
+  project=runs/detect name=dataset3_interim_v5_test
 ```
 
-Do not evaluate `split=test`. After training: local validation-only diagnosis,
-threshold calibration on validation, then the single locked-test evaluation and
-promotion to `data/weights/best.pt`.
+3. Save test metrics, confusion matrix, and representative failure cases.
+4. Promote and smoke-test the app:
 
-Optionally delete hosted CVAT tasks `2445540`, `2445679`, and `2449428` after
-local archive checks.
+```bash
+cp runs/detect/dataset3_interim_v5/weights/best.pt data/weights/best.pt
+# restart FastAPI, then GET /api/health, /api/classes; POST /api/predict
+```
+
+Run `split=test` only once, after thresholds are frozen. Optionally delete
+hosted CVAT tasks `2445540`, `2445679`, and `2449428` after local archive checks.
 
 ## 11. Environment and Runtime
 
@@ -1430,11 +1439,11 @@ This pass updates:
 - `README.md`
 - `docs/architecture.md`
 - `docs/handoff.md`
+- `.gitignore` (ignore interim v5 local-val diagnostics)
 
 The validation-only diagnostic directories
-`runs/detect/dataset3_interim_v2_local_val/`,
-`runs/detect/dataset3_interim_v3_local_val/`, and
-`runs/detect/dataset3_interim_v4_local_val/` are intentionally ignored. The
+`runs/detect/dataset3_interim_v2_local_val/` through
+`runs/detect/dataset3_interim_v5_local_val/` are intentionally ignored. The
 repository-wide documentation rule is recorded in `AGENTS.md`. Dataset outputs
 under `data/` (including `data/cvat/assisted-batch-010/`,
 `data/dataset3-interim-v4/`, `data/dataset3-interim-v5/`, and
