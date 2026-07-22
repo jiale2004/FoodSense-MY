@@ -84,11 +84,11 @@ cp runs/detect/<approved-run>/weights/best.pt data/weights/best.pt
 ## Training Pipeline
 
 The canonical unsplit staging dataset is `data/dataset3/`. After assisted
-batch 007 and ingest `ingest_mee_goreng_full` it contains 5,428 usable images,
-including 3,277 annotated images with 3,464 boxes. Another 2,151 images still
-require annotation; 130 reviewed non-target images are quarantined. Mee Goreng
-now has 922 usable images (178 annotated / 744 missing), including 251 newly
-curated web images.
+batch 009 and ingest `ingest_mee_goreng_full` it contains 5,359 usable images,
+including 4,206 annotated images with 4,440 boxes. Another 1,153 images still
+require annotation; 199 reviewed non-target images are quarantined. Mee Goreng
+now has 646 usable images (302 annotated / 344 missing). Chicken Rice missing
+annotations are 0.
 
 Do not run `training_scripts/prepare_dataset.py` against dataset3. That legacy
 utility performs a file-level random split and does not preserve the manifest's
@@ -318,9 +318,24 @@ Phase D batch 008 was prepared at `data/cvat/assisted-batch-008/` using seed 50
 with Mee Goreng–heavy quotas (200/100/80/80/40/0). It contains 500 new leakage
 groups, has zero overlap with the 81 locked test groups or 2,912 prior
 selection groups, and provides 608 proposal boxes on 496 images (48 Mee Goreng
-boxes). Of the 200 Mee Goreng slots, 64 are from the curated ingest. Upload
-`images.zip` first and import `preannotations.zip` as **Ultralytics YOLO
-Detection**.
+boxes). Of the 200 Mee Goreng slots, 64 are from the curated ingest. CVAT task
+`2445540`, job `4266582`, reviewed the batch: human review accepted 477 boxes
+on 461 images and quarantined 39 non-target frames, including 117
+`mee_goreng` → `char_kuey_teow` corrections and 66 accepted Mee Goreng boxes.
+The reviewed export passed dry validation and was applied with a recoverable
+pre-merge backup.
+
+Phase D batch 009 was prepared at `data/cvat/assisted-batch-009/` using seed 51
+for parallel review while batch 008 was ongoing. It contains 498 new leakage
+groups, has zero overlap with the 81 locked test groups or 3,412 prior
+selection groups, and provides 605 proposal boxes on 492 images (42 Mee Goreng
+boxes). Chicken Rice is capped at 18 remaining selectable groups. Of the 200
+Mee Goreng slots, 61 are from the curated ingest. CVAT task `2445679`, job
+`4266727`, reviewed the batch: human review accepted 499 boxes on 468 images
+and quarantined 30 non-target frames, including 123 `mee_goreng` →
+`char_kuey_teow` corrections and 61 accepted Mee Goreng boxes. The reviewed
+export passed dry validation and was applied with a recoverable pre-merge
+backup. Chicken Rice is now fully annotated in Dataset3.
 
 The reserved holdout package contains 84 images, 86 existing human boxes, and
 83 leakage groups. It includes all six object classes and no model-generated
@@ -333,13 +348,15 @@ epoch 75 with mAP50 0.938 and mAP50–95 0.747. `runs/detect/dataset3_interim_v3
 trained from the v2 checkpoint on the expanded
 `data/dataset3-interim-v3/` split (1,674 / 418 / 82) and selected epoch 1 with
 mAP50 0.932 and mAP50–95 0.761; its Mee Goreng recall (0.513) is the current
-weakness, and the epoch-1 peak indicates the fine-tuning learning rate should be
-lowered next retrain. Both checkpoints are accepted for assisted-batch proposals
-only, not production deployment, and the locked test set remains untouched. See
-[`docs/experiments/dataset3_interim_v2.md`](docs/experiments/dataset3_interim_v2.md)
+weakness. The locked incremental view `data/dataset3-interim-v4/` (3,299 /
+825 / 82, zero cross-split leakage) is ready for the next HPC retrain from the
+v3 checkpoint with `lr0=0.002`. Both existing checkpoints are accepted for
+assisted-batch proposals only, not production deployment, and the locked test
+set remains untouched. See
+[`docs/experiments/dataset3_interim_v2.md`](docs/experiments/dataset3_interim_v2.md),
+[`docs/experiments/dataset3_interim_v3.md`](docs/experiments/dataset3_interim_v3.md),
 and
-[`docs/experiments/dataset3_interim_v3.md`](docs/experiments/dataset3_interim_v3.md)
-for hashes, per-class validation, and error analysis.
+[`docs/experiments/dataset3_interim_v4.md`](docs/experiments/dataset3_interim_v4.md).
 
 See [`docs/handoff.md`](docs/handoff.md) for current counts and next-step gates,
 [`docs/architecture.md`](docs/architecture.md) for the complete data flow, and
@@ -421,10 +438,12 @@ data/
 ├── cvat/assisted-batch-005/ # Interim-v3 reviewed export and merge report
 ├── cvat/assisted-batch-006/ # Mee Goreng-priority reviewed export and merge report
 ├── cvat/assisted-batch-007/ # 500-image reviewed export and merge report
-├── cvat/assisted-batch-008/ # Mee Goreng–heavy proposal package; review pending
+├── cvat/assisted-batch-008/ # Mee Goreng–heavy reviewed export and merge report
+├── cvat/assisted-batch-009/ # Parallel Mee Goreng–heavy reviewed export and merge report
 ├── dataset3-baseline/      # Generated group-safe 70/20/10 pilot split
 ├── dataset3-interim-v2/    # Locked reviewed holdout + expanded train/validation
 ├── dataset3-interim-v3/    # Interim-v3 locked split (1,674/418/82)
+├── dataset3-interim-v4/    # Interim-v4 locked split (3,299/825/82)
 └── weights/                # Approved custom weights
 training_scripts/
 ├── utils.py                # ReproducibilityManager

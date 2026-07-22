@@ -7,7 +7,7 @@ FoodSense-MY contains two related systems:
 1. a FastAPI application that detects six Malaysian dishes and returns verified nutrition plus an optional LLM-formatted advisory;
 2. a local data pipeline that acquires, curates, consolidates, annotates, splits, trains, and promotes the custom detector.
 
-The application is runnable. Dataset consolidation, the first CVAT pilot, its Phase A priority audit, the Phase B leakage-safe split, the Phase C YOLO11n pilot, the reviewed Phase D batch 001–007 merges, the no-proposal test-holdout audit, two locked incremental splits, two interim HPC retrains (`dataset3_interim_v2` and `dataset3_interim_v3`), curated Mee Goreng web ingest (`ingest_mee_goreng_full`, +251), and assisted batch 008 preparation are complete. Assisted batch 008 review, interim v4 retrain, final evaluation, and production model promotion remain pending.
+The application is runnable. Dataset consolidation, the first CVAT pilot, its Phase A priority audit, the Phase B leakage-safe split, the Phase C YOLO11n pilot, the reviewed Phase D batch 001–009 merges, the no-proposal test-holdout audit, three locked incremental splits (`dataset3-interim-v2` through `dataset3-interim-v4`), two interim HPC retrains (`dataset3_interim_v2` and `dataset3_interim_v3`), and curated Mee Goreng web ingest (`ingest_mee_goreng_full`, +251) are complete. Interim v4 HPC retrain (`lr0=0.002`), continued annotation of the remaining 1,153 missing images, final evaluation, and production model promotion remain pending.
 
 ```mermaid
 flowchart LR
@@ -128,7 +128,7 @@ flowchart TD
 
 ## Dataset3 Data Model
 
-`data/dataset3/` is the canonical unsplit staging area. After assisted batch 007 and ingest `ingest_mee_goreng_full` it contains 5,428 usable images, 3,277 annotated images, 3,464 boxes, 2,151 missing annotations, and 130 rejected records.
+`data/dataset3/` is the canonical unsplit staging area. After assisted batch 009 and ingest `ingest_mee_goreng_full` it contains 5,359 usable images, 4,206 annotated images, 4,440 boxes, 1,153 missing annotations, and 199 rejected records.
 
 ```text
 data/dataset3/
@@ -158,12 +158,12 @@ Key rules:
 
 | Class | Usable images | Annotated | Boxes | Missing |
 |-------|--------------:|----------:|------:|--------:|
-| Nasi Lemak | 993 | 567 | 599 | 426 |
-| Roti Canai | 971 | 562 | 643 | 409 |
-| Char Kuey Teow | 776 | 775 | 792 | 1 |
-| Chicken Rice | 699 | 641 | 676 | 58 |
-| Laksa | 1,067 | 554 | 573 | 513 |
-| Mee Goreng | 922 | 178 | 181 | 744 |
+| Nasi Lemak | 984 | 728 | 766 | 256 |
+| Roti Canai | 961 | 722 | 819 | 239 |
+| Char Kuey Teow | 1,017 | 1,016 | 1,042 | 1 |
+| Chicken Rice | 696 | 696 | 737 | 0 |
+| Laksa | 1,055 | 742 | 768 | 313 |
+| Mee Goreng | 646 | 302 | 308 | 344 |
 
 ## CVAT Integration Boundary
 
@@ -311,14 +311,37 @@ images from `data/curation/runs/mee-goreng-full/accepted/mee_goreng/` into
 Dataset3 as new `missing` records (zero exact-duplicate collisions; zero joins
 into existing leakage groups). Mee Goreng usable count rose from 671 to 922.
 
-Phase D batch 008 is staged at `data/cvat/assisted-batch-008/`. Seed 50 selected
+Phase D batch 008 is local at `data/cvat/assisted-batch-008/`. Seed 50 selected
 500 missing-label records from 500 distinct leakage groups using Mee Goreng 200 /
 Laksa 100 / Nasi Lemak 80 / Roti Canai 80 / Chicken Rice 40 / Char Kuey Teow 0.
 The selector excluded all 81 locked test groups and 2,912 prior selection
 groups. Of the 200 Mee Goreng slots, 64 are from `ingest_mee_goreng_full`. The
-model proposed 608 boxes on 496 images at confidence 0.20, including 48 Mee
-Goreng boxes. Both ZIP archives pass integrity checks. Human review and guarded
-import remain pending.
+model proposed 608 boxes on 496 images at confidence 0.20. CVAT task `2445540`
+and completed job `4266582` contained all 500 images. Human review accepted 477
+rectangles on 461 images, rejected 39 non-target frames, and made 126
+primary-class corrections, including 117 `mee_goreng` → `char_kuey_teow`.
+Accepted Mee Goreng boxes were 66. One multi-class frame whose source `laksa`
+class was absent was resolved with `--primary-class-override <sha>=nasi_lemak`.
+The reviewed export SHA-256 is
+`b541058dbc656bae8b6997b30c74d849f7fc39d84a9a5a5d561753b1fec2eb46`. Dry
+validation passed and the guarded merge created the archived export, `pre-merge/`,
+`merge-report.json`, and recoverable rejection evidence.
+
+Phase D batch 009 is local at `data/cvat/assisted-batch-009/`. Seed 51 selected
+498 missing-label records from 498 distinct leakage groups using Mee Goreng 200 /
+Laksa 100 / Nasi Lemak 90 / Roti Canai 90 / Chicken Rice 18 / Char Kuey Teow 0.
+The selector excluded all 81 locked test groups and 3,412 prior selection
+groups (pilot + batches 001–008). Of the 200 Mee Goreng slots, 61 are from
+`ingest_mee_goreng_full`. The model proposed 605 boxes on 492 images at
+confidence 0.20. CVAT task `2445679` and completed job `4266727` contained all
+498 images. Human review accepted 499 rectangles on 468 images, rejected 30
+non-target frames, and made 130 primary-class corrections, including 123
+`mee_goreng` → `char_kuey_teow`. Accepted Mee Goreng boxes were 61. The reviewed
+export SHA-256 is
+`a40eccc863e34b13e0fad8000f0fcc13d3c430bc2e45a60532edfcbb8df0f19e`. Dry
+validation passed and the guarded merge created the archived export, `pre-merge/`,
+`merge-report.json`, and recoverable rejection evidence. Chicken Rice missing
+annotations in Dataset3 are now 0.
 
 `training_scripts/prepare_test_holdout_review.py` is the boundary between the
 immutable Phase B candidate set and manual holdout verification. It requires an
@@ -411,7 +434,7 @@ immutable Phase B test manifest + pending queue
     → reviewed Ultralytics YOLO export
     → dry-run semantic revision report
     → versioned Dataset3 revision with recovery backup
-    → new leakage-safe split preserving reviewed groups [completed: dataset3-interim-v2, dataset3-interim-v3]
+    → new leakage-safe split preserving reviewed groups [completed: dataset3-interim-v2, dataset3-interim-v3, dataset3-interim-v4]
     → frozen holdout evaluation
 ```
 
@@ -434,9 +457,12 @@ yolo11n.pt pretrained initialization
     → assisted batch 007 remaining-folder review package [completed]
     → assisted batch 007 human review and guarded merge [completed]
     → optional genuine Mee Goreng recruitment via web scraping [completed: mee-goreng-full + ingest_mee_goreng_full]
-    → assisted batch 008 Mee Goreng–heavy labelling [prepared]
-    → assisted batch 008 human review and guarded merge [pending]
-    → interim HPC retraining v4 (lower lr0) [pending]
+    → assisted batch 008 Mee Goreng–heavy labelling [completed]
+    → assisted batch 008 human review and guarded merge [completed]
+    → assisted batch 009 parallel Mee Goreng–heavy package [completed]
+    → assisted batch 009 human review and guarded merge [completed]
+    → locked incremental split dataset3-interim-v4 [completed: 3,299/825/82]
+    → interim HPC retraining v4 (lr0=0.002) [pending]
     → final training and threshold calibration after annotation freeze
     → versioned candidate weights
     → accepted data/weights/best.pt
@@ -445,18 +471,19 @@ yolo11n.pt pretrained initialization
 
 Model promotion is deliberate. Training outputs must first be saved under a versioned candidate name. `data/weights/best.pt` represents the application-approved detector, not merely the most recent experiment.
 
-The current assisted-labelling artifact is
-`runs/detect/dataset3_interim_v3/weights/best.pt`. It was fine-tuned from the
-interim v2 checkpoint on the expanded `dataset3-interim-v3` split and selected
-epoch 1 with validation mAP50 0.932 and mAP50–95 0.761. It is not
-production-approved: 2,151 images remain unannotated, Mee Goreng recall dropped
-to 0.513, noodle-class confusion and Chicken Rice localization still need
-targeted review, and the locked test set must stay unevaluated until final model
-selection. The epoch-1 peak indicates the fine-tuning learning rate should be
-lowered for the next retrain. See
-[`experiments/dataset3_interim_v2.md`](experiments/dataset3_interim_v2.md) and
-[`experiments/dataset3_interim_v3.md`](experiments/dataset3_interim_v3.md) for
-the complete evaluations.
+The current assisted-labelling artifact remains
+`runs/detect/dataset3_interim_v3/weights/best.pt` until interim v4 training
+finishes. It was fine-tuned from the interim v2 checkpoint on the expanded
+`dataset3-interim-v3` split and selected epoch 1 with validation mAP50 0.932
+and mAP50–95 0.761. It is not production-approved: 1,153 images remain
+unannotated, Mee Goreng recall dropped to 0.513, noodle-class confusion still
+needs review, and the locked test set must stay unevaluated until final model
+selection. The locked incremental view `data/dataset3-interim-v4/` (3,299 /
+825 / 82, zero cross-split leakage) is ready for HPC fine-tuning from that
+checkpoint with `lr0=0.002`. See
+[`experiments/dataset3_interim_v2.md`](experiments/dataset3_interim_v2.md),
+[`experiments/dataset3_interim_v3.md`](experiments/dataset3_interim_v3.md), and
+[`experiments/dataset3_interim_v4.md`](experiments/dataset3_interim_v4.md).
 
 ## Repository Structure
 
@@ -484,15 +511,18 @@ FoodSense-MY/
 │   ├── cvat/assisted-batch-005/         # Interim-v3 reviewed export and merge report
 │   ├── cvat/assisted-batch-006/         # Mee Goreng-priority reviewed export and merge report
 │   ├── cvat/assisted-batch-007/         # 500-image reviewed export and merge report
-│   ├── cvat/assisted-batch-008/         # Mee Goreng–heavy proposal package; review pending
+│   ├── cvat/assisted-batch-008/         # Mee Goreng–heavy reviewed export and merge report
+│   ├── cvat/assisted-batch-009/         # Parallel Mee Goreng–heavy reviewed export and merge report
 │   ├── cvat/test-holdout-review-v1/      # No-proposal candidate-test verification package
 │   ├── dataset3-baseline/              # Generated leakage-safe pilot split
 │   ├── dataset3-interim-v2/            # Locked holdout + expanded train/validation
 │   ├── dataset3-interim-v3/            # Interim-v3 locked split (1,674/418/82)
+│   ├── dataset3-interim-v4/            # Interim-v4 locked split (3,299/825/82)
 │   └── weights/                        # Approved custom best.pt; pending
 ├── runs/detect/dataset3_pilot_v1/      # Phase C pilot artifacts; not production-promoted
 ├── runs/detect/dataset3_interim_v2/    # HPC interim v2 artifacts
 ├── runs/detect/dataset3_interim_v3/    # HPC interim v3 artifacts; current proposal model
+├── runs/detect/dataset3_interim_v4/    # Pending HPC interim v4 (lower lr0)
 ├── training_scripts/
 │   ├── scrape_images.py, google_crawler.py, uc_crawler.py
 │   ├── curate_images.py, curation.py
@@ -524,7 +554,7 @@ FoodSense-MY/
 - HPC NVIDIA training should install [`requirements-hpc.txt`](../requirements-hpc.txt), which selects CUDA 12.4 wheels via `--extra-index-url https://download.pytorch.org/whl/cu124`.
 - Observed failure mode on CUDA 12.8 drivers (API `12080`): installing a newer CUDA torch wheel raises `RuntimeError: The NVIDIA driver on your system is too old (found version 12080)`. Prefer `cu124` (or `cu126` if `cu124` is unavailable) rather than the newest CUDA index.
 - Ultralytics training on HPC must use `device=0` (or another CUDA device id), not `device=mps`.
-- `data/dataset3-interim-v2/data.yaml` embeds an absolute `path:`; rewrite it for the cluster. Its images are hardlinks into `data/dataset3/`, so transfers must dereference (`rsync -aL`) unless the full staging tree is copied and the split is regenerated on the cluster.
+- `data/dataset3-interim-v2/data.yaml` embeds an absolute `path:`; rewrite it for the cluster. The same applies to `dataset3-interim-v3/` and `dataset3-interim-v4/`. Their images are hardlinks into `data/dataset3/`, so transfers must dereference (`rsync -aL`) unless the full staging tree is copied and the split is regenerated on the cluster.
 
 ## Environment Variables
 
