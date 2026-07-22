@@ -39,6 +39,8 @@ Thumbs.db
 # Ultralytics
 runs/detect/dataset3_pilot_v1
 runs/detect/dataset3_interim_v2_local_val
+runs/detect/dataset3_interim_v3_local_val
+runs/detect/dataset3_interim_v4_local_val
 *.cache
 
 # SeleniumBase / UC scraper temp files

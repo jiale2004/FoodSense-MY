@@ -203,6 +203,7 @@ def prepare_batch(
     iou: float,
     image_size: int,
     device: str,
+    predict_batch_size: int = 100,
 ) -> dict[str, Any]:
     if output_dir.exists():
         raise FileExistsError(f"Output directory already exists: {output_dir}")
@@ -235,26 +236,36 @@ def prepare_batch(
     if names != TARGET_CLASSES:
         raise ValueError(f"Unexpected model class order: {names}")
 
-    results = model.predict(
-        source=[str(path) for path in image_paths],
-        conf=confidence,
-        iou=iou,
-        imgsz=image_size,
-        device=device,
-        stream=True,
-        verbose=False,
-    )
+    if predict_batch_size < 1:
+        raise ValueError("predict_batch_size must be >= 1")
+
     predictions: list[dict[str, Any]] = []
     rows_by_sha: dict[str, tuple[str, ...]] = {}
-    for result_index, result in enumerate(results):
-        if result_index >= len(selected):
-            raise ValueError("Model returned more results than selected images")
-        # Ultralytics may expose synthetic paths such as image0.jpg when a list of
-        # inputs is supplied, but it preserves the input sequence.
-        selection = selected[result_index]
-        prediction, rows = prediction_record(selection, result)
-        predictions.append(prediction)
-        rows_by_sha[str(selection["sha256"])] = rows
+    # Chunk inference to bound peak memory. A single flat predict over the full
+    # selection can exhaust RAM/VRAM on large batches or very high-resolution
+    # source images, so process fixed-size windows and release each chunk's
+    # results before the next one.
+    for chunk_start in range(0, len(image_paths), predict_batch_size):
+        chunk_paths = image_paths[chunk_start : chunk_start + predict_batch_size]
+        chunk_results = model.predict(
+            source=[str(path) for path in chunk_paths],
+            conf=confidence,
+            iou=iou,
+            imgsz=image_size,
+            device=device,
+            stream=True,
+            verbose=False,
+        )
+        for offset, result in enumerate(chunk_results):
+            result_index = chunk_start + offset
+            if result_index >= len(selected):
+                raise ValueError("Model returned more results than selected images")
+            # Ultralytics may expose synthetic paths such as image0.jpg when a
+            # list of inputs is supplied, but it preserves the input sequence.
+            selection = selected[result_index]
+            prediction, rows = prediction_record(selection, result)
+            predictions.append(prediction)
+            rows_by_sha[str(selection["sha256"])] = rows
     if len(predictions) != len(selected):
         raise ValueError(
             f"Model returned {len(predictions)} results for {len(selected)} images"
@@ -369,6 +380,12 @@ def main() -> None:
     parser.add_argument("--iou", type=float, default=0.5)
     parser.add_argument("--image-size", type=int, default=640)
     parser.add_argument("--device", default="cpu")
+    parser.add_argument(
+        "--predict-batch-size",
+        type=int,
+        default=100,
+        help="Number of images per inference chunk (bounds peak memory)",
+    )
     args = parser.parse_args()
 
     summary = prepare_batch(
@@ -382,6 +399,7 @@ def main() -> None:
         iou=args.iou,
         image_size=args.image_size,
         device=args.device,
+        predict_batch_size=args.predict_batch_size,
     )
     print(json.dumps(summary, indent=2, sort_keys=True))
 

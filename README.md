@@ -84,11 +84,13 @@ cp runs/detect/<approved-run>/weights/best.pt data/weights/best.pt
 ## Training Pipeline
 
 The canonical unsplit staging dataset is `data/dataset3/`. After assisted
-batch 009 and ingest `ingest_mee_goreng_full` it contains 5,359 usable images,
-including 4,206 annotated images with 4,440 boxes. Another 1,153 images still
-require annotation; 199 reviewed non-target images are quarantined. Mee Goreng
-now has 646 usable images (302 annotated / 344 missing). Chicken Rice missing
-annotations are 0.
+batch 010 and ingest `ingest_mee_goreng_full` it contains 5,289 usable images,
+including 5,246 annotated images with 5,579 boxes. Only 43 images remain
+unannotated, and all are unreachable (locked in test or prior-batch leakage
+groups); 269 reviewed non-target images are quarantined. Mee Goreng now has 475
+usable images (438 annotated / 37 missing) after many `mee_goreng`-folder frames
+were corrected to Char Kuey Teow. Chicken Rice and Laksa missing annotations are
+0.
 
 Do not run `training_scripts/prepare_dataset.py` against dataset3. That legacy
 utility performs a file-level random split and does not preserve the manifest's
@@ -337,26 +339,41 @@ and quarantined 30 non-target frames, including 123 `mee_goreng` →
 export passed dry validation and was applied with a recoverable pre-merge
 backup. Chicken Rice is now fully annotated in Dataset3.
 
+Phase D batch 010 was prepared at `data/cvat/assisted-batch-010/` using seed 52
+and `runs/detect/dataset3_interim_v4/weights/best.pt` to drain every remaining
+annotatable image in one pass. It contains 1,110 new leakage groups (Mee Goreng
+307, Laksa 313, Nasi Lemak 252, Roti Canai 238; Char Kuey Teow and Chicken Rice
+are exhausted), has zero overlap with the 81 locked test groups or 3,910 prior
+selection groups, and provided 1,420 proposal boxes on 1,107 of 1,110 images.
+Inference was chunked with the new `--predict-batch-size` flag (default 100)
+because a single flat predict over 1,110 images — including a 7216×5412 source
+frame — exhausts memory on MPS and CPU. CVAT task `2449428`, job `4270906`,
+reviewed the batch: human review accepted 1,139 boxes on 1,040 images and
+quarantined 70 non-target frames, including 142 `mee_goreng` → `char_kuey_teow`
+corrections. The reviewed export passed dry validation and was applied with a
+recoverable pre-merge backup. Dataset3 annotation is now effectively complete
+(5,246 annotated / 5,579 boxes; only 43 unreachable missing frames remain).
+
 The reserved holdout package contains 84 images, 86 existing human boxes, and
 83 leakage groups. It includes all six object classes and no model-generated
 annotations. `selection.jsonl` makes the later correction import revision-safe,
 and package creation fails if the baseline queue, current images, or labels
 have drifted.
 
-Two HPC interim runs are complete. `runs/detect/dataset3_interim_v2/` selected
-epoch 75 with mAP50 0.938 and mAP50–95 0.747. `runs/detect/dataset3_interim_v3/`
-trained from the v2 checkpoint on the expanded
-`data/dataset3-interim-v3/` split (1,674 / 418 / 82) and selected epoch 1 with
-mAP50 0.932 and mAP50–95 0.761; its Mee Goreng recall (0.513) is the current
-weakness. The locked incremental view `data/dataset3-interim-v4/` (3,299 /
-825 / 82, zero cross-split leakage) is ready for the next HPC retrain from the
-v3 checkpoint with `lr0=0.002`. Both existing checkpoints are accepted for
-assisted-batch proposals only, not production deployment, and the locked test
-set remains untouched. See
-[`docs/experiments/dataset3_interim_v2.md`](docs/experiments/dataset3_interim_v2.md),
-[`docs/experiments/dataset3_interim_v3.md`](docs/experiments/dataset3_interim_v3.md),
+Three HPC interim runs are complete; interim v5 training data is ready.
+`runs/detect/dataset3_interim_v2/` selected epoch 75 with mAP50 0.938 and
+mAP50–95 0.747. `runs/detect/dataset3_interim_v3/` trained from the v2
+checkpoint on `data/dataset3-interim-v3/` (1,674 / 418 / 82) and selected epoch
+1 with mAP50 0.932 and mAP50–95 0.761. `runs/detect/dataset3_interim_v4/`
+trained from the v3 checkpoint on `data/dataset3-interim-v4/` (3,299 / 825 /
+82) with `lr0=0.002` and selected epoch 1 with mAP50 0.938 and mAP50–95 0.783;
+local Mee Goreng recall recovered to 0.717 (from 0.513). The locked incremental
+view `data/dataset3-interim-v5/` (4,131 / 1,033 / 82, zero cross-split leakage)
+is ready for the Phase E HPC retrain from the v4 checkpoint with `lr0=0.002`.
+See
+[`docs/experiments/dataset3_interim_v4.md`](docs/experiments/dataset3_interim_v4.md)
 and
-[`docs/experiments/dataset3_interim_v4.md`](docs/experiments/dataset3_interim_v4.md).
+[`docs/experiments/dataset3_interim_v5.md`](docs/experiments/dataset3_interim_v5.md).
 
 See [`docs/handoff.md`](docs/handoff.md) for current counts and next-step gates,
 [`docs/architecture.md`](docs/architecture.md) for the complete data flow, and
@@ -440,10 +457,12 @@ data/
 ├── cvat/assisted-batch-007/ # 500-image reviewed export and merge report
 ├── cvat/assisted-batch-008/ # Mee Goreng–heavy reviewed export and merge report
 ├── cvat/assisted-batch-009/ # Parallel Mee Goreng–heavy reviewed export and merge report
+├── cvat/assisted-batch-010/ # Final drain batch (1,110 images); reviewed export and merge report
 ├── dataset3-baseline/      # Generated group-safe 70/20/10 pilot split
 ├── dataset3-interim-v2/    # Locked reviewed holdout + expanded train/validation
 ├── dataset3-interim-v3/    # Interim-v3 locked split (1,674/418/82)
 ├── dataset3-interim-v4/    # Interim-v4 locked split (3,299/825/82)
+├── dataset3-interim-v5/    # Interim-v5 locked split (4,131/1,033/82)
 └── weights/                # Approved custom weights
 training_scripts/
 ├── utils.py                # ReproducibilityManager
