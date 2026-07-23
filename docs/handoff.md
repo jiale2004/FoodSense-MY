@@ -1,16 +1,18 @@
 # FoodSense-MY — Project Handoff
 
-**Last updated:** 22 July 2026
+**Last updated:** 23 July 2026
 **Repository:** [FoodSense-MY](https://github.com/jiale2004/FoodSense-MY)  
 **Purpose:** Six-class Malaysian food object detection and nutritional advisory.
 
 ## 1. Current State
 
-The FastAPI application and its static frontend are runnable. The pilot and
-expanded interim six-class YOLO11n runs have completed, but neither has been
-promoted to the application. The current inference fallback is still
-Ultralytics `yolo11n.pt`, whose COCO classes are not suitable for the target
-dishes.
+The FastAPI application and its static frontend are runnable. Phase E is
+complete: interim v5 is the production-approved six-class YOLO11n detector.
+It was calibrated on the validation split (`CONFIDENCE_THRESHOLD=0.47`,
+`IOU_THRESHOLD=0.45`), evaluated once on the locked test set (mAP50 0.926,
+mAP50–95 0.678), promoted to `data/weights/best.pt`, and smoke-tested through
+`/api/health`, `/api/classes`, and `/api/predict`. The app no longer falls back
+to Ultralytics COCO `yolo11n.pt` for inference.
 
 Image acquisition and consolidation are paused. The canonical staging dataset is now `data/dataset3/`. It combines approved content from dataset1, dataset2, the manually curated two-class web run, and two Roboflow imports. Exact duplicates were collapsed, near-duplicate leakage groups were recorded, and the initial CVAT pilot plus its Phase A priority audit have been completed and merged.
 
@@ -22,11 +24,11 @@ Current dataset3 totals:
 - 43 images still missing bounding-box annotations, all unreachable by assisted batches: 1 lies in a locked test leakage group and 42 collide by leakage group with already-selected images
 - 269 rejected images: 8 from the original pilot, 7 from batch 001, 13 from batch 002, 2 from the holdout audit, 11 from batch 003, 31 from batch 004, 10 from batch 005, 27 from batch 006, 21 from batch 007, 39 from batch 008, 30 from batch 009, and 70 from batch 010
 - 5,235 usable leakage groups; 52 groups contain more than one usable image
-- no custom `data/weights/best.pt` yet
+- production weights at `data/weights/best.pt` (interim v5; SHA-256 `3b84619b715d1f2b0c7c10f8094f799b84972b195a207b8c9c1912c270c5b892`)
+- frozen inference thresholds: confidence 0.47, NMS-IoU 0.45
 - Phase C pilot checkpoint available at `runs/detect/dataset3_pilot_v1/weights/best.pt`
-- interim v2 checkpoint available at `runs/detect/dataset3_interim_v2/weights/best.pt`
-- interim v3 checkpoint available at `runs/detect/dataset3_interim_v3/weights/best.pt`
-- interim v4 checkpoint available at `runs/detect/dataset3_interim_v4/weights/best.pt` (current assisted-labelling model)
+- interim v2–v4 checkpoints available under `runs/detect/dataset3_interim_v{2,3,4}/weights/best.pt`
+- interim v5 checkpoint (source of production weights) at `runs/detect/dataset3_interim_v5/weights/best.pt`
 
 Phase B materialized the then-current 838 annotated images as the validated
 `data/dataset3-baseline/` training view. Its 84 test candidates have now been
@@ -47,8 +49,9 @@ non-target images, 52 box-only adjustments, and one `mee_goreng` →
 after their local archives passed integrity checks, leaving two of the free
 account's three task slots available for rotating later batches.
 
-Phase D is in progress. `data/cvat/assisted-batch-001/` contains a validated
-300-image CVAT package and pilot-model pre-annotations. Former CVAT task
+Phase D is complete (assisted batches 001–010). Its history begins with
+`data/cvat/assisted-batch-001/`, a validated 300-image CVAT package and
+pilot-model pre-annotations. Former CVAT task
 `2439970` and completed job `4260450` contained all 300 images; the hosted task
 has been deleted after archival. Human review reduced the 338 proposals
 to 309 accepted boxes on 293 images and rejected 7 non-target frames. The
@@ -201,9 +204,12 @@ fine-tuned from the interim v4 checkpoint with `lr0=0.002`, stopped normally
 after epoch 21, and selected epoch 1 by mAP50–95 fitness (precision 0.894,
 recall 0.899, mAP50 0.945, mAP50–95 0.793) — the strongest interim run to date.
 Local validation-only review shows Mee Goreng recall improved to 0.778 (from
-0.717 in interim v4). This is the recommended candidate for Phase E
-finalization; it is not yet production-approved. Full metrics are in
-[`experiments/dataset3_interim_v5.md`](experiments/dataset3_interim_v5.md).
+0.717 in interim v4). On 23 July 2026 Phase E finished: validation-only
+threshold calibration selected confidence 0.47 / NMS-IoU 0.45 (macro-F1 0.891);
+the single locked-test evaluation scored precision 0.930, recall 0.930, mAP50
+0.926, mAP50–95 0.678; the checkpoint was promoted to `data/weights/best.pt`
+and smoke-tested. Interim v5 is the production-approved detector. Full metrics
+are in [`experiments/dataset3_interim_v5.md`](experiments/dataset3_interim_v5.md).
 
 `data/cvat/assisted-batch-010/` was reviewed in CVAT task `2449428`, completed
 job `4270906`, and applied on 22 July 2026. It drained every remaining
@@ -449,6 +455,7 @@ The full policy is [`docs/bounding-box-policy.md`](bounding-box-policy.md). Its 
 | [`prepare_cvat_assisted_batch.py`](../training_scripts/prepare_cvat_assisted_batch.py) | Select leakage-safe missing records, exclude test/prior-batch groups, run the detector (chunked via `--predict-batch-size`), and package CVAT images plus YOLO proposals |
 | [`import_cvat_annotations.py`](../training_scripts/import_cvat_annotations.py) | Validate first-time or replacement CVAT exports, merge or revise labels, retain recoverable backups, and quarantine rejected frames |
 | [`split_dataset3.py`](../training_scripts/split_dataset3.py) | Build and validate a deterministic annotated-only split while preserving leakage groups and immutable label snapshots |
+| [`calibrate_thresholds.py`](../training_scripts/calibrate_thresholds.py) | Sweep confidence and NMS-IoU on the validation split only (refuses the test split) and recommend the macro-F1-optimal global operating point |
 | [`scrape_images.py`](../training_scripts/scrape_images.py) | Acquire Google/Bing/UC image candidates with provenance |
 | [`curate_images.py`](../training_scripts/curate_images.py) | Validate, deduplicate, score, calibrate, and route scraped candidates |
 | [`ingest_curated_images.py`](../training_scripts/ingest_curated_images.py) | Append curated accepted images into Dataset3 without rebuilding (preserves CVAT merges) |
@@ -466,17 +473,21 @@ The full policy is [`docs/bounding-box-policy.md`](bounding-box-policy.md). Its 
 | OpenAI/Gemini advisory formatting | Implemented, optional |
 | Apple Silicon MPS inference | Supported |
 | Canonical dataset3 assembly | Implemented |
-| CVAT batch preparation/import | Implemented; assisted batches 001–009 reviewed, validated, and applied |
+| CVAT batch preparation/import | Implemented; assisted batches 001–010 reviewed, validated, and applied |
 | Group-aware annotated-only splitter | Implemented and validated |
-| Custom six-class YOLO model | Interim v3 trained and validated; approved for assisted-batch proposals only |
-| Production `data/weights/best.pt` | Missing |
+| Threshold calibration | Implemented (`calibrate_thresholds.py`); interim v5 conf 0.47 / NMS-IoU 0.45 |
+| Custom six-class YOLO model | Interim v5 trained, calibrated, locked-test evaluated, and production-approved |
+| Production `data/weights/best.pt` | Present (interim v5; SHA-256 `3b84619b715d1f2b0c7c10f8094f799b84972b195a207b8c9c1912c270c5b892`) |
 
-Until custom weights are approved and copied to `data/weights/best.pt`, `/api/predict` is only a scaffold test and does not reliably identify the six Malaysian dishes.
+`/api/predict` now runs the promoted six-class detector with the frozen
+thresholds. LLM advisory still uses template fallback unless an OpenAI or
+Gemini API key is configured.
 
 ## 8. Verification Completed
 
 After the Phase A audited revision, Phase B split, Phase C pilot evaluation,
-Phase D batch 001–010 merges, locked interim splits, interim HPC runs, and curated Mee Goreng ingest:
+Phase D batch 001–010 merges, locked interim splits, interim HPC runs, curated
+Mee Goreng ingest, and Phase E finalization:
 
 - `manifest.jsonl` contains 5,558 records: 5,289 usable plus 269 rejected
 - status totals are 5,246 annotated, 43 missing, and 269 rejected
@@ -530,6 +541,9 @@ Phase D batch 001–010 merges, locked interim splits, interim HPC runs, and cur
 - interim v5 training stopped normally at epoch 21 after selecting epoch 1 by mAP50–95 fitness; its best metrics are precision 0.894, recall 0.899, mAP50 0.945, and mAP50–95 0.793 (best interim run so far)
 - interim v5 checkpoint SHA-256 is `3b84619b715d1f2b0c7c10f8094f799b84972b195a207b8c9c1912c270c5b892`
 - local interim-v5 validation shows Mee Goreng recall 0.778 (up from 0.717 in interim v4)
+- validation-only threshold calibration (`training_scripts/calibrate_thresholds.py`) selected confidence 0.47 and NMS-IoU 0.45 (macro-F1 0.891, micro P 0.904 / R 0.896); report SHA-256 `5b76a7becc4ea4664e8f34a52af53e4a98e862c36e4e2fad8caa61e2e866786c`
+- single locked-test evaluation (`conf=0.47 iou=0.45`) scored precision 0.930, recall 0.930, mAP50 0.926, mAP50–95 0.678 on 82 images / 84 instances; summary in `runs/detect/dataset3_interim_v5_test/test-metrics.json`
+- production `data/weights/best.pt` is byte-identical to the interim v5 checkpoint and was smoke-tested through `/api/health`, `/api/classes`, and `/api/predict`
 - `prepare_cvat_assisted_batch.py` gained `--predict-batch-size` (default 100) to process inference in memory-safe chunks
 - assisted batch 005 contains 300 images from 300 new leakage groups, with zero overlap against 81 locked test groups and 1,751 prior selection groups, and 358 proposals on 299 images
 - CVAT task `2442437`, completed job `4263052`, reviewed those proposals into 304 accepted boxes on 290 images and 10 rejects
@@ -826,7 +840,7 @@ The checkpoint is approved for human-reviewed batch-005 proposals and remains
 ineligible for `data/weights/best.pt`. Full details are in
 [`docs/experiments/dataset3_interim_v3.md`](experiments/dataset3_interim_v3.md).
 
-### Phase D — Use the baseline for assisted labelling: batches 001–009 applied
+### Phase D — Use the baseline for assisted labelling: batches 001–010 applied
 
 1. Connect the approved baseline to CVAT auto-annotation or generate prediction labels for import.
 2. Process the remaining 1,153 images in batches of 300–500.
@@ -1362,44 +1376,47 @@ SHA-256 values:
 - `cvat-reviewed-export.zip`: `a40eccc863e34b13e0fad8000f0fcc13d3c430bc2e45a60532edfcbb8df0f19e`
 - `merge-report.json`: `9a4d90543c23c11d53b8ee65bd75d78f5bccb11149850c4fcd954107153af60b`
 
-### Phase E — Final split, training, and deployment
+### Phase E — Final split, training, and deployment [completed 23 July 2026]
 
-1. Freeze the final annotated manifest and preserve the untouched test groups.
-2. Rebuild the leakage-safe split and train larger model variants only if YOLO11n is capacity-limited.
-3. Tune confidence and IoU thresholds on validation data, never the test set.
-4. Run final test-set evaluation and save metrics, confusion matrix, and representative failure cases.
-5. Copy the accepted weights to `data/weights/best.pt`.
-6. Restart FastAPI and test `/api/health`, `/api/classes`, and `/api/predict` end to end.
+1. Freeze the final annotated manifest and preserve the untouched test groups. **Done** (`dataset3-interim-v5`, locked test identical to interim v4).
+2. Rebuild the leakage-safe split and train. **Done** (`runs/detect/dataset3_interim_v5/`, validation mAP50 0.945 / mAP50–95 0.793).
+3. Tune confidence and IoU thresholds on validation data, never the test set. **Done** (`calibrate_thresholds.py` → conf 0.47 / NMS-IoU 0.45).
+4. Run final test-set evaluation and save metrics, confusion matrix, and representative failure cases. **Done once** (`runs/detect/dataset3_interim_v5_test/`; mAP50 0.926 / mAP50–95 0.678). Do not reuse the test split for tuning.
+5. Copy the accepted weights to `data/weights/best.pt`. **Done** (SHA-256 `3b84619b715d1f2b0c7c10f8094f799b84972b195a207b8c9c1912c270c5b892`).
+6. Restart FastAPI and test `/api/health`, `/api/classes`, and `/api/predict` end to end. **Done** (custom weights on `mps`; predict returned `chicken_rice` 0.848 on a locked-test image).
+
+Full write-up: [`experiments/dataset3_interim_v5.md`](experiments/dataset3_interim_v5.md).
 
 ## 10. Immediate Recommended Action
 
-Interim v5 training is complete and is the strongest interim checkpoint
-(validation mAP50 0.945, mAP50–95 0.793; Mee Goreng recall 0.778). Local
-validation-only diagnosis is done. Remaining Phase E gates:
+Phase E is complete. Interim v5 is the production-approved detector: trained,
+calibrated on validation, evaluated once on the locked test split, promoted to
+`data/weights/best.pt`, and smoke-tested through the running app.
 
-1. Calibrate confidence and IoU thresholds on the validation split only
-   (`data/dataset3-interim-v5/`), never the test set. Record the chosen values.
-2. Run the single locked-test evaluation once, using
-   `runs/detect/dataset3_interim_v5/weights/best.pt`:
+- Validation (model selection): mAP50 0.945, mAP50–95 0.793; Mee Goreng recall 0.778.
+- Frozen thresholds (validation-only calibration,
+  `training_scripts/calibrate_thresholds.py`, macro-F1 optimum):
+  `CONFIDENCE_THRESHOLD=0.47`, `IOU_THRESHOLD=0.45` (macro-F1 0.891, micro
+  P 0.904 / R 0.896). Applied to `backend/app/core/config.py`, `.env.example`, `.env`.
+  Report: `runs/detect/dataset3_interim_v5_calibration/calibration.json`
+  (SHA-256 `5b76a7becc4ea4664e8f34a52af53e4a98e862c36e4e2fad8caa61e2e866786c`).
+- Single locked-test evaluation (one-shot, `conf=0.47 iou=0.45`): overall
+  precision 0.930, recall 0.930, mAP50 0.926, mAP50–95 0.678 (82 images, 84
+  instances). Artifacts in `runs/detect/dataset3_interim_v5_test/`; summary in
+  `test-metrics.json`. Do not reuse the test split for tuning.
+- Promotion: `data/weights/best.pt` SHA-256
+  `3b84619b715d1f2b0c7c10f8094f799b84972b195a207b8c9c1912c270c5b892`
+  (byte-identical to the interim v5 checkpoint).
+- Smoke test: `/api/health` reports the custom weights on `mps`; `/api/classes`
+  returns all six classes; `/api/predict` on a locked-test image returned
+  `chicken_rice` (0.848) with a generated advisory.
 
-```bash
-yolo detect val \
-  model=runs/detect/dataset3_interim_v5/weights/best.pt \
-  data=data/dataset3-interim-v5/data.yaml \
-  split=test imgsz=640 device=0 \
-  project=runs/detect name=dataset3_interim_v5_test
-```
-
-3. Save test metrics, confusion matrix, and representative failure cases.
-4. Promote and smoke-test the app:
-
-```bash
-cp runs/detect/dataset3_interim_v5/weights/best.pt data/weights/best.pt
-# restart FastAPI, then GET /api/health, /api/classes; POST /api/predict
-```
-
-Run `split=test` only once, after thresholds are frozen. Optionally delete
-hosted CVAT tasks `2445540`, `2445679`, and `2449428` after local archive checks.
+Suggested follow-ups (not blocking): Chicken Rice box-tightness (lowest test
+mAP50–95 0.528) is the main next-iteration target; consider per-class inference
+thresholds (calibration favored lower cutoffs for Mee Goreng / Roti Canai) and,
+for a future retrain, a shorter warmup or `cos_lr`, or `yolo11s` for the noodle
+classes. Optionally delete hosted CVAT tasks `2445540`, `2445679`, and `2449428`
+after local archive checks.
 
 ## 11. Environment and Runtime
 
@@ -1410,8 +1427,11 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+uvicorn app.main:app --app-dir backend --reload --host 0.0.0.0 --port 8000
 ```
+
+The FastAPI service now lives in `backend/app/`; `--app-dir backend` puts the
+`app` package on the import path while data and `.env` stay at the repo root.
 
 Linux HPC GPU training:
 
@@ -1426,20 +1446,46 @@ python -c "import torch; print(torch.__version__, torch.version.cuda, torch.cuda
 
 `requirements-hpc.txt` pulls torch/torchvision from the CUDA 12.4 wheel index, then installs [`requirements.txt`](../requirements.txt). This avoids the driver mismatch seen when a newer CUDA build is installed on nodes with NVIDIA driver API `12080` (CUDA 12.8). Comments in `requirements.txt` document the same constraint.
 
-Important environment variables include `MODEL_WEIGHTS_PATH`, `KNOWLEDGE_BASE_PATH`, `CONFIDENCE_THRESHOLD`, `IOU_THRESHOLD`, `DEVICE`, `LLM_PROVIDER`, and the optional OpenAI/Gemini credentials.
+Important environment variables include `MODEL_WEIGHTS_PATH`, `KNOWLEDGE_BASE_PATH`,
+`CONFIDENCE_THRESHOLD` (default `0.47`), `IOU_THRESHOLD` (default `0.45`),
+`DEVICE`, `LLM_PROVIDER`, and the optional OpenAI/Gemini credentials.
 
 ## 12. Working Tree Note
 
-The returned `runs/detect/dataset3_interim_v2/`,
-`runs/detect/dataset3_interim_v3/`, and
-`runs/detect/dataset3_interim_v4/` HPC artifacts are tracked in the repository.
-This pass updates:
+The returned `runs/detect/dataset3_interim_v2/` through
+`runs/detect/dataset3_interim_v5/` HPC artifacts are tracked in the repository.
+This chat's Phase E close-out updates:
 
+- `training_scripts/calibrate_thresholds.py`
+- `backend/app/core/config.py` (defaults conf 0.47 / iou 0.45)
+- `.env.example`
 - `docs/experiments/dataset3_interim_v5.md`
 - `README.md`
 - `docs/architecture.md`
 - `docs/handoff.md`
 - `.gitignore` (ignore interim v5 local-val diagnostics)
+
+A separate development convenience was added later: a minimal Vite + React
+upload-test UI under `frontend/` (`package.json`, `vite.config.js`,
+`index.html`, `src/`). It proxies `/api` and `/uploads` to the backend at
+`http://127.0.0.1:8000` and is independent of the production static frontend in
+`backend/app/static/`. Its `node_modules/` and `dist/` are gitignored.
+
+The FastAPI service was subsequently relocated from `app/` to `backend/app/`
+(via `git mv`) to mirror `frontend/`. The `app` Python package name is
+unchanged, so internal imports are unaffected; run with
+`uvicorn app.main:app --app-dir backend`. `backend/app/core/config.py` now
+resolves `PROJECT_ROOT` to the repository root (`parents[3]`) so `data/` and
+`.env` still resolve, while `uploads_dir` is anchored to the app package
+(`APP_DIR/static/uploads`). Shared tooling (`data/`, `training_scripts/`,
+`tests/`, `requirements*.txt`) intentionally remains at the repository root.
+`.gitignore` now ignores `backend/app/static/uploads/*`.
+
+Local runtime artifacts (typically gitignored or untracked) include:
+
+- `runs/detect/dataset3_interim_v5_calibration/calibration.json`
+- `runs/detect/dataset3_interim_v5_test/` (including `test-metrics.json`)
+- `data/weights/best.pt` (promoted interim v5 checkpoint)
 
 The validation-only diagnostic directories
 `runs/detect/dataset3_interim_v2_local_val/` through

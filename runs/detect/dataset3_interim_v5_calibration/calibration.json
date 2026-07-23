@@ -1,0 +1,2070 @@
+{
+  "model": "runs/detect/dataset3_interim_v5/weights/best.pt",
+  "model_sha256": "3b84619b715d1f2b0c7c10f8094f799b84972b195a207b8c9c1912c270c5b892",
+  "data_yaml": "data/dataset3-interim-v5/data.yaml",
+  "data_yaml_sha256": "99513c654f587a7bafd4b60166491fff5933ff065b5aa2c959fc13b025ae26b0",
+  "split": "val",
+  "num_images": 1033,
+  "num_classes": 6,
+  "class_names": [
+    "nasi_lemak",
+    "roti_canai",
+    "char_kuey_teow",
+    "chicken_rice",
+    "laksa",
+    "mee_goreng"
+  ],
+  "eval_iou": 0.5,
+  "conf_grid": {
+    "min": 0.05,
+    "max": 0.95,
+    "step": 0.01
+  },
+  "recommended": {
+    "confidence_threshold": 0.47,
+    "iou_threshold": 0.45,
+    "macro_f1": 0.89083,
+    "micro_precision": 0.90402,
+    "micro_recall": 0.89583,
+    "micro_f1": 0.89991
+  },
+  "best_operating_point": {
+    "nms_iou": 0.45,
+    "conf": 0.47,
+    "macro_f1": 0.89083,
+    "micro_precision": 0.90402,
+    "micro_recall": 0.89583,
+    "micro_f1": 0.89991,
+    "per_class": {
+      "nasi_lemak": {
+        "tp": 190,
+        "fp": 20,
+        "fn": 13,
+        "precision": 0.90476,
+        "recall": 0.93596,
+        "f1": 0.9201
+      },
+      "roti_canai": {
+        "tp": 182,
+        "fp": 19,
+        "fn": 33,
+        "precision": 0.90547,
+        "recall": 0.84651,
+        "f1": 0.875
+      },
+      "char_kuey_teow": {
+        "tp": 222,
+        "fp": 31,
+        "fn": 17,
+        "precision": 0.87747,
+        "recall": 0.92887,
+        "f1": 0.90244
+      },
+      "chicken_rice": {
+        "tp": 130,
+        "fp": 10,
+        "fn": 14,
+        "precision": 0.92857,
+        "recall": 0.90278,
+        "f1": 0.91549
+      },
+      "laksa": {
+        "tp": 198,
+        "fp": 15,
+        "fn": 15,
+        "precision": 0.92958,
+        "recall": 0.92958,
+        "f1": 0.92958
+      },
+      "mee_goreng": {
+        "tp": 67,
+        "fp": 10,
+        "fn": 23,
+        "precision": 0.87013,
+        "recall": 0.74444,
+        "f1": 0.8024
+      }
+    },
+    "per_class_best_conf": {
+      "nasi_lemak": {
+        "conf": 0.57,
+        "precision": 0.93103,
+        "recall": 0.93103,
+        "f1": 0.93103
+      },
+      "roti_canai": {
+        "conf": 0.34,
+        "precision": 0.88679,
+        "recall": 0.87442,
+        "f1": 0.88056
+      },
+      "char_kuey_teow": {
+        "conf": 0.44,
+        "precision": 0.87843,
+        "recall": 0.93724,
+        "f1": 0.90688
+      },
+      "chicken_rice": {
+        "conf": 0.47,
+        "precision": 0.92857,
+        "recall": 0.90278,
+        "f1": 0.91549
+      },
+      "laksa": {
+        "conf": 0.6,
+        "precision": 0.9381,
+        "recall": 0.92488,
+        "f1": 0.93144
+      },
+      "mee_goreng": {
+        "conf": 0.36,
+        "precision": 0.85542,
+        "recall": 0.78889,
+        "f1": 0.82081
+      }
+    }
+  },
+  "nms_iou_summary": [
+    {
+      "nms_iou": 0.45,
+      "best_conf": 0.47,
+      "macro_f1": 0.89083,
+      "micro_precision": 0.90402,
+      "micro_recall": 0.89583,
+      "micro_f1": 0.89991,
+      "curve": [
+        {
+          "conf": 0.05,
+          "macro_f1": 0.7976,
+          "micro_f1": 0.79768,
+          "micro_precision": 0.69615,
+          "micro_recall": 0.93388
+        },
+        {
+          "conf": 0.06,
+          "macro_f1": 0.81218,
+          "micro_f1": 0.81405,
+          "micro_precision": 0.72148,
+          "micro_recall": 0.93388
+        },
+        {
+          "conf": 0.07,
+          "macro_f1": 0.82392,
+          "micro_f1": 0.82684,
+          "micro_precision": 0.74296,
+          "micro_recall": 0.93207
+        },
+        {
+          "conf": 0.08,
+          "macro_f1": 0.83113,
+          "micro_f1": 0.83489,
+          "micro_precision": 0.75606,
+          "micro_recall": 0.93207
+        },
+        {
+          "conf": 0.09,
+          "macro_f1": 0.83828,
+          "micro_f1": 0.84275,
+          "micro_precision": 0.76906,
+          "micro_recall": 0.93207
+        },
+        {
+          "conf": 0.1,
+          "macro_f1": 0.84506,
+          "micro_f1": 0.85041,
+          "micro_precision": 0.78191,
+          "micro_recall": 0.93207
+        },
+        {
+          "conf": 0.11,
+          "macro_f1": 0.85066,
+          "micro_f1": 0.85631,
+          "micro_precision": 0.7926,
+          "micro_recall": 0.93116
+        },
+        {
+          "conf": 0.12,
+          "macro_f1": 0.85524,
+          "micro_f1": 0.86169,
+          "micro_precision": 0.80187,
+          "micro_recall": 0.93116
+        },
+        {
+          "conf": 0.13,
+          "macro_f1": 0.8574,
+          "micro_f1": 0.86411,
+          "micro_precision": 0.80676,
+          "micro_recall": 0.93025
+        },
+        {
+          "conf": 0.14,
+          "macro_f1": 0.85939,
+          "micro_f1": 0.8663,
+          "micro_precision": 0.81058,
+          "micro_recall": 0.93025
+        },
+        {
+          "conf": 0.15,
+          "macro_f1": 0.86138,
+          "micro_f1": 0.8685,
+          "micro_precision": 0.81443,
+          "micro_recall": 0.93025
+        },
+        {
+          "conf": 0.16,
+          "macro_f1": 0.86487,
+          "micro_f1": 0.87245,
+          "micro_precision": 0.82212,
+          "micro_recall": 0.92935
+        },
+        {
+          "conf": 0.17,
+          "macro_f1": 0.86626,
+          "micro_f1": 0.8742,
+          "micro_precision": 0.82595,
+          "micro_recall": 0.92844
+        },
+        {
+          "conf": 0.18,
+          "macro_f1": 0.86683,
+          "micro_f1": 0.87473,
+          "micro_precision": 0.82834,
+          "micro_recall": 0.92663
+        },
+        {
+          "conf": 0.19,
+          "macro_f1": 0.8688,
+          "micro_f1": 0.87698,
+          "micro_precision": 0.83238,
+          "micro_recall": 0.92663
+        },
+        {
+          "conf": 0.2,
+          "macro_f1": 0.86965,
+          "micro_f1": 0.87801,
+          "micro_precision": 0.83497,
+          "micro_recall": 0.92572
+        },
+        {
+          "conf": 0.21,
+          "macro_f1": 0.87263,
+          "micro_f1": 0.88141,
+          "micro_precision": 0.84115,
+          "micro_recall": 0.92572
+        },
+        {
+          "conf": 0.22,
+          "macro_f1": 0.87366,
+          "micro_f1": 0.88245,
+          "micro_precision": 0.8438,
+          "micro_recall": 0.92482
+        },
+        {
+          "conf": 0.23,
+          "macro_f1": 0.87605,
+          "micro_f1": 0.88388,
+          "micro_precision": 0.84718,
+          "micro_recall": 0.92391
+        },
+        {
+          "conf": 0.24,
+          "macro_f1": 0.87875,
+          "micro_f1": 0.88637,
+          "micro_precision": 0.85331,
+          "micro_recall": 0.9221
+        },
+        {
+          "conf": 0.25,
+          "macro_f1": 0.87934,
+          "micro_f1": 0.88715,
+          "micro_precision": 0.85474,
+          "micro_recall": 0.9221
+        },
+        {
+          "conf": 0.26,
+          "macro_f1": 0.88081,
+          "micro_f1": 0.88869,
+          "micro_precision": 0.85762,
+          "micro_recall": 0.9221
+        },
+        {
+          "conf": 0.27,
+          "macro_f1": 0.88181,
+          "micro_f1": 0.88986,
+          "micro_precision": 0.8598,
+          "micro_recall": 0.9221
+        },
+        {
+          "conf": 0.28,
+          "macro_f1": 0.884,
+          "micro_f1": 0.8922,
+          "micro_precision": 0.86418,
+          "micro_recall": 0.9221
+        },
+        {
+          "conf": 0.29,
+          "macro_f1": 0.88616,
+          "micro_f1": 0.89455,
+          "micro_precision": 0.8686,
+          "micro_recall": 0.9221
+        },
+        {
+          "conf": 0.3,
+          "macro_f1": 0.8852,
+          "micro_f1": 0.89379,
+          "micro_precision": 0.87039,
+          "micro_recall": 0.91848
+        },
+        {
+          "conf": 0.31,
+          "macro_f1": 0.88554,
+          "micro_f1": 0.89418,
+          "micro_precision": 0.87113,
+          "micro_recall": 0.91848
+        },
+        {
+          "conf": 0.32,
+          "macro_f1": 0.88638,
+          "micro_f1": 0.89497,
+          "micro_precision": 0.87263,
+          "micro_recall": 0.91848
+        },
+        {
+          "conf": 0.33,
+          "macro_f1": 0.88862,
+          "micro_f1": 0.89646,
+          "micro_precision": 0.8763,
+          "micro_recall": 0.91757
+        },
+        {
+          "conf": 0.34,
+          "macro_f1": 0.88765,
+          "micro_f1": 0.8953,
+          "micro_precision": 0.87739,
+          "micro_recall": 0.91395
+        },
+        {
+          "conf": 0.35,
+          "macro_f1": 0.88708,
+          "micro_f1": 0.89462,
+          "micro_precision": 0.8786,
+          "micro_recall": 0.91123
+        },
+        {
+          "conf": 0.36,
+          "macro_f1": 0.88817,
+          "micro_f1": 0.89542,
+          "micro_precision": 0.88014,
+          "micro_recall": 0.91123
+        },
+        {
+          "conf": 0.37,
+          "macro_f1": 0.88821,
+          "micro_f1": 0.89612,
+          "micro_precision": 0.88235,
+          "micro_recall": 0.91033
+        },
+        {
+          "conf": 0.38,
+          "macro_f1": 0.88712,
+          "micro_f1": 0.89544,
+          "micro_precision": 0.8836,
+          "micro_recall": 0.90761
+        },
+        {
+          "conf": 0.39,
+          "macro_f1": 0.88765,
+          "micro_f1": 0.89606,
+          "micro_precision": 0.88652,
+          "micro_recall": 0.9058
+        },
+        {
+          "conf": 0.4,
+          "macro_f1": 0.88759,
+          "micro_f1": 0.89596,
+          "micro_precision": 0.88721,
+          "micro_recall": 0.90489
+        },
+        {
+          "conf": 0.41,
+          "macro_f1": 0.88784,
+          "micro_f1": 0.89699,
+          "micro_precision": 0.89097,
+          "micro_recall": 0.90308
+        },
+        {
+          "conf": 0.42,
+          "macro_f1": 0.88772,
+          "micro_f1": 0.8977,
+          "micro_precision": 0.89327,
+          "micro_recall": 0.90217
+        },
+        {
+          "conf": 0.43,
+          "macro_f1": 0.88745,
+          "micro_f1": 0.89761,
+          "micro_precision": 0.89398,
+          "micro_recall": 0.90127
+        },
+        {
+          "conf": 0.44,
+          "macro_f1": 0.88925,
+          "micro_f1": 0.89914,
+          "micro_precision": 0.89792,
+          "micro_recall": 0.90036
+        },
+        {
+          "conf": 0.45,
+          "macro_f1": 0.88978,
+          "micro_f1": 0.89937,
+          "micro_precision": 0.90018,
+          "micro_recall": 0.89855
+        },
+        {
+          "conf": 0.46,
+          "macro_f1": 0.88942,
+          "micro_f1": 0.89868,
+          "micro_precision": 0.90155,
+          "micro_recall": 0.89583
+        },
+        {
+          "conf": 0.47,
+          "macro_f1": 0.89083,
+          "micro_f1": 0.89991,
+          "micro_precision": 0.90402,
+          "micro_recall": 0.89583
+        },
+        {
+          "conf": 0.48,
+          "macro_f1": 0.88995,
+          "micro_f1": 0.89813,
+          "micro_precision": 0.90599,
+          "micro_recall": 0.8904
+        },
+        {
+          "conf": 0.49,
+          "macro_f1": 0.88942,
+          "micro_f1": 0.89826,
+          "micro_precision": 0.90909,
+          "micro_recall": 0.88768
+        },
+        {
+          "conf": 0.5,
+          "macro_f1": 0.88792,
+          "micro_f1": 0.89706,
+          "micro_precision": 0.91045,
+          "micro_recall": 0.88406
+        },
+        {
+          "conf": 0.51,
+          "macro_f1": 0.88712,
+          "micro_f1": 0.89646,
+          "micro_precision": 0.91113,
+          "micro_recall": 0.88225
+        },
+        {
+          "conf": 0.52,
+          "macro_f1": 0.88682,
+          "micro_f1": 0.89617,
+          "micro_precision": 0.91345,
+          "micro_recall": 0.87953
+        },
+        {
+          "conf": 0.53,
+          "macro_f1": 0.88543,
+          "micro_f1": 0.89476,
+          "micro_precision": 0.91643,
+          "micro_recall": 0.87409
+        },
+        {
+          "conf": 0.54,
+          "macro_f1": 0.88476,
+          "micro_f1": 0.89405,
+          "micro_precision": 0.91794,
+          "micro_recall": 0.87138
+        },
+        {
+          "conf": 0.55,
+          "macro_f1": 0.88237,
+          "micro_f1": 0.89148,
+          "micro_precision": 0.91755,
+          "micro_recall": 0.86685
+        },
+        {
+          "conf": 0.56,
+          "macro_f1": 0.88159,
+          "micro_f1": 0.89034,
+          "micro_precision": 0.91819,
+          "micro_recall": 0.86413
+        },
+        {
+          "conf": 0.57,
+          "macro_f1": 0.88196,
+          "micro_f1": 0.89065,
+          "micro_precision": 0.91988,
+          "micro_recall": 0.86322
+        },
+        {
+          "conf": 0.58,
+          "macro_f1": 0.88123,
+          "micro_f1": 0.88951,
+          "micro_precision": 0.92054,
+          "micro_recall": 0.86051
+        },
+        {
+          "conf": 0.59,
+          "macro_f1": 0.87993,
+          "micro_f1": 0.88972,
+          "micro_precision": 0.92308,
+          "micro_recall": 0.8587
+        },
+        {
+          "conf": 0.6,
+          "macro_f1": 0.87777,
+          "micro_f1": 0.88795,
+          "micro_precision": 0.92451,
+          "micro_recall": 0.85417
+        },
+        {
+          "conf": 0.61,
+          "macro_f1": 0.87634,
+          "micro_f1": 0.88752,
+          "micro_precision": 0.92787,
+          "micro_recall": 0.85054
+        },
+        {
+          "conf": 0.62,
+          "macro_f1": 0.87456,
+          "micro_f1": 0.8854,
+          "micro_precision": 0.93193,
+          "micro_recall": 0.8433
+        },
+        {
+          "conf": 0.63,
+          "macro_f1": 0.87217,
+          "micro_f1": 0.8839,
+          "micro_precision": 0.93529,
+          "micro_recall": 0.83786
+        },
+        {
+          "conf": 0.64,
+          "macro_f1": 0.86981,
+          "micro_f1": 0.88165,
+          "micro_precision": 0.93591,
+          "micro_recall": 0.83333
+        },
+        {
+          "conf": 0.65,
+          "macro_f1": 0.86893,
+          "micro_f1": 0.88088,
+          "micro_precision": 0.93763,
+          "micro_recall": 0.83062
+        },
+        {
+          "conf": 0.66,
+          "macro_f1": 0.86512,
+          "micro_f1": 0.87741,
+          "micro_precision": 0.93905,
+          "micro_recall": 0.82337
+        },
+        {
+          "conf": 0.67,
+          "macro_f1": 0.86211,
+          "micro_f1": 0.87554,
+          "micro_precision": 0.94069,
+          "micro_recall": 0.81884
+        },
+        {
+          "conf": 0.68,
+          "macro_f1": 0.86241,
+          "micro_f1": 0.87494,
+          "micro_precision": 0.94532,
+          "micro_recall": 0.81431
+        },
+        {
+          "conf": 0.69,
+          "macro_f1": 0.86066,
+          "micro_f1": 0.87329,
+          "micro_precision": 0.94515,
+          "micro_recall": 0.81159
+        },
+        {
+          "conf": 0.7,
+          "macro_f1": 0.85686,
+          "micro_f1": 0.86944,
+          "micro_precision": 0.94474,
+          "micro_recall": 0.80525
+        },
+        {
+          "conf": 0.71,
+          "macro_f1": 0.85589,
+          "micro_f1": 0.86892,
+          "micro_precision": 0.94855,
+          "micro_recall": 0.80163
+        },
+        {
+          "conf": 0.72,
+          "macro_f1": 0.85586,
+          "micro_f1": 0.86922,
+          "micro_precision": 0.95054,
+          "micro_recall": 0.80072
+        },
+        {
+          "conf": 0.73,
+          "macro_f1": 0.8537,
+          "micro_f1": 0.86729,
+          "micro_precision": 0.95233,
+          "micro_recall": 0.7962
+        },
+        {
+          "conf": 0.74,
+          "macro_f1": 0.8494,
+          "micro_f1": 0.86296,
+          "micro_precision": 0.95495,
+          "micro_recall": 0.78714
+        },
+        {
+          "conf": 0.75,
+          "macro_f1": 0.84118,
+          "micro_f1": 0.85714,
+          "micro_precision": 0.9596,
+          "micro_recall": 0.77446
+        },
+        {
+          "conf": 0.76,
+          "macro_f1": 0.83329,
+          "micro_f1": 0.85081,
+          "micro_precision": 0.95909,
+          "micro_recall": 0.76449
+        },
+        {
+          "conf": 0.77,
+          "macro_f1": 0.82742,
+          "micro_f1": 0.8451,
+          "micro_precision": 0.96185,
+          "micro_recall": 0.75362
+        },
+        {
+          "conf": 0.78,
+          "macro_f1": 0.81798,
+          "micro_f1": 0.83871,
+          "micro_precision": 0.96466,
+          "micro_recall": 0.74185
+        },
+        {
+          "conf": 0.79,
+          "macro_f1": 0.81155,
+          "micro_f1": 0.83299,
+          "micro_precision": 0.96651,
+          "micro_recall": 0.73188
+        },
+        {
+          "conf": 0.8,
+          "macro_f1": 0.79737,
+          "micro_f1": 0.82188,
+          "micro_precision": 0.96691,
+          "micro_recall": 0.71467
+        },
+        {
+          "conf": 0.81,
+          "macro_f1": 0.78582,
+          "micro_f1": 0.81345,
+          "micro_precision": 0.96871,
+          "micro_recall": 0.70109
+        },
+        {
+          "conf": 0.82,
+          "macro_f1": 0.77133,
+          "micro_f1": 0.80255,
+          "micro_precision": 0.9729,
+          "micro_recall": 0.68297
+        },
+        {
+          "conf": 0.83,
+          "macro_f1": 0.7593,
+          "micro_f1": 0.7916,
+          "micro_precision": 0.9761,
+          "micro_recall": 0.66576
+        },
+        {
+          "conf": 0.84,
+          "macro_f1": 0.73851,
+          "micro_f1": 0.77553,
+          "micro_precision": 0.97662,
+          "micro_recall": 0.64312
+        },
+        {
+          "conf": 0.85,
+          "macro_f1": 0.71182,
+          "micro_f1": 0.75278,
+          "micro_precision": 0.97688,
+          "micro_recall": 0.61232
+        },
+        {
+          "conf": 0.86,
+          "macro_f1": 0.68235,
+          "micro_f1": 0.7311,
+          "micro_precision": 0.98168,
+          "micro_recall": 0.58243
+        },
+        {
+          "conf": 0.87,
+          "macro_f1": 0.63104,
+          "micro_f1": 0.68978,
+          "micro_precision": 0.98161,
+          "micro_recall": 0.5317
+        },
+        {
+          "conf": 0.88,
+          "macro_f1": 0.58059,
+          "micro_f1": 0.64842,
+          "micro_precision": 0.98704,
+          "micro_recall": 0.48279
+        },
+        {
+          "conf": 0.89,
+          "macro_f1": 0.51466,
+          "micro_f1": 0.58868,
+          "micro_precision": 0.98721,
+          "micro_recall": 0.41938
+        },
+        {
+          "conf": 0.9,
+          "macro_f1": 0.45755,
+          "micro_f1": 0.53148,
+          "micro_precision": 0.99012,
+          "micro_recall": 0.36322
+        },
+        {
+          "conf": 0.91,
+          "macro_f1": 0.37716,
+          "micro_f1": 0.44116,
+          "micro_precision": 0.99365,
+          "micro_recall": 0.28351
+        },
+        {
+          "conf": 0.92,
+          "macro_f1": 0.28259,
+          "micro_f1": 0.33434,
+          "micro_precision": 0.99107,
+          "micro_recall": 0.20109
+        },
+        {
+          "conf": 0.93,
+          "macro_f1": 0.18233,
+          "micro_f1": 0.21648,
+          "micro_precision": 1.0,
+          "micro_recall": 0.12138
+        },
+        {
+          "conf": 0.94,
+          "macro_f1": 0.08013,
+          "micro_f1": 0.09491,
+          "micro_precision": 1.0,
+          "micro_recall": 0.04982
+        },
+        {
+          "conf": 0.95,
+          "macro_f1": 0.02757,
+          "micro_f1": 0.03209,
+          "micro_precision": 1.0,
+          "micro_recall": 0.0163
+        }
+      ]
+    },
+    {
+      "nms_iou": 0.6,
+      "best_conf": 0.47,
+      "macro_f1": 0.88959,
+      "micro_precision": 0.90155,
+      "micro_recall": 0.89583,
+      "micro_f1": 0.89868,
+      "curve": [
+        {
+          "conf": 0.05,
+          "macro_f1": 0.78843,
+          "micro_f1": 0.78719,
+          "micro_precision": 0.67984,
+          "micro_recall": 0.93478
+        },
+        {
+          "conf": 0.06,
+          "macro_f1": 0.80449,
+          "micro_f1": 0.80531,
+          "micro_precision": 0.70733,
+          "micro_recall": 0.93478
+        },
+        {
+          "conf": 0.07,
+          "macro_f1": 0.81721,
+          "micro_f1": 0.81941,
+          "micro_precision": 0.7305,
+          "micro_recall": 0.93297
+        },
+        {
+          "conf": 0.08,
+          "macro_f1": 0.82512,
+          "micro_f1": 0.82831,
+          "micro_precision": 0.74476,
+          "micro_recall": 0.93297
+        },
+        {
+          "conf": 0.09,
+          "macro_f1": 0.83254,
+          "micro_f1": 0.83638,
+          "micro_precision": 0.75791,
+          "micro_recall": 0.93297
+        },
+        {
+          "conf": 0.1,
+          "macro_f1": 0.83987,
+          "micro_f1": 0.84461,
+          "micro_precision": 0.77154,
+          "micro_recall": 0.93297
+        },
+        {
+          "conf": 0.11,
+          "macro_f1": 0.84578,
+          "micro_f1": 0.85076,
+          "micro_precision": 0.78251,
+          "micro_recall": 0.93207
+        },
+        {
+          "conf": 0.12,
+          "macro_f1": 0.85072,
+          "micro_f1": 0.85643,
+          "micro_precision": 0.79215,
+          "micro_recall": 0.93207
+        },
+        {
+          "conf": 0.13,
+          "macro_f1": 0.85284,
+          "micro_f1": 0.85881,
+          "micro_precision": 0.7969,
+          "micro_recall": 0.93116
+        },
+        {
+          "conf": 0.14,
+          "macro_f1": 0.8551,
+          "micro_f1": 0.86133,
+          "micro_precision": 0.80125,
+          "micro_recall": 0.93116
+        },
+        {
+          "conf": 0.15,
+          "macro_f1": 0.85796,
+          "micro_f1": 0.86459,
+          "micro_precision": 0.80691,
+          "micro_recall": 0.93116
+        },
+        {
+          "conf": 0.16,
+          "macro_f1": 0.86172,
+          "micro_f1": 0.86887,
+          "micro_precision": 0.81508,
+          "micro_recall": 0.93025
+        },
+        {
+          "conf": 0.17,
+          "macro_f1": 0.86263,
+          "micro_f1": 0.87023,
+          "micro_precision": 0.81818,
+          "micro_recall": 0.92935
+        },
+        {
+          "conf": 0.18,
+          "macro_f1": 0.86317,
+          "micro_f1": 0.87075,
+          "micro_precision": 0.82051,
+          "micro_recall": 0.92754
+        },
+        {
+          "conf": 0.19,
+          "macro_f1": 0.86544,
+          "micro_f1": 0.87335,
+          "micro_precision": 0.82514,
+          "micro_recall": 0.92754
+        },
+        {
+          "conf": 0.2,
+          "macro_f1": 0.86596,
+          "micro_f1": 0.87399,
+          "micro_precision": 0.827,
+          "micro_recall": 0.92663
+        },
+        {
+          "conf": 0.21,
+          "macro_f1": 0.86954,
+          "micro_f1": 0.87811,
+          "micro_precision": 0.83442,
+          "micro_recall": 0.92663
+        },
+        {
+          "conf": 0.22,
+          "macro_f1": 0.87055,
+          "micro_f1": 0.87914,
+          "micro_precision": 0.83702,
+          "micro_recall": 0.92572
+        },
+        {
+          "conf": 0.23,
+          "macro_f1": 0.87293,
+          "micro_f1": 0.88055,
+          "micro_precision": 0.84033,
+          "micro_recall": 0.92482
+        },
+        {
+          "conf": 0.24,
+          "macro_f1": 0.87593,
+          "micro_f1": 0.8834,
+          "micro_precision": 0.84705,
+          "micro_recall": 0.92301
+        },
+        {
+          "conf": 0.25,
+          "macro_f1": 0.87653,
+          "micro_f1": 0.88416,
+          "micro_precision": 0.84846,
+          "micro_recall": 0.92301
+        },
+        {
+          "conf": 0.26,
+          "macro_f1": 0.87797,
+          "micro_f1": 0.8857,
+          "micro_precision": 0.85129,
+          "micro_recall": 0.92301
+        },
+        {
+          "conf": 0.27,
+          "macro_f1": 0.87929,
+          "micro_f1": 0.88724,
+          "micro_precision": 0.85415,
+          "micro_recall": 0.92301
+        },
+        {
+          "conf": 0.28,
+          "macro_f1": 0.88084,
+          "micro_f1": 0.88908,
+          "micro_precision": 0.85835,
+          "micro_recall": 0.9221
+        },
+        {
+          "conf": 0.29,
+          "macro_f1": 0.88297,
+          "micro_f1": 0.89142,
+          "micro_precision": 0.86271,
+          "micro_recall": 0.9221
+        },
+        {
+          "conf": 0.3,
+          "macro_f1": 0.88234,
+          "micro_f1": 0.89104,
+          "micro_precision": 0.86519,
+          "micro_recall": 0.91848
+        },
+        {
+          "conf": 0.31,
+          "macro_f1": 0.88317,
+          "micro_f1": 0.89182,
+          "micro_precision": 0.86667,
+          "micro_recall": 0.91848
+        },
+        {
+          "conf": 0.32,
+          "macro_f1": 0.88402,
+          "micro_f1": 0.89261,
+          "micro_precision": 0.86815,
+          "micro_recall": 0.91848
+        },
+        {
+          "conf": 0.33,
+          "macro_f1": 0.88624,
+          "micro_f1": 0.89409,
+          "micro_precision": 0.87177,
+          "micro_recall": 0.91757
+        },
+        {
+          "conf": 0.34,
+          "macro_f1": 0.88525,
+          "micro_f1": 0.89292,
+          "micro_precision": 0.87284,
+          "micro_recall": 0.91395
+        },
+        {
+          "conf": 0.35,
+          "macro_f1": 0.88502,
+          "micro_f1": 0.89264,
+          "micro_precision": 0.87478,
+          "micro_recall": 0.91123
+        },
+        {
+          "conf": 0.36,
+          "macro_f1": 0.88611,
+          "micro_f1": 0.89343,
+          "micro_precision": 0.87631,
+          "micro_recall": 0.91123
+        },
+        {
+          "conf": 0.37,
+          "macro_f1": 0.88665,
+          "micro_f1": 0.89453,
+          "micro_precision": 0.87927,
+          "micro_recall": 0.91033
+        },
+        {
+          "conf": 0.38,
+          "macro_f1": 0.88608,
+          "micro_f1": 0.89424,
+          "micro_precision": 0.88127,
+          "micro_recall": 0.90761
+        },
+        {
+          "conf": 0.39,
+          "macro_f1": 0.8866,
+          "micro_f1": 0.89485,
+          "micro_precision": 0.88417,
+          "micro_recall": 0.9058
+        },
+        {
+          "conf": 0.4,
+          "macro_f1": 0.88654,
+          "micro_f1": 0.89476,
+          "micro_precision": 0.88485,
+          "micro_recall": 0.90489
+        },
+        {
+          "conf": 0.41,
+          "macro_f1": 0.88679,
+          "micro_f1": 0.89578,
+          "micro_precision": 0.88859,
+          "micro_recall": 0.90308
+        },
+        {
+          "conf": 0.42,
+          "macro_f1": 0.88667,
+          "micro_f1": 0.89649,
+          "micro_precision": 0.89088,
+          "micro_recall": 0.90217
+        },
+        {
+          "conf": 0.43,
+          "macro_f1": 0.88674,
+          "micro_f1": 0.8968,
+          "micro_precision": 0.89238,
+          "micro_recall": 0.90127
+        },
+        {
+          "conf": 0.44,
+          "macro_f1": 0.88854,
+          "micro_f1": 0.89833,
+          "micro_precision": 0.8963,
+          "micro_recall": 0.90036
+        },
+        {
+          "conf": 0.45,
+          "macro_f1": 0.88907,
+          "micro_f1": 0.89855,
+          "micro_precision": 0.89855,
+          "micro_recall": 0.89855
+        },
+        {
+          "conf": 0.46,
+          "macro_f1": 0.88871,
+          "micro_f1": 0.89787,
+          "micro_precision": 0.89991,
+          "micro_recall": 0.89583
+        },
+        {
+          "conf": 0.47,
+          "macro_f1": 0.88959,
+          "micro_f1": 0.89868,
+          "micro_precision": 0.90155,
+          "micro_recall": 0.89583
+        },
+        {
+          "conf": 0.48,
+          "macro_f1": 0.8887,
+          "micro_f1": 0.8969,
+          "micro_precision": 0.90349,
+          "micro_recall": 0.8904
+        },
+        {
+          "conf": 0.49,
+          "macro_f1": 0.88818,
+          "micro_f1": 0.89703,
+          "micro_precision": 0.90657,
+          "micro_recall": 0.88768
+        },
+        {
+          "conf": 0.5,
+          "macro_f1": 0.88667,
+          "micro_f1": 0.89582,
+          "micro_precision": 0.90791,
+          "micro_recall": 0.88406
+        },
+        {
+          "conf": 0.51,
+          "macro_f1": 0.88587,
+          "micro_f1": 0.89522,
+          "micro_precision": 0.90858,
+          "micro_recall": 0.88225
+        },
+        {
+          "conf": 0.52,
+          "macro_f1": 0.88557,
+          "micro_f1": 0.89493,
+          "micro_precision": 0.91088,
+          "micro_recall": 0.87953
+        },
+        {
+          "conf": 0.53,
+          "macro_f1": 0.88418,
+          "micro_f1": 0.89352,
+          "micro_precision": 0.91383,
+          "micro_recall": 0.87409
+        },
+        {
+          "conf": 0.54,
+          "macro_f1": 0.88351,
+          "micro_f1": 0.89281,
+          "micro_precision": 0.91532,
+          "micro_recall": 0.87138
+        },
+        {
+          "conf": 0.55,
+          "macro_f1": 0.88147,
+          "micro_f1": 0.89065,
+          "micro_precision": 0.91579,
+          "micro_recall": 0.86685
+        },
+        {
+          "conf": 0.56,
+          "macro_f1": 0.88159,
+          "micro_f1": 0.89034,
+          "micro_precision": 0.91819,
+          "micro_recall": 0.86413
+        },
+        {
+          "conf": 0.57,
+          "macro_f1": 0.88196,
+          "micro_f1": 0.89065,
+          "micro_precision": 0.91988,
+          "micro_recall": 0.86322
+        },
+        {
+          "conf": 0.58,
+          "macro_f1": 0.88123,
+          "micro_f1": 0.88951,
+          "micro_precision": 0.92054,
+          "micro_recall": 0.86051
+        },
+        {
+          "conf": 0.59,
+          "macro_f1": 0.87993,
+          "micro_f1": 0.88972,
+          "micro_precision": 0.92308,
+          "micro_recall": 0.8587
+        },
+        {
+          "conf": 0.6,
+          "macro_f1": 0.87777,
+          "micro_f1": 0.88795,
+          "micro_precision": 0.92451,
+          "micro_recall": 0.85417
+        },
+        {
+          "conf": 0.61,
+          "macro_f1": 0.87634,
+          "micro_f1": 0.88752,
+          "micro_precision": 0.92787,
+          "micro_recall": 0.85054
+        },
+        {
+          "conf": 0.62,
+          "macro_f1": 0.87456,
+          "micro_f1": 0.8854,
+          "micro_precision": 0.93193,
+          "micro_recall": 0.8433
+        },
+        {
+          "conf": 0.63,
+          "macro_f1": 0.87217,
+          "micro_f1": 0.8839,
+          "micro_precision": 0.93529,
+          "micro_recall": 0.83786
+        },
+        {
+          "conf": 0.64,
+          "macro_f1": 0.86981,
+          "micro_f1": 0.88165,
+          "micro_precision": 0.93591,
+          "micro_recall": 0.83333
+        },
+        {
+          "conf": 0.65,
+          "macro_f1": 0.86893,
+          "micro_f1": 0.88088,
+          "micro_precision": 0.93763,
+          "micro_recall": 0.83062
+        },
+        {
+          "conf": 0.66,
+          "macro_f1": 0.86512,
+          "micro_f1": 0.87741,
+          "micro_precision": 0.93905,
+          "micro_recall": 0.82337
+        },
+        {
+          "conf": 0.67,
+          "macro_f1": 0.86211,
+          "micro_f1": 0.87554,
+          "micro_precision": 0.94069,
+          "micro_recall": 0.81884
+        },
+        {
+          "conf": 0.68,
+          "macro_f1": 0.86241,
+          "micro_f1": 0.87494,
+          "micro_precision": 0.94532,
+          "micro_recall": 0.81431
+        },
+        {
+          "conf": 0.69,
+          "macro_f1": 0.86066,
+          "micro_f1": 0.87329,
+          "micro_precision": 0.94515,
+          "micro_recall": 0.81159
+        },
+        {
+          "conf": 0.7,
+          "macro_f1": 0.85686,
+          "micro_f1": 0.86944,
+          "micro_precision": 0.94474,
+          "micro_recall": 0.80525
+        },
+        {
+          "conf": 0.71,
+          "macro_f1": 0.85589,
+          "micro_f1": 0.86892,
+          "micro_precision": 0.94855,
+          "micro_recall": 0.80163
+        },
+        {
+          "conf": 0.72,
+          "macro_f1": 0.85586,
+          "micro_f1": 0.86922,
+          "micro_precision": 0.95054,
+          "micro_recall": 0.80072
+        },
+        {
+          "conf": 0.73,
+          "macro_f1": 0.8537,
+          "micro_f1": 0.86729,
+          "micro_precision": 0.95233,
+          "micro_recall": 0.7962
+        },
+        {
+          "conf": 0.74,
+          "macro_f1": 0.8494,
+          "micro_f1": 0.86296,
+          "micro_precision": 0.95495,
+          "micro_recall": 0.78714
+        },
+        {
+          "conf": 0.75,
+          "macro_f1": 0.84118,
+          "micro_f1": 0.85714,
+          "micro_precision": 0.9596,
+          "micro_recall": 0.77446
+        },
+        {
+          "conf": 0.76,
+          "macro_f1": 0.83329,
+          "micro_f1": 0.85081,
+          "micro_precision": 0.95909,
+          "micro_recall": 0.76449
+        },
+        {
+          "conf": 0.77,
+          "macro_f1": 0.82742,
+          "micro_f1": 0.8451,
+          "micro_precision": 0.96185,
+          "micro_recall": 0.75362
+        },
+        {
+          "conf": 0.78,
+          "macro_f1": 0.81798,
+          "micro_f1": 0.83871,
+          "micro_precision": 0.96466,
+          "micro_recall": 0.74185
+        },
+        {
+          "conf": 0.79,
+          "macro_f1": 0.81155,
+          "micro_f1": 0.83299,
+          "micro_precision": 0.96651,
+          "micro_recall": 0.73188
+        },
+        {
+          "conf": 0.8,
+          "macro_f1": 0.79737,
+          "micro_f1": 0.82188,
+          "micro_precision": 0.96691,
+          "micro_recall": 0.71467
+        },
+        {
+          "conf": 0.81,
+          "macro_f1": 0.78582,
+          "micro_f1": 0.81345,
+          "micro_precision": 0.96871,
+          "micro_recall": 0.70109
+        },
+        {
+          "conf": 0.82,
+          "macro_f1": 0.77133,
+          "micro_f1": 0.80255,
+          "micro_precision": 0.9729,
+          "micro_recall": 0.68297
+        },
+        {
+          "conf": 0.83,
+          "macro_f1": 0.7593,
+          "micro_f1": 0.7916,
+          "micro_precision": 0.9761,
+          "micro_recall": 0.66576
+        },
+        {
+          "conf": 0.84,
+          "macro_f1": 0.73851,
+          "micro_f1": 0.77553,
+          "micro_precision": 0.97662,
+          "micro_recall": 0.64312
+        },
+        {
+          "conf": 0.85,
+          "macro_f1": 0.71182,
+          "micro_f1": 0.75278,
+          "micro_precision": 0.97688,
+          "micro_recall": 0.61232
+        },
+        {
+          "conf": 0.86,
+          "macro_f1": 0.68235,
+          "micro_f1": 0.7311,
+          "micro_precision": 0.98168,
+          "micro_recall": 0.58243
+        },
+        {
+          "conf": 0.87,
+          "macro_f1": 0.63104,
+          "micro_f1": 0.68978,
+          "micro_precision": 0.98161,
+          "micro_recall": 0.5317
+        },
+        {
+          "conf": 0.88,
+          "macro_f1": 0.58059,
+          "micro_f1": 0.64842,
+          "micro_precision": 0.98704,
+          "micro_recall": 0.48279
+        },
+        {
+          "conf": 0.89,
+          "macro_f1": 0.51466,
+          "micro_f1": 0.58868,
+          "micro_precision": 0.98721,
+          "micro_recall": 0.41938
+        },
+        {
+          "conf": 0.9,
+          "macro_f1": 0.45755,
+          "micro_f1": 0.53148,
+          "micro_precision": 0.99012,
+          "micro_recall": 0.36322
+        },
+        {
+          "conf": 0.91,
+          "macro_f1": 0.37716,
+          "micro_f1": 0.44116,
+          "micro_precision": 0.99365,
+          "micro_recall": 0.28351
+        },
+        {
+          "conf": 0.92,
+          "macro_f1": 0.28259,
+          "micro_f1": 0.33434,
+          "micro_precision": 0.99107,
+          "micro_recall": 0.20109
+        },
+        {
+          "conf": 0.93,
+          "macro_f1": 0.18233,
+          "micro_f1": 0.21648,
+          "micro_precision": 1.0,
+          "micro_recall": 0.12138
+        },
+        {
+          "conf": 0.94,
+          "macro_f1": 0.08013,
+          "micro_f1": 0.09491,
+          "micro_precision": 1.0,
+          "micro_recall": 0.04982
+        },
+        {
+          "conf": 0.95,
+          "macro_f1": 0.02757,
+          "micro_f1": 0.03209,
+          "micro_precision": 1.0,
+          "micro_recall": 0.0163
+        }
+      ]
+    },
+    {
+      "nms_iou": 0.7,
+      "best_conf": 0.47,
+      "macro_f1": 0.88799,
+      "micro_precision": 0.89827,
+      "micro_recall": 0.89583,
+      "micro_f1": 0.89705,
+      "curve": [
+        {
+          "conf": 0.05,
+          "macro_f1": 0.77669,
+          "micro_f1": 0.77308,
+          "micro_precision": 0.65818,
+          "micro_recall": 0.93659
+        },
+        {
+          "conf": 0.06,
+          "macro_f1": 0.79434,
+          "micro_f1": 0.79355,
+          "micro_precision": 0.68842,
+          "micro_recall": 0.93659
+        },
+        {
+          "conf": 0.07,
+          "macro_f1": 0.80711,
+          "micro_f1": 0.80799,
+          "micro_precision": 0.71202,
+          "micro_recall": 0.93388
+        },
+        {
+          "conf": 0.08,
+          "macro_f1": 0.81551,
+          "micro_f1": 0.81778,
+          "micro_precision": 0.72792,
+          "micro_recall": 0.93297
+        },
+        {
+          "conf": 0.09,
+          "macro_f1": 0.82377,
+          "micro_f1": 0.82698,
+          "micro_precision": 0.74261,
+          "micro_recall": 0.93297
+        },
+        {
+          "conf": 0.1,
+          "macro_f1": 0.83116,
+          "micro_f1": 0.83536,
+          "micro_precision": 0.75624,
+          "micro_recall": 0.93297
+        },
+        {
+          "conf": 0.11,
+          "macro_f1": 0.83833,
+          "micro_f1": 0.84275,
+          "micro_precision": 0.76906,
+          "micro_recall": 0.93207
+        },
+        {
+          "conf": 0.12,
+          "macro_f1": 0.8437,
+          "micro_f1": 0.84901,
+          "micro_precision": 0.77955,
+          "micro_recall": 0.93207
+        },
+        {
+          "conf": 0.13,
+          "macro_f1": 0.84609,
+          "micro_f1": 0.8517,
+          "micro_precision": 0.78473,
+          "micro_recall": 0.93116
+        },
+        {
+          "conf": 0.14,
+          "macro_f1": 0.84884,
+          "micro_f1": 0.85489,
+          "micro_precision": 0.79016,
+          "micro_recall": 0.93116
+        },
+        {
+          "conf": 0.15,
+          "macro_f1": 0.85191,
+          "micro_f1": 0.85846,
+          "micro_precision": 0.79628,
+          "micro_recall": 0.93116
+        },
+        {
+          "conf": 0.16,
+          "macro_f1": 0.8556,
+          "micro_f1": 0.86266,
+          "micro_precision": 0.80423,
+          "micro_recall": 0.93025
+        },
+        {
+          "conf": 0.17,
+          "macro_f1": 0.85693,
+          "micro_f1": 0.86436,
+          "micro_precision": 0.80787,
+          "micro_recall": 0.92935
+        },
+        {
+          "conf": 0.18,
+          "macro_f1": 0.85817,
+          "micro_f1": 0.86523,
+          "micro_precision": 0.81077,
+          "micro_recall": 0.92754
+        },
+        {
+          "conf": 0.19,
+          "macro_f1": 0.86074,
+          "micro_f1": 0.86816,
+          "micro_precision": 0.81594,
+          "micro_recall": 0.92754
+        },
+        {
+          "conf": 0.2,
+          "macro_f1": 0.86124,
+          "micro_f1": 0.86879,
+          "micro_precision": 0.81775,
+          "micro_recall": 0.92663
+        },
+        {
+          "conf": 0.21,
+          "macro_f1": 0.86477,
+          "micro_f1": 0.87287,
+          "micro_precision": 0.825,
+          "micro_recall": 0.92663
+        },
+        {
+          "conf": 0.22,
+          "macro_f1": 0.86576,
+          "micro_f1": 0.87388,
+          "micro_precision": 0.82753,
+          "micro_recall": 0.92572
+        },
+        {
+          "conf": 0.23,
+          "macro_f1": 0.86842,
+          "micro_f1": 0.87564,
+          "micro_precision": 0.83143,
+          "micro_recall": 0.92482
+        },
+        {
+          "conf": 0.24,
+          "macro_f1": 0.87168,
+          "micro_f1": 0.87883,
+          "micro_precision": 0.83868,
+          "micro_recall": 0.92301
+        },
+        {
+          "conf": 0.25,
+          "macro_f1": 0.87259,
+          "micro_f1": 0.87997,
+          "micro_precision": 0.84076,
+          "micro_recall": 0.92301
+        },
+        {
+          "conf": 0.26,
+          "macro_f1": 0.87432,
+          "micro_f1": 0.88187,
+          "micro_precision": 0.84424,
+          "micro_recall": 0.92301
+        },
+        {
+          "conf": 0.27,
+          "macro_f1": 0.8761,
+          "micro_f1": 0.88378,
+          "micro_precision": 0.84775,
+          "micro_recall": 0.92301
+        },
+        {
+          "conf": 0.28,
+          "macro_f1": 0.87762,
+          "micro_f1": 0.8856,
+          "micro_precision": 0.85188,
+          "micro_recall": 0.9221
+        },
+        {
+          "conf": 0.29,
+          "macro_f1": 0.88003,
+          "micro_f1": 0.88831,
+          "micro_precision": 0.8569,
+          "micro_recall": 0.9221
+        },
+        {
+          "conf": 0.3,
+          "macro_f1": 0.87938,
+          "micro_f1": 0.88792,
+          "micro_precision": 0.85932,
+          "micro_recall": 0.91848
+        },
+        {
+          "conf": 0.31,
+          "macro_f1": 0.8805,
+          "micro_f1": 0.88908,
+          "micro_precision": 0.86151,
+          "micro_recall": 0.91848
+        },
+        {
+          "conf": 0.32,
+          "macro_f1": 0.88134,
+          "micro_f1": 0.88986,
+          "micro_precision": 0.86298,
+          "micro_recall": 0.91848
+        },
+        {
+          "conf": 0.33,
+          "macro_f1": 0.88354,
+          "micro_f1": 0.89133,
+          "micro_precision": 0.86655,
+          "micro_recall": 0.91757
+        },
+        {
+          "conf": 0.34,
+          "macro_f1": 0.88255,
+          "micro_f1": 0.89016,
+          "micro_precision": 0.86758,
+          "micro_recall": 0.91395
+        },
+        {
+          "conf": 0.35,
+          "macro_f1": 0.8823,
+          "micro_f1": 0.88987,
+          "micro_precision": 0.86949,
+          "micro_recall": 0.91123
+        },
+        {
+          "conf": 0.36,
+          "macro_f1": 0.88339,
+          "micro_f1": 0.89066,
+          "micro_precision": 0.871,
+          "micro_recall": 0.91123
+        },
+        {
+          "conf": 0.37,
+          "macro_f1": 0.88392,
+          "micro_f1": 0.89175,
+          "micro_precision": 0.87391,
+          "micro_recall": 0.91033
+        },
+        {
+          "conf": 0.38,
+          "macro_f1": 0.88333,
+          "micro_f1": 0.89146,
+          "micro_precision": 0.87587,
+          "micro_recall": 0.90761
+        },
+        {
+          "conf": 0.39,
+          "macro_f1": 0.88385,
+          "micro_f1": 0.89206,
+          "micro_precision": 0.87873,
+          "micro_recall": 0.9058
+        },
+        {
+          "conf": 0.4,
+          "macro_f1": 0.88379,
+          "micro_f1": 0.89196,
+          "micro_precision": 0.8794,
+          "micro_recall": 0.90489
+        },
+        {
+          "conf": 0.41,
+          "macro_f1": 0.88436,
+          "micro_f1": 0.89337,
+          "micro_precision": 0.88387,
+          "micro_recall": 0.90308
+        },
+        {
+          "conf": 0.42,
+          "macro_f1": 0.88423,
+          "micro_f1": 0.89408,
+          "micro_precision": 0.88612,
+          "micro_recall": 0.90217
+        },
+        {
+          "conf": 0.43,
+          "macro_f1": 0.88464,
+          "micro_f1": 0.89478,
+          "micro_precision": 0.88839,
+          "micro_recall": 0.90127
+        },
+        {
+          "conf": 0.44,
+          "macro_f1": 0.88643,
+          "micro_f1": 0.8963,
+          "micro_precision": 0.89228,
+          "micro_recall": 0.90036
+        },
+        {
+          "conf": 0.45,
+          "macro_f1": 0.88696,
+          "micro_f1": 0.89652,
+          "micro_precision": 0.8945,
+          "micro_recall": 0.89855
+        },
+        {
+          "conf": 0.46,
+          "macro_f1": 0.88659,
+          "micro_f1": 0.89583,
+          "micro_precision": 0.89583,
+          "micro_recall": 0.89583
+        },
+        {
+          "conf": 0.47,
+          "macro_f1": 0.88799,
+          "micro_f1": 0.89705,
+          "micro_precision": 0.89827,
+          "micro_recall": 0.89583
+        },
+        {
+          "conf": 0.48,
+          "macro_f1": 0.88746,
+          "micro_f1": 0.89567,
+          "micro_precision": 0.90101,
+          "micro_recall": 0.8904
+        },
+        {
+          "conf": 0.49,
+          "macro_f1": 0.88692,
+          "micro_f1": 0.8958,
+          "micro_precision": 0.90406,
+          "micro_recall": 0.88768
+        },
+        {
+          "conf": 0.5,
+          "macro_f1": 0.88542,
+          "micro_f1": 0.89459,
+          "micro_precision": 0.90538,
+          "micro_recall": 0.88406
+        },
+        {
+          "conf": 0.51,
+          "macro_f1": 0.88462,
+          "micro_f1": 0.89399,
+          "micro_precision": 0.90605,
+          "micro_recall": 0.88225
+        },
+        {
+          "conf": 0.52,
+          "macro_f1": 0.88431,
+          "micro_f1": 0.8937,
+          "micro_precision": 0.90833,
+          "micro_recall": 0.87953
+        },
+        {
+          "conf": 0.53,
+          "macro_f1": 0.88292,
+          "micro_f1": 0.89228,
+          "micro_precision": 0.91124,
+          "micro_recall": 0.87409
+        },
+        {
+          "conf": 0.54,
+          "macro_f1": 0.88225,
+          "micro_f1": 0.89157,
+          "micro_precision": 0.91271,
+          "micro_recall": 0.87138
+        },
+        {
+          "conf": 0.55,
+          "macro_f1": 0.88021,
+          "micro_f1": 0.88941,
+          "micro_precision": 0.91317,
+          "micro_recall": 0.86685
+        },
+        {
+          "conf": 0.56,
+          "macro_f1": 0.87996,
+          "micro_f1": 0.88868,
+          "micro_precision": 0.91467,
+          "micro_recall": 0.86413
+        },
+        {
+          "conf": 0.57,
+          "macro_f1": 0.88033,
+          "micro_f1": 0.88899,
+          "micro_precision": 0.91635,
+          "micro_recall": 0.86322
+        },
+        {
+          "conf": 0.58,
+          "macro_f1": 0.8796,
+          "micro_f1": 0.88785,
+          "micro_precision": 0.91699,
+          "micro_recall": 0.86051
+        },
+        {
+          "conf": 0.59,
+          "macro_f1": 0.87829,
+          "micro_f1": 0.88806,
+          "micro_precision": 0.9195,
+          "micro_recall": 0.8587
+        },
+        {
+          "conf": 0.6,
+          "macro_f1": 0.87613,
+          "micro_f1": 0.88628,
+          "micro_precision": 0.9209,
+          "micro_recall": 0.85417
+        },
+        {
+          "conf": 0.61,
+          "macro_f1": 0.87469,
+          "micro_f1": 0.88585,
+          "micro_precision": 0.92421,
+          "micro_recall": 0.85054
+        },
+        {
+          "conf": 0.62,
+          "macro_f1": 0.8729,
+          "micro_f1": 0.88372,
+          "micro_precision": 0.92822,
+          "micro_recall": 0.8433
+        },
+        {
+          "conf": 0.63,
+          "macro_f1": 0.87051,
+          "micro_f1": 0.88221,
+          "micro_precision": 0.93152,
+          "micro_recall": 0.83786
+        },
+        {
+          "conf": 0.64,
+          "macro_f1": 0.86815,
+          "micro_f1": 0.87996,
+          "micro_precision": 0.93212,
+          "micro_recall": 0.83333
+        },
+        {
+          "conf": 0.65,
+          "macro_f1": 0.86727,
+          "micro_f1": 0.87919,
+          "micro_precision": 0.93381,
+          "micro_recall": 0.83062
+        },
+        {
+          "conf": 0.66,
+          "macro_f1": 0.86346,
+          "micro_f1": 0.87572,
+          "micro_precision": 0.93519,
+          "micro_recall": 0.82337
+        },
+        {
+          "conf": 0.67,
+          "macro_f1": 0.86045,
+          "micro_f1": 0.87385,
+          "micro_precision": 0.93679,
+          "micro_recall": 0.81884
+        },
+        {
+          "conf": 0.68,
+          "macro_f1": 0.86074,
+          "micro_f1": 0.87324,
+          "micro_precision": 0.94136,
+          "micro_recall": 0.81431
+        },
+        {
+          "conf": 0.69,
+          "macro_f1": 0.85899,
+          "micro_f1": 0.8716,
+          "micro_precision": 0.94118,
+          "micro_recall": 0.81159
+        },
+        {
+          "conf": 0.7,
+          "macro_f1": 0.85519,
+          "micro_f1": 0.86774,
+          "micro_precision": 0.94074,
+          "micro_recall": 0.80525
+        },
+        {
+          "conf": 0.71,
+          "macro_f1": 0.85476,
+          "micro_f1": 0.86765,
+          "micro_precision": 0.94551,
+          "micro_recall": 0.80163
+        },
+        {
+          "conf": 0.72,
+          "macro_f1": 0.85474,
+          "micro_f1": 0.86794,
+          "micro_precision": 0.94748,
+          "micro_recall": 0.80072
+        },
+        {
+          "conf": 0.73,
+          "macro_f1": 0.85297,
+          "micro_f1": 0.86644,
+          "micro_precision": 0.95027,
+          "micro_recall": 0.7962
+        },
+        {
+          "conf": 0.74,
+          "macro_f1": 0.84866,
+          "micro_f1": 0.8621,
+          "micro_precision": 0.95285,
+          "micro_recall": 0.78714
+        },
+        {
+          "conf": 0.75,
+          "macro_f1": 0.84045,
+          "micro_f1": 0.85628,
+          "micro_precision": 0.95745,
+          "micro_recall": 0.77446
+        },
+        {
+          "conf": 0.76,
+          "macro_f1": 0.83256,
+          "micro_f1": 0.84995,
+          "micro_precision": 0.95692,
+          "micro_recall": 0.76449
+        },
+        {
+          "conf": 0.77,
+          "macro_f1": 0.82706,
+          "micro_f1": 0.84467,
+          "micro_precision": 0.96074,
+          "micro_recall": 0.75362
+        },
+        {
+          "conf": 0.78,
+          "macro_f1": 0.81798,
+          "micro_f1": 0.83871,
+          "micro_precision": 0.96466,
+          "micro_recall": 0.74185
+        },
+        {
+          "conf": 0.79,
+          "macro_f1": 0.81155,
+          "micro_f1": 0.83299,
+          "micro_precision": 0.96651,
+          "micro_recall": 0.73188
+        },
+        {
+          "conf": 0.8,
+          "macro_f1": 0.79737,
+          "micro_f1": 0.82188,
+          "micro_precision": 0.96691,
+          "micro_recall": 0.71467
+        },
+        {
+          "conf": 0.81,
+          "macro_f1": 0.78582,
+          "micro_f1": 0.81345,
+          "micro_precision": 0.96871,
+          "micro_recall": 0.70109
+        },
+        {
+          "conf": 0.82,
+          "macro_f1": 0.77133,
+          "micro_f1": 0.80255,
+          "micro_precision": 0.9729,
+          "micro_recall": 0.68297
+        },
+        {
+          "conf": 0.83,
+          "macro_f1": 0.7593,
+          "micro_f1": 0.7916,
+          "micro_precision": 0.9761,
+          "micro_recall": 0.66576
+        },
+        {
+          "conf": 0.84,
+          "macro_f1": 0.73851,
+          "micro_f1": 0.77553,
+          "micro_precision": 0.97662,
+          "micro_recall": 0.64312
+        },
+        {
+          "conf": 0.85,
+          "macro_f1": 0.71182,
+          "micro_f1": 0.75278,
+          "micro_precision": 0.97688,
+          "micro_recall": 0.61232
+        },
+        {
+          "conf": 0.86,
+          "macro_f1": 0.68235,
+          "micro_f1": 0.7311,
+          "micro_precision": 0.98168,
+          "micro_recall": 0.58243
+        },
+        {
+          "conf": 0.87,
+          "macro_f1": 0.63104,
+          "micro_f1": 0.68978,
+          "micro_precision": 0.98161,
+          "micro_recall": 0.5317
+        },
+        {
+          "conf": 0.88,
+          "macro_f1": 0.58059,
+          "micro_f1": 0.64842,
+          "micro_precision": 0.98704,
+          "micro_recall": 0.48279
+        },
+        {
+          "conf": 0.89,
+          "macro_f1": 0.51466,
+          "micro_f1": 0.58868,
+          "micro_precision": 0.98721,
+          "micro_recall": 0.41938
+        },
+        {
+          "conf": 0.9,
+          "macro_f1": 0.45755,
+          "micro_f1": 0.53148,
+          "micro_precision": 0.99012,
+          "micro_recall": 0.36322
+        },
+        {
+          "conf": 0.91,
+          "macro_f1": 0.37716,
+          "micro_f1": 0.44116,
+          "micro_precision": 0.99365,
+          "micro_recall": 0.28351
+        },
+        {
+          "conf": 0.92,
+          "macro_f1": 0.28259,
+          "micro_f1": 0.33434,
+          "micro_precision": 0.99107,
+          "micro_recall": 0.20109
+        },
+        {
+          "conf": 0.93,
+          "macro_f1": 0.18233,
+          "micro_f1": 0.21648,
+          "micro_precision": 1.0,
+          "micro_recall": 0.12138
+        },
+        {
+          "conf": 0.94,
+          "macro_f1": 0.08013,
+          "micro_f1": 0.09491,
+          "micro_precision": 1.0,
+          "micro_recall": 0.04982
+        },
+        {
+          "conf": 0.95,
+          "macro_f1": 0.02757,
+          "micro_f1": 0.03209,
+          "micro_precision": 1.0,
+          "micro_recall": 0.0163
+        }
+      ]
+    }
+  ]
+}

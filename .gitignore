@@ -23,8 +23,8 @@ data/dataset3/**/*
 !data/dataset3/**/.gitkeep
 
 # Uploaded images
-app/static/uploads/*
-!app/static/uploads/.gitkeep
+backend/app/static/uploads/*
+!backend/app/static/uploads/.gitkeep
 
 # OS
 .DS_Store

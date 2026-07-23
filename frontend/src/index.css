@@ -1,0 +1,139 @@
+:root {
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color: #1f2933;
+  background: #f5f7fa;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 1.5rem;
+}
+
+.container {
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+header h1 {
+  margin: 0;
+  font-size: 1.75rem;
+}
+
+.subtitle {
+  margin: 0.25rem 0 1.5rem;
+  color: #52606d;
+}
+
+.drop-zone {
+  border: 2px dashed #9aa5b1;
+  border-radius: 12px;
+  padding: 2rem;
+  text-align: center;
+  cursor: pointer;
+  background: #fff;
+  transition: border-color 0.15s ease;
+}
+
+.drop-zone:hover {
+  border-color: #2563eb;
+}
+
+.preview {
+  max-width: 100%;
+  max-height: 320px;
+  border-radius: 8px;
+}
+
+.analyze-btn {
+  margin-top: 1rem;
+  width: 100%;
+  padding: 0.75rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #fff;
+  background: #2563eb;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.analyze-btn:disabled {
+  background: #9aa5b1;
+  cursor: not-allowed;
+}
+
+.error {
+  margin-top: 1rem;
+  padding: 0.75rem;
+  color: #9b1c1c;
+  background: #fde8e8;
+  border-radius: 8px;
+}
+
+.results {
+  margin-top: 2rem;
+}
+
+.results h2 {
+  font-size: 1.1rem;
+  margin: 1.5rem 0 0.5rem;
+}
+
+.meta {
+  color: #52606d;
+  font-size: 0.85rem;
+}
+
+.cards {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+.card.nutrition {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.4rem;
+}
+
+.macros {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  font-size: 0.9rem;
+  color: #52606d;
+}
+
+.advisory {
+  background: #fff;
+  padding: 1rem;
+  border-radius: 8px;
+  line-height: 1.5;
+}
+
+.hint {
+  color: #52606d;
+  font-size: 0.9rem;
+}
+
+.disclaimer {
+  margin-top: 1.5rem;
+  font-size: 0.75rem;
+  color: #7b8794;
+}

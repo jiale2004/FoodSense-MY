@@ -47,11 +47,32 @@ See comments in [`requirements.txt`](requirements.txt) for the manual
 
 ## Run
 
+The FastAPI backend lives in [`backend/app/`](backend/app/). Run it from the
+repository root with `--app-dir backend` so the `app` package is importable:
+
 ```bash
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+uvicorn app.main:app --app-dir backend --reload --host 0.0.0.0 --port 8000
 ```
 
-Open [http://localhost:8000](http://localhost:8000) in your browser.
+Equivalently, `cd backend && uvicorn app.main:app --reload --host 0.0.0.0 --port 8000`.
+
+Open [http://localhost:8000](http://localhost:8000) in your browser. This
+serves the bundled static frontend (`backend/app/static/`).
+
+## React Test Frontend (optional)
+
+A minimal Vite + React UI for testing image upload lives in [`frontend/`](frontend/).
+It is a development convenience separate from the production static frontend.
+
+```bash
+cd frontend
+npm install
+npm run dev   # http://localhost:5173
+```
+
+The dev server proxies `/api` and `/uploads` to the backend at
+`http://127.0.0.1:8000`, so run `uvicorn` (above) in another terminal first.
+Set `VITE_API_TARGET` to point at a different backend origin.
 
 ## Environment Variables
 
@@ -64,8 +85,8 @@ Open [http://localhost:8000](http://localhost:8000) in your browser.
 | `GEMINI_MODEL` | Gemini model name | `gemini-2.0-flash` |
 | `MODEL_WEIGHTS_PATH` | Path to YOLO weights | `data/weights/best.pt` |
 | `KNOWLEDGE_BASE_PATH` | Path to nutrition JSON | `data/knowledge_base.json` |
-| `CONFIDENCE_THRESHOLD` | NMS confidence cutoff | `0.5` |
-| `IOU_THRESHOLD` | NMS IoU threshold | `0.45` |
+| `CONFIDENCE_THRESHOLD` | NMS confidence cutoff (calibrated on interim v5 val) | `0.47` |
+| `IOU_THRESHOLD` | NMS IoU threshold (calibrated on interim v5 val) | `0.45` |
 | `DEVICE` | Compute device (`auto`, `mps`, `cpu`) | `auto` |
 | `MAX_UPLOAD_SIZE_MB` | Max upload size in MB | `10` |
 | `API_KEY_ENABLED` | Require X-API-Key header | `false` |
@@ -370,8 +391,11 @@ epoch 1 with mAP50 0.938 and mAP50–95 0.783. `runs/detect/dataset3_interim_v5/
 trained from the v4 checkpoint on `data/dataset3-interim-v5/` (4,131 / 1,033 /
 82) with `lr0=0.002` and selected epoch 1 with mAP50 0.945 and mAP50–95 0.793 —
 the strongest interim run so far, with local Mee Goreng recall 0.778. It is the
-Phase E finalization candidate; threshold calibration and the single locked-test
-evaluation remain before promotion. See
+production-approved detector. Validation-only threshold calibration
+(`training_scripts/calibrate_thresholds.py`) selected confidence 0.47 and NMS-IoU
+0.45 (macro-F1 0.891), now the application defaults. The single locked-test
+evaluation (mAP50 0.926, mAP50–95 0.678) passed and the checkpoint is promoted to
+`data/weights/best.pt`. See
 [`docs/experiments/dataset3_interim_v4.md`](docs/experiments/dataset3_interim_v4.md)
 and
 [`docs/experiments/dataset3_interim_v5.md`](docs/experiments/dataset3_interim_v5.md).
@@ -434,7 +458,7 @@ each class. Manually sort only `manual_review/`, then audit a sample of
 ## Project Structure
 
 ```
-app/
+backend/app/
 ├── main.py                 # FastAPI entry point
 ├── api/routes.py           # API endpoints (with DI)
 ├── core/config.py          # Settings + TARGET_CLASSES
@@ -444,7 +468,8 @@ app/
 │   ├── data_service.py     # KnowledgeRetriever (JSON lookup)
 │   └── llm_service.py      # AdvisoryGenerator (LLM formatting layer)
 ├── models/schemas.py       # Pydantic models
-└── static/                 # Frontend assets
+└── static/                 # Bundled production frontend assets
+frontend/                   # Optional Vite + React upload-test UI (dev only)
 data/
 ├── knowledge_base.json     # 6-class nutrition data
 ├── dataset3/               # Canonical unsplit staging dataset
