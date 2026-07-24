@@ -399,6 +399,8 @@ evaluation (mAP50 0.926, mAP50–95 0.678) passed and the checkpoint is promoted
 [`docs/experiments/dataset3_interim_v4.md`](docs/experiments/dataset3_interim_v4.md)
 and
 [`docs/experiments/dataset3_interim_v5.md`](docs/experiments/dataset3_interim_v5.md).
+A 4-page results PDF is at
+[`docs/logs/dataset3_interim_v5_results.pdf`](docs/logs/dataset3_interim_v5_results.pdf).
 
 See [`docs/handoff.md`](docs/handoff.md) for current counts and next-step gates,
 [`docs/architecture.md`](docs/architecture.md) for the complete data flow, and

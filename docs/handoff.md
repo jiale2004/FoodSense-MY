@@ -1411,6 +1411,11 @@ calibrated on validation, evaluated once on the locked test split, promoted to
   returns all six classes; `/api/predict` on a locked-test image returned
   `chicken_rice` (0.848) with a generated advisory.
 
+Results visualization PDF:
+[`docs/logs/dataset3_interim_v5_results.pdf`](logs/dataset3_interim_v5_results.pdf)
+(4 pages: headline checkpoints, training curves from `results.csv`, per-class
+locked-test/validation charts, calibration summary).
+
 Suggested follow-ups (not blocking): Chicken Rice box-tightness (lowest test
 mAP50–95 0.528) is the main next-iteration target; consider per-class inference
 thresholds (calibration favored lower cutoffs for Mee Goreng / Roti Canai) and,

@@ -575,6 +575,7 @@ FoodSense-MY/
 ├── docs/cvat-collaborator-guide.md    # Group-member upload/review/export procedure
 ├── docs/experiments/dataset3_pilot_v1.md
 ├── docs/experiments/dataset3_interim_v2.md
+├── docs/logs/dataset3_interim_v5_results.pdf  # Interim v5 results visualization
 ├── requirements.txt                 # Default / macOS MPS install
 ├── requirements-hpc.txt             # NVIDIA CUDA 12.4 index for HPC GPUs
 └── .env.example

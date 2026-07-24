@@ -6,6 +6,11 @@
 **Locked-test evaluated:** 23 July 2026 (mAP50 0.926, mAP50–95 0.678)
 **Assessment:** production-approved detector; promoted to `data/weights/best.pt`
 
+Results visualization (4-page PDF):
+[`docs/logs/dataset3_interim_v5_results.pdf`](../logs/dataset3_interim_v5_results.pdf)
+— headline metrics, training curves, per-class locked-test/validation charts,
+and validation-only threshold calibration.
+
 ## Split configuration and artifacts
 
 - source staging: `data/dataset3/` (5,246 annotated images / 5,579 boxes)
