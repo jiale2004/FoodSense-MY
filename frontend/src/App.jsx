@@ -3,12 +3,38 @@ import { useRef, useState } from "react";
 const formatName = (name) =>
   name.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 
+const confidenceTier = (confidence) => {
+  if (confidence >= 0.75) return "high";
+  if (confidence >= 0.5) return "medium";
+  return "low";
+};
+
+function UploadIcon() {
+  return (
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <polyline points="17 8 12 3 7 8" />
+      <line x1="12" y1="3" x2="12" y2="15" />
+    </svg>
+  );
+}
+
+function RemoveIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+      <line x1="18" y1="6" x2="6" y2="18" />
+      <line x1="6" y1="6" x2="18" y2="18" />
+    </svg>
+  );
+}
+
 export default function App() {
   const [file, setFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [result, setResult] = useState(null);
+  const [isDragging, setIsDragging] = useState(false);
   const inputRef = useRef(null);
 
   function handleFile(selected) {
@@ -21,6 +47,14 @@ export default function App() {
     setResult(null);
     setFile(selected);
     setPreviewUrl(URL.createObjectURL(selected));
+  }
+
+  function clearFile() {
+    setFile(null);
+    setPreviewUrl(null);
+    setResult(null);
+    setError("");
+    if (inputRef.current) inputRef.current.value = "";
   }
 
   async function analyze() {
@@ -47,25 +81,57 @@ export default function App() {
   }
 
   return (
-    <main className="container">
-      <header>
-        <h1>FoodSense-MY</h1>
-        <p className="subtitle">Upload a food image to test detection.</p>
+    <main className="page">
+      <header className="app-header">
+        <div className="brand-icon" aria-hidden="true">🍜</div>
+        <h1>
+          FoodSense<span className="brand-accent">MY</span>
+        </h1>
+        <p className="subtitle">
+          Upload a photo of your Malaysian meal and get instant dish detection
+          with nutritional insight.
+        </p>
       </header>
 
       <section
-        className="drop-zone"
+        className={`upload-card${isDragging ? " is-dragging" : ""}`}
         onClick={() => inputRef.current?.click()}
-        onDragOver={(e) => e.preventDefault()}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setIsDragging(true);
+        }}
+        onDragLeave={() => setIsDragging(false)}
         onDrop={(e) => {
           e.preventDefault();
+          setIsDragging(false);
           handleFile(e.dataTransfer.files[0]);
         }}
       >
         {previewUrl ? (
-          <img className="preview" src={previewUrl} alt="Selected preview" />
+          <div className="preview-wrap">
+            <img className="preview" src={previewUrl} alt="Selected preview" />
+            <button
+              type="button"
+              className="remove-btn"
+              aria-label="Remove image"
+              onClick={(e) => {
+                e.stopPropagation();
+                clearFile();
+              }}
+            >
+              <RemoveIcon />
+            </button>
+          </div>
         ) : (
-          <p>Click or drag an image here</p>
+          <div className="drop-zone-content">
+            <div className="upload-icon-wrap">
+              <UploadIcon />
+            </div>
+            <p className="drop-title">Drag &amp; drop a food photo here</p>
+            <p className="hint">or</p>
+            <span className="btn btn-secondary">Choose File</span>
+            <p className="hint small">JPEG, PNG, or WebP · max 10 MB</p>
+          </div>
         )}
         <input
           ref={inputRef}
@@ -77,43 +143,65 @@ export default function App() {
       </section>
 
       <button className="analyze-btn" disabled={!file || loading} onClick={analyze}>
-        {loading ? "Analyzing…" : "Analyze"}
+        {loading ? (
+          <>
+            <span className="spinner" /> Analyzing…
+          </>
+        ) : (
+          "Analyze Food"
+        )}
       </button>
 
-      {error && <p className="error">{error}</p>}
+      {error && <p className="error-banner">⚠️ {error}</p>}
 
       {result && (
         <section className="results">
-          <p className="meta">Processed in {result.processing_ms} ms</p>
+          <span className="meta">Processed in {result.processing_ms} ms</span>
 
-          <h2>Detections</h2>
+          <h2>Detected Dishes</h2>
           {result.detections.length === 0 ? (
             <p className="hint">No dishes detected. Try a clearer photo.</p>
           ) : (
             <ul className="cards">
-              {result.detections.map((d, i) => (
-                <li className="card" key={i}>
-                  <strong>{formatName(d.class_name)}</strong>
-                  <span>{Math.round(d.confidence * 100)}%</span>
-                </li>
-              ))}
+              {result.detections.map((d, i) => {
+                const pct = Math.round(d.confidence * 100);
+                const tier = confidenceTier(d.confidence);
+                return (
+                  <li className="card detection-card" key={i}>
+                    <div className="detection-head">
+                      <strong>{formatName(d.class_name)}</strong>
+                      <span className={`confidence-badge tier-${tier}`}>{pct}%</span>
+                    </div>
+                    <div className="confidence-bar">
+                      <div className="confidence-fill" style={{ width: `${pct}%` }} />
+                    </div>
+                  </li>
+                );
+              })}
             </ul>
           )}
 
           {result.nutrition.length > 0 && (
             <>
-              <h2>Nutrition</h2>
-              <ul className="cards">
+              <h2>Nutrition Facts</h2>
+              <ul className="cards nutrition-grid">
                 {result.nutrition.map((n, i) => (
-                  <li className="card nutrition" key={i}>
-                    <strong>{n.display_name}</strong>
+                  <li className="card nutrition-card" key={i}>
+                    <div className="nutrition-head">
+                      <strong>{n.display_name}</strong>
+                    </div>
                     {n.found_in_kb ? (
-                      <div className="macros">
-                        <span>{n.calories_kcal ?? "—"} kcal</span>
-                        <span>P {n.protein_g ?? "—"} g</span>
-                        <span>C {n.carbs_g ?? "—"} g</span>
-                        <span>F {n.fat_g ?? "—"} g</span>
-                      </div>
+                      <>
+                        <div className="calorie-figure">
+                          {n.calories_kcal ?? "—"}
+                          <span>kcal</span>
+                        </div>
+                        <div className="macro-row">
+                          <span className="macro-chip protein">P {n.protein_g ?? "—"} g</span>
+                          <span className="macro-chip carbs">C {n.carbs_g ?? "—"} g</span>
+                          <span className="macro-chip fat">F {n.fat_g ?? "—"} g</span>
+                        </div>
+                      </>
                     ) : (
                       <p className="hint">No verified data in knowledge base.</p>
                     )}
@@ -126,13 +214,22 @@ export default function App() {
           {result.advisory_text && (
             <>
               <h2>Advisory</h2>
-              <p className="advisory">{result.advisory_text}</p>
+              <div className="advisory-card">
+                <span className="advisory-icon" aria-hidden="true">💡</span>
+                <div>
+                  <p>{result.advisory_text}</p>
+                </div>
+              </div>
             </>
           )}
 
           {result.disclaimer && <p className="disclaimer">{result.disclaimer}</p>}
         </section>
       )}
+
+      <footer className="page-footer">
+        For informational purposes only — not medical advice.
+      </footer>
     </main>
   );
 }
