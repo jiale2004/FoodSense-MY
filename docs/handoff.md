@@ -1427,6 +1427,9 @@ after local archive checks.
 
 Local app / macOS:
 
+Step-by-step (venv, uvicorn, npm):
+[`docs/local-dev-setup.md`](local-dev-setup.md).
+
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
@@ -1437,6 +1440,8 @@ uvicorn app.main:app --app-dir backend --reload --host 0.0.0.0 --port 8000
 
 The FastAPI service now lives in `backend/app/`; `--app-dir backend` puts the
 `app` package on the import path while data and `.env` stay at the repo root.
+Optional React upload UI: `cd frontend && npm install && npm run dev`
+([http://localhost:5173](http://localhost:5173)).
 
 Linux HPC GPU training:
 

@@ -9,7 +9,12 @@ Nasi Lemak, Roti Canai, Char Kuey Teow, Chicken Rice, Laksa, Mee Goreng
 ## Requirements
 
 - Python 3.10+
+- Node.js 18+ and npm (only for the optional React test UI)
 - macOS (Apple Silicon recommended for MPS acceleration), Windows, or Linux HPC with NVIDIA GPU
+
+**New to the repo?** Follow the step-by-step guide
+[`docs/local-dev-setup.md`](docs/local-dev-setup.md) (create `.venv` → uvicorn →
+npm). The sections below are the short version.
 
 ## Setup (macOS)
 
@@ -504,7 +509,7 @@ training_scripts/
 ├── import_cvat_annotations.py # Validated first merge and revisions
 ├── split_dataset3.py       # Fresh or locked-incremental leakage-safe split
 └── prepare_dataset.py      # Legacy splitter; not safe for dataset3
-docs/                       # Handoff, architecture, annotation policy
+docs/                       # Handoff, architecture, local-dev-setup, annotation policy
 ```
 
 ## Disclaimer

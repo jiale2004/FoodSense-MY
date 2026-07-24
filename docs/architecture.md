@@ -572,6 +572,7 @@ FoodSense-MY/
 │   └── utils.py
 ├── tests/
 ├── docs/architecture.md, handoff.md, bounding-box-policy.md
+├── docs/local-dev-setup.md            # .venv, uvicorn, and npm walkthrough
 ├── docs/cvat-collaborator-guide.md    # Group-member upload/review/export procedure
 ├── docs/experiments/dataset3_pilot_v1.md
 ├── docs/experiments/dataset3_interim_v2.md
