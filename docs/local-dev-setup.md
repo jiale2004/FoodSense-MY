@@ -1,7 +1,7 @@
 # Local Development Setup
 
 This guide walks through creating a Python virtual environment, starting the
-FastAPI backend with uvicorn, and running the optional React test frontend with
+FastAPI backend with uvicorn, and running the primary React (Vite) frontend with
 npm. Commands assume macOS or Linux from the repository root
 (`FoodSense-MY/`).
 
@@ -10,7 +10,7 @@ npm. Commands assume macOS or Linux from the repository root
 | Tool | Why | Check |
 |------|-----|-------|
 | Python 3.10+ | Backend, YOLO, training scripts | `python3 --version` |
-| Node.js 18+ and npm | React test UI in `frontend/` | `node --version` · `npm --version` |
+| Node.js 18+ and npm | React frontend in `frontend/` | `node --version` · `npm --version` |
 | Promoted weights | Inference | `data/weights/best.pt` must exist |
 
 LLM API keys are optional. Without them the advisory falls back to a local
@@ -98,16 +98,16 @@ curl -s http://127.0.0.1:8000/api/classes
 
 Or open:
 
-- Bundled static UI: [http://localhost:8000](http://localhost:8000)
+- Legacy static UI (fallback): [http://localhost:8000](http://localhost:8000)
 - API docs: [http://localhost:8000/docs](http://localhost:8000/docs)
 
 Healthy `/api/health` includes `"status":"ok"` and `"model_loaded":true`.
 
-## 3. Start the React test frontend (npm)
+## 3. Start the React frontend (npm)
 
-The Vite app in [`frontend/`](../frontend/) is optional. Use it to exercise
-image upload against the live API. The production static UI is already served
-by uvicorn at port 8000.
+The primary local UI is the Vite + React app in [`frontend/`](../frontend/).
+Uvicorn still serves a legacy vanilla page at port 8000 if you need a no-npm
+fallback.
 
 **Terminal A** — uvicorn (section 2) must already be running on port 8000.
 
@@ -138,8 +138,8 @@ VITE_API_TARGET=http://127.0.0.1:8000 npm run dev
 
 | URL | What |
 |-----|------|
-| http://localhost:8000 | FastAPI + bundled static frontend |
-| http://localhost:5173 | Vite React upload-test UI |
+| http://localhost:5173 | Primary React (Vite) frontend |
+| http://localhost:8000 | FastAPI + legacy static UI fallback |
 | http://localhost:8000/api/health | Backend health JSON |
 
 ## Common issues

@@ -4,14 +4,33 @@
 
 FoodSense-MY contains two related systems:
 
-1. a FastAPI application that detects six Malaysian dishes and returns verified nutrition plus an optional LLM-formatted advisory;
+1. a FastAPI backend plus a React (Vite) frontend that detect six Malaysian dishes and return verified nutrition plus an optional LLM-formatted advisory;
 2. a local data pipeline that acquires, curates, consolidates, annotates, splits, trains, and promotes the custom detector.
 
 The application is runnable. Dataset consolidation, the first CVAT pilot, its Phase A priority audit, the Phase B leakage-safe split, the Phase C YOLO11n pilot, the reviewed Phase D batch 001–010 merges, the no-proposal test-holdout audit, four locked incremental splits (`dataset3-interim-v2` through `dataset3-interim-v5`), four interim HPC retrains (`dataset3_interim_v2` through `dataset3_interim_v5`), and curated Mee Goreng web ingest (`ingest_mee_goreng_full`, +251) are complete. Batch 010 drained the annotation backlog: Dataset3 now has 5,246 annotated images / 5,579 boxes, with only 43 unreachable missing frames. Interim v5 is the strongest checkpoint (validation mAP50–95 0.793, Mee Goreng recall 0.778). Phase E is complete: validation-only threshold calibration (confidence 0.47, NMS-IoU 0.45; macro-F1 0.891), the single locked-test evaluation (mAP50 0.926, mAP50–95 0.678), and production promotion to `data/weights/best.pt` are done, and the app was smoke-tested against the promoted weights.
 
+## Tech Stack
+
+| Layer | Technology | Location |
+|-------|------------|----------|
+| Frontend (primary UI) | React 18 + Vite | `frontend/` (`npm run dev` → http://localhost:5173) |
+| Backend API | FastAPI + Uvicorn | `backend/app/` |
+| Detection | Ultralytics YOLO11n + OpenCV + PyTorch (MPS/CPU/CUDA) | `backend/app/services/vision_service.py` |
+| Nutrition | Local JSON knowledge base | `data/knowledge_base.json` |
+| Advisory | OpenAI or Gemini (optional); template fallback | `backend/app/services/llm_service.py` |
+| Legacy static UI | Vanilla HTML/CSS/JS (still mounted by FastAPI) | `backend/app/static/` |
+| Training / data pipeline | Python scripts, CVAT, Optuna | `training_scripts/`, `data/` |
+
+The React app talks to the API through the Vite dev-server proxy (`/api` and
+`/uploads` → `http://127.0.0.1:8000`). That avoids cross-origin calls; FastAPI
+CORS currently allows only `localhost:8000` / `127.0.0.1:8000`. The bundled
+static UI at port 8000 remains as a no-npm fallback; day-to-day local testing
+uses the React frontend.
+
 ```mermaid
 flowchart LR
-    UI[Static upload UI] -->|POST /api/predict| API[FastAPI routes]
+    UI[React Vite frontend] -->|POST /api/predict via Vite proxy| API[FastAPI routes]
+    Static[Legacy static UI] -->|POST /api/predict| API
     API --> Vision[VisionProcessor]
     Vision --> Model[YOLO weights]
     API --> Nutrition[KnowledgeRetriever]
@@ -20,6 +39,7 @@ flowchart LR
     Advisory --> LLM[OpenAI or Gemini]
     Advisory --> Template[Local fallback]
     API --> UI
+    API --> Static
 ```
 
 ## Canonical Class Contract
@@ -60,8 +80,8 @@ Never reorder these IDs in CVAT exports or `data.yaml`. Human annotation is auth
 | Vision | `VisionProcessor` | `backend/app/services/vision_service.py` | OpenCV preprocessing, YOLO inference, and NMS |
 | Nutrition | `KnowledgeRetriever` | `backend/app/services/data_service.py` | Local JSON knowledge-base lookup |
 | Advisory | `AdvisoryGenerator` | `backend/app/services/llm_service.py` | Formatting-only LLM call and deterministic fallback |
-| Frontend | — | `backend/app/static/` | Production upload interaction and result rendering (served by FastAPI) |
-| Test frontend | — | `frontend/` | Optional Vite + React upload-test UI; dev-only, proxies `/api` and `/uploads` to the backend |
+| Frontend | — | `frontend/` | Primary React 18 + Vite UI; upload, analyze, and result rendering; proxies `/api` and `/uploads` to the backend |
+| Legacy static UI | — | `backend/app/static/` | Vanilla HTML/CSS/JS fallback still mounted by FastAPI at `/` |
 
 ### Dataset and training modules
 
@@ -520,8 +540,8 @@ FoodSense-MY/
 │   ├── core/config.py, security.py
 │   ├── models/schemas.py
 │   ├── services/vision_service.py, data_service.py, llm_service.py
-│   └── static/                         # Bundled production frontend
-├── frontend/                           # Optional Vite + React upload-test UI (dev only)
+│   └── static/                         # Legacy vanilla UI + uploads (mounted at /)
+├── frontend/                           # Primary React 18 + Vite UI (npm run dev → :5173)
 ├── data/                               # Mostly gitignored local state
 │   ├── knowledge_base.json
 │   ├── dataset1/, dataset2/

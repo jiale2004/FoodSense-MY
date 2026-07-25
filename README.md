@@ -9,7 +9,7 @@ Nasi Lemak, Roti Canai, Char Kuey Teow, Chicken Rice, Laksa, Mee Goreng
 ## Requirements
 
 - Python 3.10+
-- Node.js 18+ and npm (only for the optional React test UI)
+- Node.js 18+ and npm (React frontend in `frontend/`)
 - macOS (Apple Silicon recommended for MPS acceleration), Windows, or Linux HPC with NVIDIA GPU
 
 **New to the repo?** Follow the step-by-step guide
@@ -61,13 +61,13 @@ uvicorn app.main:app --app-dir backend --reload --host 0.0.0.0 --port 8000
 
 Equivalently, `cd backend && uvicorn app.main:app --reload --host 0.0.0.0 --port 8000`.
 
-Open [http://localhost:8000](http://localhost:8000) in your browser. This
-serves the bundled static frontend (`backend/app/static/`).
+Open [http://localhost:8000](http://localhost:8000) for the API and the
+legacy vanilla UI (`backend/app/static/`). Prefer the React frontend below for
+day-to-day local use.
 
-## React Test Frontend (optional)
+## React Frontend
 
-A minimal Vite + React UI for testing image upload lives in [`frontend/`](frontend/).
-It is a development convenience separate from the production static frontend.
+Primary local UI: Vite + React 18 in [`frontend/`](frontend/).
 
 ```bash
 cd frontend
@@ -475,8 +475,8 @@ backend/app/
 │   ├── data_service.py     # KnowledgeRetriever (JSON lookup)
 │   └── llm_service.py      # AdvisoryGenerator (LLM formatting layer)
 ├── models/schemas.py       # Pydantic models
-└── static/                 # Bundled production frontend assets
-frontend/                   # Optional Vite + React upload-test UI (dev only)
+└── static/                 # Legacy vanilla UI + uploads
+frontend/                   # Primary React 18 + Vite UI
 data/
 ├── knowledge_base.json     # 6-class nutrition data
 ├── dataset3/               # Canonical unsplit staging dataset

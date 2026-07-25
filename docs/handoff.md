@@ -1,13 +1,16 @@
 # FoodSense-MY — Project Handoff
 
-**Last updated:** 23 July 2026
+**Last updated:** 25 July 2026
 **Repository:** [FoodSense-MY](https://github.com/jiale2004/FoodSense-MY)  
 **Purpose:** Six-class Malaysian food object detection and nutritional advisory.
 
 ## 1. Current State
 
-The FastAPI application and its static frontend are runnable. Phase E is
-complete: interim v5 is the production-approved six-class YOLO11n detector.
+The FastAPI backend (`backend/app/`) and primary React + Vite frontend
+(`frontend/`) are runnable. A legacy vanilla static UI remains under
+`backend/app/static/` and is still served at port 8000 as a no-npm fallback.
+Phase E is complete: interim v5 is the production-approved six-class YOLO11n
+detector.
 It was calibrated on the validation split (`CONFIDENCE_THRESHOLD=0.47`,
 `IOU_THRESHOLD=0.45`), evaluated once on the locked test set (mAP50 0.926,
 mAP50–95 0.678), promoted to `data/weights/best.pt`, and smoke-tested through
@@ -467,8 +470,9 @@ The full policy is [`docs/bounding-box-policy.md`](bounding-box-policy.md). Its 
 
 | Area | Status |
 |------|--------|
-| FastAPI app, routes, services | Implemented |
-| Static upload/result UI | Implemented |
+| FastAPI backend (`backend/app/`) | Implemented |
+| React + Vite frontend (`frontend/`) | Implemented (primary local UI) |
+| Legacy static upload UI (`backend/app/static/`) | Implemented (fallback at port 8000) |
 | Six-class nutrition knowledge base | Implemented |
 | OpenAI/Gemini advisory formatting | Implemented, optional |
 | Apple Silicon MPS inference | Supported |
@@ -1440,7 +1444,7 @@ uvicorn app.main:app --app-dir backend --reload --host 0.0.0.0 --port 8000
 
 The FastAPI service now lives in `backend/app/`; `--app-dir backend` puts the
 `app` package on the import path while data and `.env` stay at the repo root.
-Optional React upload UI: `cd frontend && npm install && npm run dev`
+Primary React UI (second terminal): `cd frontend && npm install && npm run dev`
 ([http://localhost:5173](http://localhost:5173)).
 
 Linux HPC GPU training:
@@ -1475,11 +1479,12 @@ This chat's Phase E close-out updates:
 - `docs/handoff.md`
 - `.gitignore` (ignore interim v5 local-val diagnostics)
 
-A separate development convenience was added later: a minimal Vite + React
-upload-test UI under `frontend/` (`package.json`, `vite.config.js`,
-`index.html`, `src/`). It proxies `/api` and `/uploads` to the backend at
-`http://127.0.0.1:8000` and is independent of the production static frontend in
-`backend/app/static/`. Its `node_modules/` and `dist/` are gitignored.
+The primary local UI is the Vite + React app under `frontend/`
+(`package.json`, `vite.config.js`, `index.html`, `src/`). It proxies `/api` and
+`/uploads` to the backend at `http://127.0.0.1:8000`. The vanilla page under
+`backend/app/static/` remains mounted by FastAPI as a no-npm fallback. Frontend
+`node_modules/` and `dist/` are gitignored. See
+[`docs/local-dev-setup.md`](local-dev-setup.md).
 
 The FastAPI service was subsequently relocated from `app/` to `backend/app/`
 (via `git mv`) to mirror `frontend/`. The `app` Python package name is
