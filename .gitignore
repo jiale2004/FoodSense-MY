@@ -23,8 +23,8 @@ data/dataset3/**/*
 !data/dataset3/**/.gitkeep
 
 # Uploaded images
-app/static/uploads/*
-!app/static/uploads/.gitkeep
+backend/app/static/uploads/*
+!backend/app/static/uploads/.gitkeep
 
 # OS
 .DS_Store
@@ -41,6 +41,7 @@ runs/detect/dataset3_pilot_v1
 runs/detect/dataset3_interim_v2_local_val
 runs/detect/dataset3_interim_v3_local_val
 runs/detect/dataset3_interim_v4_local_val
+runs/detect/dataset3_interim_v5_local_val
 *.cache
 
 # SeleniumBase / UC scraper temp files

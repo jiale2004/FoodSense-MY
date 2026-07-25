@@ -8,7 +8,11 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 logger = logging.getLogger(__name__)
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+# backend/app/core/config.py -> parents[1] = backend/app, parents[2] = backend,
+# parents[3] = repository root. Data, weights, and the .env file live at the
+# repository root; uploaded images live inside the backend app package.
+APP_DIR = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
 
 TARGET_CLASSES: list[str] = [
     "nasi_lemak",
@@ -33,12 +37,13 @@ class Settings(BaseSettings):
     openai_api_key: str | None = None
     openai_model: str = "gpt-4o-mini"
     gemini_api_key: str | None = None
-    gemini_model: str = "gemini-2.0-flash"
+    gemini_model: str = "gemini-2.5-flash-lite"
 
     model_weights_path: Path = Path("data/weights/best.pt")
     knowledge_base_path: Path = Path("data/knowledge_base.json")
 
-    confidence_threshold: float = 0.5
+    # Calibrated on the dataset3-interim-v5 validation split (macro-F1 optimum).
+    confidence_threshold: float = 0.47
     iou_threshold: float = 0.45
     device: Literal["auto", "mps", "cpu"] = "auto"
     max_upload_size_mb: int = 10
@@ -60,7 +65,7 @@ class Settings(BaseSettings):
 
     @property
     def uploads_dir(self) -> Path:
-        return PROJECT_ROOT / "app" / "static" / "uploads"
+        return APP_DIR / "static" / "uploads"
 
     def validate_llm_config(self) -> None:
         if self.llm_provider == "openai" and not self.openai_api_key:

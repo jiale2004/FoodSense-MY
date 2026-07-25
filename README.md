@@ -9,7 +9,12 @@ Nasi Lemak, Roti Canai, Char Kuey Teow, Chicken Rice, Laksa, Mee Goreng
 ## Requirements
 
 - Python 3.10+
+- Node.js 18+ and npm (React frontend in `frontend/`)
 - macOS (Apple Silicon recommended for MPS acceleration), Windows, or Linux HPC with NVIDIA GPU
+
+**New to the repo?** Follow the step-by-step guide
+[`docs/local-dev-setup.md`](docs/local-dev-setup.md) (create `.venv` → uvicorn →
+npm). The sections below are the short version.
 
 ## Setup (macOS)
 
@@ -47,11 +52,32 @@ See comments in [`requirements.txt`](requirements.txt) for the manual
 
 ## Run
 
+The FastAPI backend lives in [`backend/app/`](backend/app/). Run it from the
+repository root with `--app-dir backend` so the `app` package is importable:
+
 ```bash
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+uvicorn app.main:app --app-dir backend --reload --host 0.0.0.0 --port 8000
 ```
 
-Open [http://localhost:8000](http://localhost:8000) in your browser.
+Equivalently, `cd backend && uvicorn app.main:app --reload --host 0.0.0.0 --port 8000`.
+
+Open [http://localhost:8000](http://localhost:8000) for the API and the
+legacy vanilla UI (`backend/app/static/`). Prefer the React frontend below for
+day-to-day local use.
+
+## React Frontend
+
+Primary local UI: Vite + React 18 in [`frontend/`](frontend/).
+
+```bash
+cd frontend
+npm install
+npm run dev   # http://localhost:5173
+```
+
+The dev server proxies `/api` and `/uploads` to the backend at
+`http://127.0.0.1:8000`, so run `uvicorn` (above) in another terminal first.
+Set `VITE_API_TARGET` to point at a different backend origin.
 
 ## Environment Variables
 
@@ -61,11 +87,11 @@ Open [http://localhost:8000](http://localhost:8000) in your browser.
 | `OPENAI_API_KEY` | OpenAI API key | — |
 | `OPENAI_MODEL` | OpenAI model name | `gpt-4o-mini` |
 | `GEMINI_API_KEY` | Google Gemini API key | — |
-| `GEMINI_MODEL` | Gemini model name | `gemini-2.0-flash` |
+| `GEMINI_MODEL` | Gemini model name | `gemini-2.5-flash-lite` |
 | `MODEL_WEIGHTS_PATH` | Path to YOLO weights | `data/weights/best.pt` |
 | `KNOWLEDGE_BASE_PATH` | Path to nutrition JSON | `data/knowledge_base.json` |
-| `CONFIDENCE_THRESHOLD` | NMS confidence cutoff | `0.5` |
-| `IOU_THRESHOLD` | NMS IoU threshold | `0.45` |
+| `CONFIDENCE_THRESHOLD` | NMS confidence cutoff (calibrated on interim v5 val) | `0.47` |
+| `IOU_THRESHOLD` | NMS IoU threshold (calibrated on interim v5 val) | `0.45` |
 | `DEVICE` | Compute device (`auto`, `mps`, `cpu`) | `auto` |
 | `MAX_UPLOAD_SIZE_MB` | Max upload size in MB | `10` |
 | `API_KEY_ENABLED` | Require X-API-Key header | `false` |
@@ -360,20 +386,26 @@ annotations. `selection.jsonl` makes the later correction import revision-safe,
 and package creation fails if the baseline queue, current images, or labels
 have drifted.
 
-Three HPC interim runs are complete; interim v5 training data is ready.
-`runs/detect/dataset3_interim_v2/` selected epoch 75 with mAP50 0.938 and
-mAP50–95 0.747. `runs/detect/dataset3_interim_v3/` trained from the v2
-checkpoint on `data/dataset3-interim-v3/` (1,674 / 418 / 82) and selected epoch
-1 with mAP50 0.932 and mAP50–95 0.761. `runs/detect/dataset3_interim_v4/`
-trained from the v3 checkpoint on `data/dataset3-interim-v4/` (3,299 / 825 /
-82) with `lr0=0.002` and selected epoch 1 with mAP50 0.938 and mAP50–95 0.783;
-local Mee Goreng recall recovered to 0.717 (from 0.513). The locked incremental
-view `data/dataset3-interim-v5/` (4,131 / 1,033 / 82, zero cross-split leakage)
-is ready for the Phase E HPC retrain from the v4 checkpoint with `lr0=0.002`.
-See
+Four HPC interim runs are complete. `runs/detect/dataset3_interim_v2/` selected
+epoch 75 with mAP50 0.938 and mAP50–95 0.747. `runs/detect/dataset3_interim_v3/`
+trained from the v2 checkpoint on `data/dataset3-interim-v3/` (1,674 / 418 / 82)
+and selected epoch 1 with mAP50 0.932 and mAP50–95 0.761.
+`runs/detect/dataset3_interim_v4/` trained from the v3 checkpoint on
+`data/dataset3-interim-v4/` (3,299 / 825 / 82) with `lr0=0.002` and selected
+epoch 1 with mAP50 0.938 and mAP50–95 0.783. `runs/detect/dataset3_interim_v5/`
+trained from the v4 checkpoint on `data/dataset3-interim-v5/` (4,131 / 1,033 /
+82) with `lr0=0.002` and selected epoch 1 with mAP50 0.945 and mAP50–95 0.793 —
+the strongest interim run so far, with local Mee Goreng recall 0.778. It is the
+production-approved detector. Validation-only threshold calibration
+(`training_scripts/calibrate_thresholds.py`) selected confidence 0.47 and NMS-IoU
+0.45 (macro-F1 0.891), now the application defaults. The single locked-test
+evaluation (mAP50 0.926, mAP50–95 0.678) passed and the checkpoint is promoted to
+`data/weights/best.pt`. See
 [`docs/experiments/dataset3_interim_v4.md`](docs/experiments/dataset3_interim_v4.md)
 and
 [`docs/experiments/dataset3_interim_v5.md`](docs/experiments/dataset3_interim_v5.md).
+A 4-page results PDF is at
+[`docs/logs/dataset3_interim_v5_results.pdf`](docs/logs/dataset3_interim_v5_results.pdf).
 
 See [`docs/handoff.md`](docs/handoff.md) for current counts and next-step gates,
 [`docs/architecture.md`](docs/architecture.md) for the complete data flow, and
@@ -433,7 +465,7 @@ each class. Manually sort only `manual_review/`, then audit a sample of
 ## Project Structure
 
 ```
-app/
+backend/app/
 ├── main.py                 # FastAPI entry point
 ├── api/routes.py           # API endpoints (with DI)
 ├── core/config.py          # Settings + TARGET_CLASSES
@@ -443,7 +475,8 @@ app/
 │   ├── data_service.py     # KnowledgeRetriever (JSON lookup)
 │   └── llm_service.py      # AdvisoryGenerator (LLM formatting layer)
 ├── models/schemas.py       # Pydantic models
-└── static/                 # Frontend assets
+└── static/                 # Legacy vanilla UI + uploads
+frontend/                   # Primary React 18 + Vite UI
 data/
 ├── knowledge_base.json     # 6-class nutrition data
 ├── dataset3/               # Canonical unsplit staging dataset
@@ -476,7 +509,7 @@ training_scripts/
 ├── import_cvat_annotations.py # Validated first merge and revisions
 ├── split_dataset3.py       # Fresh or locked-incremental leakage-safe split
 └── prepare_dataset.py      # Legacy splitter; not safe for dataset3
-docs/                       # Handoff, architecture, annotation policy
+docs/                       # Handoff, architecture, local-dev-setup, annotation policy
 ```
 
 ## Disclaimer
