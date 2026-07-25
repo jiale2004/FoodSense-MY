@@ -618,7 +618,7 @@ FoodSense-MY/
 | `OPENAI_API_KEY` | Optional OpenAI key | — |
 | `OPENAI_MODEL` | OpenAI advisory model | `gpt-4o-mini` |
 | `GEMINI_API_KEY` | Optional Gemini key | — |
-| `GEMINI_MODEL` | Gemini advisory model | `gemini-2.0-flash` |
+| `GEMINI_MODEL` | Gemini advisory model | `gemini-2.5-flash-lite` |
 | `MODEL_WEIGHTS_PATH` | Application YOLO weights | `data/weights/best.pt` |
 | `KNOWLEDGE_BASE_PATH` | Verified nutrition JSON | `data/knowledge_base.json` |
 | `CONFIDENCE_THRESHOLD` | Inference confidence threshold (calibrated on interim v5 val) | `0.47` |

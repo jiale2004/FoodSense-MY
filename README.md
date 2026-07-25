@@ -87,7 +87,7 @@ Set `VITE_API_TARGET` to point at a different backend origin.
 | `OPENAI_API_KEY` | OpenAI API key | — |
 | `OPENAI_MODEL` | OpenAI model name | `gpt-4o-mini` |
 | `GEMINI_API_KEY` | Google Gemini API key | — |
-| `GEMINI_MODEL` | Gemini model name | `gemini-2.0-flash` |
+| `GEMINI_MODEL` | Gemini model name | `gemini-2.5-flash-lite` |
 | `MODEL_WEIGHTS_PATH` | Path to YOLO weights | `data/weights/best.pt` |
 | `KNOWLEDGE_BASE_PATH` | Path to nutrition JSON | `data/knowledge_base.json` |
 | `CONFIDENCE_THRESHOLD` | NMS confidence cutoff (calibrated on interim v5 val) | `0.47` |

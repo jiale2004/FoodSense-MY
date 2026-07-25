@@ -14,7 +14,8 @@ npm. Commands assume macOS or Linux from the repository root
 | Promoted weights | Inference | `data/weights/best.pt` must exist |
 
 LLM API keys are optional. Without them the advisory falls back to a local
-template.
+template. See [LLM advisory (OpenAI / Gemini)](#4-llm-advisory-openai--gemini)
+below for key setup and pricing notes.
 
 ## 1. Create and activate `.venv`
 
@@ -141,6 +142,48 @@ VITE_API_TARGET=http://127.0.0.1:8000 npm run dev
 | http://localhost:5173 | Primary React (Vite) frontend |
 | http://localhost:8000 | FastAPI + legacy static UI fallback |
 | http://localhost:8000/api/health | Backend health JSON |
+
+## 4. LLM advisory (OpenAI / Gemini)
+
+Detection and nutrition lookup do **not** need an LLM. The key only improves
+the natural-language advisory returned by `/api/predict`. Without a key, the
+app uses a local template fallback (still correct numbers from
+`knowledge_base.json`).
+
+### OpenAI
+
+1. Create a key at [platform.openai.com/api-keys](https://platform.openai.com/api-keys).
+2. Edit `.env` at the repo root:
+
+```bash
+LLM_PROVIDER=openai
+OPENAI_API_KEY=sk-...
+OPENAI_MODEL=gpt-4o-mini
+```
+
+3. Restart uvicorn. Check `GET /api/health` → `"llm_configured": true`.
+
+### Gemini
+
+1. Create a key at [aistudio.google.com/apikey](https://aistudio.google.com/apikey).
+2. Edit `.env`:
+
+```bash
+LLM_PROVIDER=gemini
+GEMINI_API_KEY=...
+GEMINI_MODEL=gemini-2.5-flash-lite
+```
+
+3. Restart uvicorn and re-check `/api/health`.
+
+Do not commit `.env`. Prefer OpenAI `gpt-4o-mini` or Gemini
+`gemini-2.5-flash-lite` for this formatting-only use case. The old default
+`gemini-2.0-flash` was shut down on 1 June 2026.
+
+Official pricing pages (rates change; verify before budgeting):
+
+- OpenAI: [developers.openai.com/api/docs/pricing](https://developers.openai.com/api/docs/pricing)
+- Gemini: [ai.google.dev/gemini-api/docs/pricing](https://ai.google.dev/gemini-api/docs/pricing)
 
 ## Common issues
 

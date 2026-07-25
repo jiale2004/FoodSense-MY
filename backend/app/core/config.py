@@ -37,7 +37,7 @@ class Settings(BaseSettings):
     openai_api_key: str | None = None
     openai_model: str = "gpt-4o-mini"
     gemini_api_key: str | None = None
-    gemini_model: str = "gemini-2.0-flash"
+    gemini_model: str = "gemini-2.5-flash-lite"
 
     model_weights_path: Path = Path("data/weights/best.pt")
     knowledge_base_path: Path = Path("data/knowledge_base.json")
