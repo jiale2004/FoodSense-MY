@@ -1,12 +1,13 @@
 # Dataset3 Interim v8 — HPC retrain plan (YOLO11n only)
 
-**Status:** planned (26 July 2026); run after interim v7 freeze review
+**Status:** Run A completed (26 July 2026); Run B in progress on HPC
 **Model family:** YOLO11 **nano** only — no `yolo11s` / larger variants
 **Split:** reuse locked `data/dataset3-interim-v5/` (no new split)
 **Nano baseline to beat:** interim v7 freeze validation mAP50–95 **0.820**
   (and keep Mee Goreng recall ≥ interim v5 **0.778**)
-**Assessment:** not yet trained; do not promote until validation clearly improves
-nano quality without sacrificing Mee Goreng
+**Assessment:** Run A passes the nano acceptance gate on validation (mAP50–95
+0.830, Mee Goreng recall 0.822). Hold promotion until Run B finishes, then
+compare; calibrate + locked-test only the winning nano candidate.
 
 Interim v7 freeze (`dataset3_interim_v7_n_freeze`) proved that `freeze=10` +
 `lr0=0.0002` + `cos_lr` escapes the epoch-1 fitness peak and lifts aggregate
@@ -20,8 +21,9 @@ v8 stays on `yolo11n` and targets those two gaps. Both runs use **batch size
 | Checkpoint | mAP50–95 | Mee Goreng recall | Notes |
 |------------|----------:|------------------:|-------|
 | v5 `best.pt` (prod nano) | 0.793 | 0.778 | Locked-test done |
-| v7_n_freeze (ep 30) | **0.820** | 0.722 | Epoch-1 peak fixed; MG regressed |
-| v6_s (yolo11s) | 0.826 | 0.878 | Strongest overall; **not** used as init |
+| v7_n_freeze (ep 30) | 0.820 | 0.722 | Epoch-1 peak fixed; MG regressed |
+| v6_s (yolo11s) | 0.826 | 0.878 | Strongest small; **not** used as init |
+| **v8_n_mg (ep 73)** | **0.830** | **0.822** | Best nano so far; Run A complete |
 
 ## HPC root
 
@@ -105,6 +107,38 @@ yolo detect train \
   name=dataset3_interim_v8_n_mg
 ```
 
+### Run A result (completed)
+
+Config matched the plan (`freeze=5`, `lr0=0.0003`, `cls=1.0`, `mixup=0.15`,
+`cos_lr=true`, HPC absolute paths). Best fitness at **epoch 73**; early-stop
+ended normally at epoch 93 after patience 20.
+
+| Checkpoint | Precision | Recall | mAP50 | mAP50–95 |
+|------------|----------:|-------:|------:|----------:|
+| Best, epoch 73 (HPC) | 0.936 | 0.926 | 0.959 | **0.830** |
+| Last, epoch 93 (HPC) | 0.935 | 0.923 | 0.958 | 0.829 |
+| Local val (MPS, best.pt) | 0.937 | 0.924 | 0.959 | 0.831 |
+
+Local per-class (validation only; test not accessed):
+
+| Class | Instances | Precision | Recall | mAP50 | mAP50–95 |
+|-------|----------:|----------:|-------:|------:|----------:|
+| Nasi Lemak | 203 | 0.973 | 0.946 | 0.976 | 0.896 |
+| Roti Canai | 215 | 0.927 | 0.892 | 0.936 | 0.772 |
+| Char Kuey Teow | 239 | 0.908 | 0.955 | 0.967 | 0.869 |
+| Chicken Rice | 144 | 0.951 | 0.947 | 0.970 | 0.751 |
+| Laksa | 213 | 0.963 | 0.981 | 0.992 | 0.876 |
+| Mee Goreng | 90 | 0.899 | **0.822** | 0.916 | 0.823 |
+| **All** | **1,104** | **0.937** | **0.924** | **0.959** | **0.831** |
+
+Gate check vs plan: mAP50–95 ≥ 0.820 ✓; Mee Goreng recall ≥ 0.778 ✓ (and ≥
+0.80 ✓). MG→CKT on the HPC normalized matrix fell from ~22% (v7 freeze) to
+~12%. Chicken Rice mAP50–95 0.751 is a small lift vs v7 (~0.735); Run B still
+targets localization.
+
+best.pt SHA-256:
+`f0cda9e12125326f24d61bab789e6e09118855a8fd56cb8b0a96e4eec95ee412`
+
 ## Run B — localization focus (`yolo11n`)
 
 **Hypothesis:** From the stronger v7 freeze init, multi-scale + higher box loss
@@ -180,5 +214,5 @@ optional size-constrained experiments only.
 
 | Run | Directory | Best ckpt SHA-256 | Results CSV SHA-256 |
 |-----|-----------|-------------------|---------------------|
-| A `dataset3_interim_v8_n_mg` | `/home/user/22059034/FoodSense-MY/runs/detect/dataset3_interim_v8_n_mg/` | _pending_ | _pending_ |
-| B `dataset3_interim_v8_n_box` | `/home/user/22059034/FoodSense-MY/runs/detect/dataset3_interim_v8_n_box/` | _pending_ | _pending_ |
+| A `dataset3_interim_v8_n_mg` | `/home/user/22059034/FoodSense-MY/runs/detect/dataset3_interim_v8_n_mg/` | `f0cda9e12125326f24d61bab789e6e09118855a8fd56cb8b0a96e4eec95ee412` | `27fe60d04e382b316dcbae87914d8cb6e2f59dc8ef54786cbf6bdabf87e5995f` |
+| B `dataset3_interim_v8_n_box` | `/home/user/22059034/FoodSense-MY/runs/detect/dataset3_interim_v8_n_box/` | _pending (running)_ | _pending_ |
