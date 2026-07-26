@@ -7,7 +7,7 @@ FoodSense-MY contains two related systems:
 1. a FastAPI backend plus a React (Vite) frontend that detect six Malaysian dishes and return verified nutrition plus an optional LLM-formatted advisory;
 2. a local data pipeline that acquires, curates, consolidates, annotates, splits, trains, and promotes the custom detector.
 
-The application is runnable. Dataset consolidation, the first CVAT pilot, its Phase A priority audit, the Phase B leakage-safe split, the Phase C YOLO11n pilot, the reviewed Phase D batch 001–010 merges, the no-proposal test-holdout audit, four locked incremental splits (`dataset3-interim-v2` through `dataset3-interim-v5`), four interim HPC retrains (`dataset3_interim_v2` through `dataset3_interim_v5`), and curated Mee Goreng web ingest (`ingest_mee_goreng_full`, +251) are complete. Batch 010 drained the annotation backlog: Dataset3 now has 5,246 annotated images / 5,579 boxes, with only 43 unreachable missing frames. Interim v5 is the strongest checkpoint (validation mAP50–95 0.793, Mee Goreng recall 0.778). Phase E is complete: validation-only threshold calibration (confidence 0.47, NMS-IoU 0.45; macro-F1 0.891), the single locked-test evaluation (mAP50 0.926, mAP50–95 0.678), and production promotion to `data/weights/best.pt` are done, and the app was smoke-tested against the promoted weights. Interim v6 HPC retrains (batch size 16; yolo11n cosine fine-tune + yolo11s) and interim v7 (YOLO11n only; freeze + localization) are planned on the locked interim-v5 split.
+The application is runnable. Dataset consolidation, the first CVAT pilot, its Phase A priority audit, the Phase B leakage-safe split, the Phase C YOLO11n pilot, the reviewed Phase D batch 001–010 merges, the no-proposal test-holdout audit, four locked incremental splits (`dataset3-interim-v2` through `dataset3-interim-v5`), four interim HPC retrains (`dataset3_interim_v2` through `dataset3_interim_v5`), and curated Mee Goreng web ingest (`ingest_mee_goreng_full`, +251) are complete. Batch 010 drained the annotation backlog: Dataset3 now has 5,246 annotated images / 5,579 boxes, with only 43 unreachable missing frames. Interim v5 remains the production-approved checkpoint (validation mAP50–95 0.793, Mee Goreng recall 0.778; locked-test done). Phase E is complete: validation-only threshold calibration (confidence 0.47, NMS-IoU 0.45; macro-F1 0.891), the single locked-test evaluation (mAP50 0.926, mAP50–95 0.678), and production promotion to `data/weights/best.pt` are done, and the app was smoke-tested against the promoted weights. Later HPC candidates on the same split: v6_s (yolo11s, val mAP50–95 0.826) and v7_n_freeze (yolo11n, 0.820, MG recall 0.722); interim v8 (YOLO11n MG recovery + localization) is planned.
 
 ## Tech Stack
 
@@ -517,7 +517,8 @@ yolo11n.pt pretrained initialization
     → accepted data/weights/best.pt [completed: interim v5 checkpoint]
     → FastAPI restart and smoke test [completed]
     → interim HPC retraining v6 (batch=16; yolo11n cos + yolo11s) [planned: dataset3_interim_v6]
-    → interim HPC retraining v7 (batch=16; yolo11n only: freeze + box) [planned: dataset3_interim_v7]
+    → interim HPC retraining v7 Run A (batch=16; yolo11n freeze) [completed: dataset3_interim_v7_n_freeze]
+    → interim HPC retraining v8 (batch=16; yolo11n MG recovery + box) [planned: dataset3_interim_v8]
 ```
 
 Model promotion is deliberate. Training outputs must first be saved under a versioned candidate name. `data/weights/best.pt` represents the application-approved detector, not merely the most recent experiment.
@@ -535,8 +536,10 @@ promoted to `data/weights/best.pt`. See
 [`experiments/dataset3_interim_v5.md`](experiments/dataset3_interim_v5.md).
 Interim v6 HPC retrains (batch size 16 on the same locked split) are planned in
 [`experiments/dataset3_interim_v6.md`](experiments/dataset3_interim_v6.md).
-Interim v7 stays on YOLO11n only (freeze + localization; batch 16):
+Interim v7 freeze is complete (val mAP50–95 0.820; MG recall 0.722):
 [`experiments/dataset3_interim_v7.md`](experiments/dataset3_interim_v7.md).
+Interim v8 stays on YOLO11n only (MG recovery + localization; batch 16):
+[`experiments/dataset3_interim_v8.md`](experiments/dataset3_interim_v8.md).
 
 ## Repository Structure
 
@@ -584,8 +587,9 @@ FoodSense-MY/
 ├── runs/detect/dataset3_interim_v5_test/         # single locked-test evaluation artifacts
 ├── runs/detect/dataset3_interim_v6_n_cos/  # planned HPC v6 yolo11n cosine fine-tune (batch=16)
 ├── runs/detect/dataset3_interim_v6_s/      # planned HPC v6 yolo11s train (batch=16)
-├── runs/detect/dataset3_interim_v7_n_freeze/  # planned HPC v7 yolo11n freeze fine-tune (batch=16)
-├── runs/detect/dataset3_interim_v7_n_box/     # planned HPC v7 yolo11n localization fine-tune (batch=16)
+├── runs/detect/dataset3_interim_v7_n_freeze/  # HPC v7 yolo11n freeze fine-tune (batch=16)
+├── runs/detect/dataset3_interim_v8_n_mg/      # planned HPC v8 yolo11n MG recovery (batch=16)
+├── runs/detect/dataset3_interim_v8_n_box/     # planned HPC v8 yolo11n localization (batch=16)
 ├── training_scripts/
 │   ├── scrape_images.py, google_crawler.py, uc_crawler.py
 │   ├── curate_images.py, curation.py
@@ -609,7 +613,8 @@ FoodSense-MY/
 ├── docs/experiments/dataset3_pilot_v1.md
 ├── docs/experiments/dataset3_interim_v2.md
 ├── docs/experiments/dataset3_interim_v6.md  # Planned HPC v6 retrains (batch=16)
-├── docs/experiments/dataset3_interim_v7.md  # Planned HPC v7 retrains (yolo11n only, batch=16)
+├── docs/experiments/dataset3_interim_v7.md  # HPC v7 freeze (yolo11n); Run B superseded by v8
+├── docs/experiments/dataset3_interim_v8.md  # Planned HPC v8 retrains (yolo11n only, batch=16)
 ├── docs/logs/dataset3_interim_v5_results.pdf  # Interim v5 results visualization
 ├── requirements.txt                 # Default / macOS MPS install
 ├── requirements-hpc.txt             # NVIDIA CUDA 12.4 index for HPC GPUs

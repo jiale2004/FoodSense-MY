@@ -409,8 +409,10 @@ A 4-page results PDF is at
 Interim v6 HPC retrains (batch size 16 on the locked interim-v5 split: yolo11n
 cosine fine-tune + yolo11s) are planned in
 [`docs/experiments/dataset3_interim_v6.md`](docs/experiments/dataset3_interim_v6.md).
-Interim v7 stays on YOLO11n only (freeze + localization; batch 16):
+Interim v7 freeze is complete (val mAP50–95 0.820; MG recall 0.722):
 [`docs/experiments/dataset3_interim_v7.md`](docs/experiments/dataset3_interim_v7.md).
+Interim v8 stays on YOLO11n only (MG recovery + localization; batch 16):
+[`docs/experiments/dataset3_interim_v8.md`](docs/experiments/dataset3_interim_v8.md).
 
 See [`docs/handoff.md`](docs/handoff.md) for current counts and next-step gates,
 [`docs/architecture.md`](docs/architecture.md) for the complete data flow, and

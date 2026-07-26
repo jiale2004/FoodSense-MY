@@ -1,12 +1,12 @@
 # Dataset3 Interim v7 — HPC retrain plan (YOLO11n only)
 
-**Status:** planned (25 July 2026); run after interim v6 results are in
+**Status:** Run A completed (26 July 2026); Run B superseded by interim v8
 **Model family:** YOLO11 **nano** only — no `yolo11s` / larger variants
 **Split:** reuse locked `data/dataset3-interim-v5/` (no new split)
 **Production baseline to beat:** interim v5 validation mAP50–95 0.793
-  (or the better of v5 / v6 nano if v6 Run A wins on validation)
-**Assessment:** not yet trained; do not promote until validation clearly beats
-the current best nano checkpoint
+**Assessment:** Run A (`n_freeze`) beats v5 on mAP50–95 (0.820) but regresses
+Mee Goreng recall (0.722); not promoted. Follow-on nano work is in
+[`dataset3_interim_v8.md`](dataset3_interim_v8.md).
 
 Interim v7 stays on `yolo11n` and explores the levers left after v6 Run A
 (cosine fine-tune): backbone freeze with a still-lower LR, and a
@@ -145,13 +145,18 @@ yolo detect train \
 5. Promote to `data/weights/best.pt` only if locked-test metrics justify replacing
    the current production nano weights.
 
-If both v7 runs still peak at epoch 1 with no val gain, stop nano fine-tune
-sweeps and treat data / inference-threshold work as the next lever (not another
-`lr0` tweak from the same v5 init).
+## Run A result (completed)
 
-## Artifacts (to fill after training)
+- Best at **epoch 30** (epoch-1 peak fixed): P 0.927 / R 0.898 / mAP50 0.950 /
+  mAP50–95 **0.820**; early-stop at epoch 50.
+- Local val Mee Goreng recall **0.722** (below v5 0.778); ~22% MG→CKT on the
+  HPC normalized matrix.
+- Localization follow-up moved to interim v8 Run B (better init from this
+  freeze checkpoint). See [`dataset3_interim_v8.md`](dataset3_interim_v8.md).
+
+## Artifacts
 
 | Run | Directory | Best ckpt SHA-256 | Results CSV SHA-256 |
 |-----|-----------|-------------------|---------------------|
-| A `dataset3_interim_v7_n_freeze` | `runs/detect/dataset3_interim_v7_n_freeze/` | _pending_ | _pending_ |
-| B `dataset3_interim_v7_n_box` | `runs/detect/dataset3_interim_v7_n_box/` | _pending_ | _pending_ |
+| A `dataset3_interim_v7_n_freeze` | `runs/detect/dataset3_interim_v7_n_freeze/` | `3c967ce08fcce2a48381b3a6e202e04cd6c42f7d6e5081bbb38a9aa9e0634027` | `1225331b6a9cfdb5d2128c164d8ea3c175ecc99b8eed2e031df3c7a7bc2431f1` |
+| B `dataset3_interim_v7_n_box` | _(not run; superseded by v8_n_box)_ | — | — |

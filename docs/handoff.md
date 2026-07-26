@@ -33,7 +33,8 @@ Current dataset3 totals:
 - interim v2–v4 checkpoints available under `runs/detect/dataset3_interim_v{2,3,4}/weights/best.pt`
 - interim v5 checkpoint (source of production weights) at `runs/detect/dataset3_interim_v5/weights/best.pt`
 - interim v6 HPC retrains planned (batch size 16): see [`experiments/dataset3_interim_v6.md`](experiments/dataset3_interim_v6.md)
-- interim v7 HPC retrains planned (YOLO11n only, batch size 16): see [`experiments/dataset3_interim_v7.md`](experiments/dataset3_interim_v7.md)
+- interim v7 Run A completed (`dataset3_interim_v7_n_freeze`; val mAP50–95 0.820, MG recall 0.722): see [`experiments/dataset3_interim_v7.md`](experiments/dataset3_interim_v7.md)
+- interim v8 HPC retrains planned (YOLO11n only, batch size 16; MG recovery + box): see [`experiments/dataset3_interim_v8.md`](experiments/dataset3_interim_v8.md)
 
 Phase B materialized the then-current 838 annotated images as the validated
 `data/dataset3-baseline/` training view. Its 84 test candidates have now been
@@ -1432,17 +1433,22 @@ size **16** for both runs). Full commands and acceptance gate:
 - Run B `dataset3_interim_v6_s`: train `yolo11s.pt` from COCO with `lr0=0.01`,
   `mixup=0.1`, `batch=16`.
 
-Interim v7 (after v6 results; **YOLO11n only**, batch size 16):
+Interim v7 Run A completed (`dataset3_interim_v7_n_freeze`): best epoch 30,
+val mAP50–95 **0.820** (beats v5 0.793) but Mee Goreng recall **0.722**
+(below v5 0.778). Not promoted. Run B superseded by v8. Details:
 [`experiments/dataset3_interim_v7.md`](experiments/dataset3_interim_v7.md).
 
-- Run A `dataset3_interim_v7_n_freeze`: nano fine-tune with `freeze=10`,
-  `lr0=0.0002`, `cos_lr=true`, `batch=16`.
-- Run B `dataset3_interim_v7_n_box`: nano localization focus with
-  `multi_scale=0.5`, `box=12.0`, `close_mosaic=20`, `batch=16`.
+Interim v8 (**YOLO11n only**, batch size 16; init from v7 freeze):
+[`experiments/dataset3_interim_v8.md`](experiments/dataset3_interim_v8.md).
 
-Other non-blocking follow-ups: per-class inference thresholds (calibration
-favored lower cutoffs for Mee Goreng / Roti Canai); optionally delete hosted
-CVAT tasks `2445540`, `2445679`, and `2449428` after local archive checks.
+- Run A `dataset3_interim_v8_n_mg`: `freeze=5`, `lr0=0.0003`, `cls=1.0`,
+  `mixup=0.15`, `batch=16` — recover Mee Goreng recall.
+- Run B `dataset3_interim_v8_n_box`: `freeze=5`, `multi_scale=0.5`, `box=12.0`,
+  `close_mosaic=20`, `batch=16` — Chicken Rice localization.
+
+Other non-blocking follow-ups: promote path for v6_s if nano MG recovery fails
+(calibrate + locked test); per-class inference thresholds; optionally delete
+hosted CVAT tasks `2445540`, `2445679`, and `2449428` after local archive checks.
 
 ## 11. Environment and Runtime
 
