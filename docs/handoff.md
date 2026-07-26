@@ -34,7 +34,7 @@ Current dataset3 totals:
 - interim v5 checkpoint (source of production weights) at `runs/detect/dataset3_interim_v5/weights/best.pt`
 - interim v6 HPC retrains planned (batch size 16): see [`experiments/dataset3_interim_v6.md`](experiments/dataset3_interim_v6.md)
 - interim v7 Run A completed (`dataset3_interim_v7_n_freeze`; val mAP50–95 0.820, MG recall 0.722): see [`experiments/dataset3_interim_v7.md`](experiments/dataset3_interim_v7.md)
-- interim v8 Run A completed (`dataset3_interim_v8_n_mg`; val mAP50–95 0.830, MG recall 0.822); Run B in progress: see [`experiments/dataset3_interim_v8.md`](experiments/dataset3_interim_v8.md)
+- interim v8 both runs completed; nano winner `dataset3_interim_v8_n_mg` (val mAP50–95 0.830, MG recall 0.822): see [`experiments/dataset3_interim_v8.md`](experiments/dataset3_interim_v8.md)
 
 Phase B materialized the then-current 838 annotated images as the validated
 `data/dataset3-baseline/` training view. Its 84 test candidates have now been
@@ -1441,10 +1441,11 @@ val mAP50–95 **0.820** (beats v5 0.793) but Mee Goreng recall **0.722**
 Interim v8 (**YOLO11n only**, batch size 16; init from v7 freeze):
 [`experiments/dataset3_interim_v8.md`](experiments/dataset3_interim_v8.md).
 
-- Run A `dataset3_interim_v8_n_mg` **completed**: best epoch 73, val mAP50–95
-  **0.830**, Mee Goreng recall **0.822** (passes nano gate; best nano so far).
-- Run B `dataset3_interim_v8_n_box` **in progress**: `freeze=5`,
-  `multi_scale=0.5`, `box=12.0`, `close_mosaic=20`, `batch=16`.
+- Run A `dataset3_interim_v8_n_mg` **winner**: best epoch 73, val mAP50–95
+  **0.830**, Mee Goreng recall **0.822**.
+- Run B `dataset3_interim_v8_n_box` completed (best ep 94, mAP50–95 0.828, MG
+  recall 0.807) but did not improve Chicken Rice mAP50–95 vs Run A.
+- Next: calibrate + one locked-test on `v8_n_mg` before promoting over v5.
 
 Other non-blocking follow-ups: promote path for v6_s if nano MG recovery fails
 (calibrate + locked test); per-class inference thresholds; optionally delete

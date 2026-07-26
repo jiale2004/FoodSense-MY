@@ -1,13 +1,14 @@
 # Dataset3 Interim v8 — HPC retrain plan (YOLO11n only)
 
-**Status:** Run A completed (26 July 2026); Run B in progress on HPC
+**Status:** both runs completed (26 July 2026)
 **Model family:** YOLO11 **nano** only — no `yolo11s` / larger variants
 **Split:** reuse locked `data/dataset3-interim-v5/` (no new split)
 **Nano baseline to beat:** interim v7 freeze validation mAP50–95 **0.820**
   (and keep Mee Goreng recall ≥ interim v5 **0.778**)
-**Assessment:** Run A passes the nano acceptance gate on validation (mAP50–95
-0.830, Mee Goreng recall 0.822). Hold promotion until Run B finishes, then
-compare; calibrate + locked-test only the winning nano candidate.
+**Assessment:** **Run A (`v8_n_mg`) is the nano winner** (val mAP50–95 0.830,
+Mee Goreng recall 0.822). Run B passes the gate but is slightly weaker and did
+not improve Chicken Rice mAP50–95. Next: validation-only calibration, then one
+locked-test eval before promoting over v5.
 
 Interim v7 freeze (`dataset3_interim_v7_n_freeze`) proved that `freeze=10` +
 `lr0=0.0002` + `cos_lr` escapes the epoch-1 fitness peak and lifts aggregate
@@ -23,7 +24,8 @@ v8 stays on `yolo11n` and targets those two gaps. Both runs use **batch size
 | v5 `best.pt` (prod nano) | 0.793 | 0.778 | Locked-test done |
 | v7_n_freeze (ep 30) | 0.820 | 0.722 | Epoch-1 peak fixed; MG regressed |
 | v6_s (yolo11s) | 0.826 | 0.878 | Strongest small; **not** used as init |
-| **v8_n_mg (ep 73)** | **0.830** | **0.822** | Best nano so far; Run A complete |
+| **v8_n_mg (ep 73)** | **0.830** | **0.822** | **Nano winner** |
+| v8_n_box (ep 94) | 0.828 | 0.807 | Localization goal not met vs Run A |
 
 ## HPC root
 
@@ -189,30 +191,55 @@ yolo detect train \
   name=dataset3_interim_v8_n_box
 ```
 
-## Acceptance gate (after both runs finish)
+### Run B result (completed)
 
-Promote a nano candidate only if **all** hold on validation:
+Config matched the plan (`freeze=5`, `lr0=0.0003`, `multi_scale=0.5`,
+`box=12.0`, `close_mosaic=20`, `scale=0.9`, `degrees=5.0`). Best fitness at
+**epoch 94**; run completed all 100 epochs (no early stop).
 
-1. mAP50–95 ≥ v7 freeze (`0.820`), or within ~0.005 with a clear MG recall win.
-2. Mee Goreng recall ≥ v5 (`0.778`); prefer ≥ 0.80.
-3. Chicken Rice mAP50–95 improves vs v7 freeze local (~0.735) for Run B, or at
-   least does not regress for Run A.
-4. Char Kuey Teow ↔ Mee Goreng confusion does not worsen vs v7 freeze (~22% MG→CKT).
+| Checkpoint | Precision | Recall | mAP50 | mAP50–95 |
+|------------|----------:|-------:|------:|----------:|
+| Best, epoch 94 (HPC) | 0.923 | 0.912 | 0.960 | **0.828** |
+| Last, epoch 100 (HPC) | 0.935 | 0.901 | 0.959 | 0.825 |
+| Local val (MPS, best.pt) | 0.925 | 0.907 | 0.959 | 0.827 |
 
-Then:
+Local per-class (validation only; test not accessed):
+
+| Class | Instances | Precision | Recall | mAP50 | mAP50–95 |
+|-------|----------:|----------:|-------:|------:|----------:|
+| Nasi Lemak | 203 | 0.966 | 0.926 | 0.981 | 0.902 |
+| Roti Canai | 215 | 0.902 | 0.884 | 0.939 | 0.772 |
+| Char Kuey Teow | 239 | 0.891 | 0.958 | 0.961 | 0.869 |
+| Chicken Rice | 144 | 0.916 | 0.910 | 0.960 | **0.749** |
+| Laksa | 213 | 0.963 | 0.958 | 0.989 | 0.877 |
+| Mee Goreng | 90 | 0.912 | **0.807** | 0.922 | 0.793 |
+| **All** | **1,104** | **0.925** | **0.907** | **0.959** | **0.827** |
+
+Gate: mAP50–95 ≥ 0.820 ✓; Mee Goreng recall ≥ 0.778 ✓. Chicken Rice
+mAP50–95 **0.749** is essentially flat vs Run A (0.751) and only a small lift
+vs v7 (~0.735) — the localization hypothesis did not beat Run A. MG→CKT on the
+HPC normalized matrix is ~14% (worse than Run A’s ~12%).
+
+best.pt SHA-256:
+`131ad0d7d209f747e48b4f6a16fa9e3c1a652f3967d468bea78437a2ce43f501`
+
+## Decision: nano winner = Run A
+
+| Run | mAP50–95 | MG recall | Chicken Rice mAP50–95 | Winner? |
+|-----|----------:|----------:|----------------------:|---------|
+| A `v8_n_mg` | **0.830** | **0.822** | 0.751 | **Yes** |
+| B `v8_n_box` | 0.828 | 0.807 | 0.749 | No |
+
+Next steps for `dataset3_interim_v8_n_mg/weights/best.pt` only:
 
 1. Re-run `training_scripts/calibrate_thresholds.py` on validation only.
 2. Run the locked test split **once** with the new thresholds.
 3. Promote to `data/weights/best.pt` only if locked-test metrics justify replacing
-   interim v5 (and justify staying on nano vs deploying v6_s).
+   interim v5 (nano size advantage vs deploying v6_s).
 
-If neither run recovers Mee Goreng recall, stop nano schedule sweeps and prefer
-**v6_s** for promotion (calibrate + locked test), treating further nano work as
-optional size-constrained experiments only.
-
-## Artifacts (to fill after training)
+## Artifacts
 
 | Run | Directory | Best ckpt SHA-256 | Results CSV SHA-256 |
 |-----|-----------|-------------------|---------------------|
 | A `dataset3_interim_v8_n_mg` | `/home/user/22059034/FoodSense-MY/runs/detect/dataset3_interim_v8_n_mg/` | `f0cda9e12125326f24d61bab789e6e09118855a8fd56cb8b0a96e4eec95ee412` | `27fe60d04e382b316dcbae87914d8cb6e2f59dc8ef54786cbf6bdabf87e5995f` |
-| B `dataset3_interim_v8_n_box` | `/home/user/22059034/FoodSense-MY/runs/detect/dataset3_interim_v8_n_box/` | _pending (running)_ | _pending_ |
+| B `dataset3_interim_v8_n_box` | `/home/user/22059034/FoodSense-MY/runs/detect/dataset3_interim_v8_n_box/` | `131ad0d7d209f747e48b4f6a16fa9e3c1a652f3967d468bea78437a2ce43f501` | `4444fd122cb135832956818dd1f01d351d1f08fe67887fe7ed01302289994898` |

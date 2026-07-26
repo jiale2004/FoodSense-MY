@@ -518,8 +518,8 @@ yolo11n.pt pretrained initialization
     → FastAPI restart and smoke test [completed]
     → interim HPC retraining v6 (batch=16; yolo11n cos + yolo11s) [planned: dataset3_interim_v6]
     → interim HPC retraining v7 Run A (batch=16; yolo11n freeze) [completed: dataset3_interim_v7_n_freeze]
-    → interim HPC retraining v8 Run A (batch=16; yolo11n MG recovery) [completed: dataset3_interim_v8_n_mg]
-    → interim HPC retraining v8 Run B (batch=16; yolo11n box) [in progress: dataset3_interim_v8_n_box]
+    → interim HPC retraining v8 Run A (batch=16; yolo11n MG recovery) [completed winner: dataset3_interim_v8_n_mg]
+    → interim HPC retraining v8 Run B (batch=16; yolo11n box) [completed: dataset3_interim_v8_n_box]
 ```
 
 Model promotion is deliberate. Training outputs must first be saved under a versioned candidate name. `data/weights/best.pt` represents the application-approved detector, not merely the most recent experiment.
