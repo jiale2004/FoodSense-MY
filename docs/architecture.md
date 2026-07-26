@@ -7,7 +7,7 @@ FoodSense-MY contains two related systems:
 1. a FastAPI backend plus a React (Vite) frontend that detect six Malaysian dishes and return verified nutrition plus an optional LLM-formatted advisory;
 2. a local data pipeline that acquires, curates, consolidates, annotates, splits, trains, and promotes the custom detector.
 
-The application is runnable. Dataset consolidation, the first CVAT pilot, its Phase A priority audit, the Phase B leakage-safe split, the Phase C YOLO11n pilot, the reviewed Phase D batch 001–010 merges, the no-proposal test-holdout audit, four locked incremental splits (`dataset3-interim-v2` through `dataset3-interim-v5`), four interim HPC retrains (`dataset3_interim_v2` through `dataset3_interim_v5`), and curated Mee Goreng web ingest (`ingest_mee_goreng_full`, +251) are complete. Batch 010 drained the annotation backlog: Dataset3 now has 5,246 annotated images / 5,579 boxes, with only 43 unreachable missing frames. Interim v5 is the strongest checkpoint (validation mAP50–95 0.793, Mee Goreng recall 0.778). Phase E is complete: validation-only threshold calibration (confidence 0.47, NMS-IoU 0.45; macro-F1 0.891), the single locked-test evaluation (mAP50 0.926, mAP50–95 0.678), and production promotion to `data/weights/best.pt` are done, and the app was smoke-tested against the promoted weights.
+The application is runnable. Dataset consolidation, the first CVAT pilot, its Phase A priority audit, the Phase B leakage-safe split, the Phase C YOLO11n pilot, the reviewed Phase D batch 001–010 merges, the no-proposal test-holdout audit, four locked incremental splits (`dataset3-interim-v2` through `dataset3-interim-v5`), four interim HPC retrains (`dataset3_interim_v2` through `dataset3_interim_v5`), and curated Mee Goreng web ingest (`ingest_mee_goreng_full`, +251) are complete. Batch 010 drained the annotation backlog: Dataset3 now has 5,246 annotated images / 5,579 boxes, with only 43 unreachable missing frames. Interim v5 is the strongest checkpoint (validation mAP50–95 0.793, Mee Goreng recall 0.778). Phase E is complete: validation-only threshold calibration (confidence 0.47, NMS-IoU 0.45; macro-F1 0.891), the single locked-test evaluation (mAP50 0.926, mAP50–95 0.678), and production promotion to `data/weights/best.pt` are done, and the app was smoke-tested against the promoted weights. Interim v6 HPC retrains (batch size 16; yolo11n cosine fine-tune + yolo11s) and interim v7 (YOLO11n only; freeze + localization) are planned on the locked interim-v5 split.
 
 ## Tech Stack
 
@@ -30,6 +30,7 @@ uses the React frontend.
 ```mermaid
 flowchart LR
     UI[React Vite frontend] -->|POST /api/predict via Vite proxy| API[FastAPI routes]
+    UI -->|POST /api/chat| API
     Static[Legacy static UI] -->|POST /api/predict| API
     API --> Vision[VisionProcessor]
     Vision --> Model[YOLO weights]
@@ -65,6 +66,7 @@ Never reorder these IDs in CVAT exports or `data.yaml`. Human annotation is auth
 4. `KnowledgeRetriever` maps detected canonical classes to verified records in `data/knowledge_base.json`.
 5. `AdvisoryGenerator` formats those records through OpenAI, Gemini, or a local template fallback.
 6. The response contains boxes, classes, confidence, nutrition, advisory text, processing time, and a mandatory disclaimer.
+7. The React bottom-right chat widget is always available (photo upload optional). It calls `POST /api/chat` with the user message, short history, optional last-scan context, and the server always attaches the verified knowledge-base snapshot so general Malaysian-food questions work without a scan. `AdvisoryGenerator.generate_chat_reply` uses the configured LLM (or a template fallback) and must not invent nutrition numbers outside that JSON.
 
 ## Module Responsibilities
 
@@ -73,14 +75,14 @@ Never reorder these IDs in CVAT exports or `data.yaml`. Human annotation is auth
 | Module | Main class | File | Responsibility |
 |--------|------------|------|----------------|
 | Entry point | — | `backend/app/main.py` | FastAPI construction, lifespan, CORS, static mounting |
-| Routes | — | `backend/app/api/routes.py` | Health, classes, and prediction endpoints with dependency injection |
+| Routes | — | `backend/app/api/routes.py` | Health, classes, prediction, and chat endpoints with dependency injection |
 | Configuration | `Settings` | `backend/app/core/config.py` | Paths, thresholds, device, providers, and canonical classes |
 | Security | — | `backend/app/core/security.py` | Upload validation and optional API key |
 | Schemas | — | `backend/app/models/schemas.py` | Pydantic request and response contracts |
 | Vision | `VisionProcessor` | `backend/app/services/vision_service.py` | OpenCV preprocessing, YOLO inference, and NMS |
 | Nutrition | `KnowledgeRetriever` | `backend/app/services/data_service.py` | Local JSON knowledge-base lookup |
-| Advisory | `AdvisoryGenerator` | `backend/app/services/llm_service.py` | Formatting-only LLM call and deterministic fallback |
-| Frontend | — | `frontend/` | Primary React 18 + Vite UI; upload, analyze, and result rendering; proxies `/api` and `/uploads` to the backend |
+| Advisory | `AdvisoryGenerator` | `backend/app/services/llm_service.py` | Formatting-only LLM advisory, chat replies, and deterministic fallbacks |
+| Frontend | — | `frontend/` | Primary React 18 + Vite UI; upload, analyze, result rendering, and bottom-right AI chat widget; proxies `/api` and `/uploads` to the backend |
 | Legacy static UI | — | `backend/app/static/` | Vanilla HTML/CSS/JS fallback still mounted by FastAPI at `/` |
 
 ### Dataset and training modules
@@ -514,6 +516,8 @@ yolo11n.pt pretrained initialization
     → single locked-test evaluation [completed: mAP50 0.926, mAP50-95 0.678]
     → accepted data/weights/best.pt [completed: interim v5 checkpoint]
     → FastAPI restart and smoke test [completed]
+    → interim HPC retraining v6 (batch=16; yolo11n cos + yolo11s) [planned: dataset3_interim_v6]
+    → interim HPC retraining v7 (batch=16; yolo11n only: freeze + box) [planned: dataset3_interim_v7]
 ```
 
 Model promotion is deliberate. Training outputs must first be saved under a versioned candidate name. `data/weights/best.pt` represents the application-approved detector, not merely the most recent experiment.
@@ -529,6 +533,10 @@ evaluated exactly once (mAP50 0.926, mAP50–95 0.678), and the checkpoint was
 promoted to `data/weights/best.pt`. See
 [`experiments/dataset3_interim_v4.md`](experiments/dataset3_interim_v4.md) and
 [`experiments/dataset3_interim_v5.md`](experiments/dataset3_interim_v5.md).
+Interim v6 HPC retrains (batch size 16 on the same locked split) are planned in
+[`experiments/dataset3_interim_v6.md`](experiments/dataset3_interim_v6.md).
+Interim v7 stays on YOLO11n only (freeze + localization; batch 16):
+[`experiments/dataset3_interim_v7.md`](experiments/dataset3_interim_v7.md).
 
 ## Repository Structure
 
@@ -574,6 +582,10 @@ FoodSense-MY/
 ├── runs/detect/dataset3_interim_v5/    # HPC interim v5 artifacts; current best checkpoint
 ├── runs/detect/dataset3_interim_v5_calibration/  # validation-only threshold calibration report
 ├── runs/detect/dataset3_interim_v5_test/         # single locked-test evaluation artifacts
+├── runs/detect/dataset3_interim_v6_n_cos/  # planned HPC v6 yolo11n cosine fine-tune (batch=16)
+├── runs/detect/dataset3_interim_v6_s/      # planned HPC v6 yolo11s train (batch=16)
+├── runs/detect/dataset3_interim_v7_n_freeze/  # planned HPC v7 yolo11n freeze fine-tune (batch=16)
+├── runs/detect/dataset3_interim_v7_n_box/     # planned HPC v7 yolo11n localization fine-tune (batch=16)
 ├── training_scripts/
 │   ├── scrape_images.py, google_crawler.py, uc_crawler.py
 │   ├── curate_images.py, curation.py
@@ -596,6 +608,8 @@ FoodSense-MY/
 ├── docs/cvat-collaborator-guide.md    # Group-member upload/review/export procedure
 ├── docs/experiments/dataset3_pilot_v1.md
 ├── docs/experiments/dataset3_interim_v2.md
+├── docs/experiments/dataset3_interim_v6.md  # Planned HPC v6 retrains (batch=16)
+├── docs/experiments/dataset3_interim_v7.md  # Planned HPC v7 retrains (yolo11n only, batch=16)
 ├── docs/logs/dataset3_interim_v5_results.pdf  # Interim v5 results visualization
 ├── requirements.txt                 # Default / macOS MPS install
 ├── requirements-hpc.txt             # NVIDIA CUDA 12.4 index for HPC GPUs
@@ -618,7 +632,7 @@ FoodSense-MY/
 | `OPENAI_API_KEY` | Optional OpenAI key | — |
 | `OPENAI_MODEL` | OpenAI advisory model | `gpt-4o-mini` |
 | `GEMINI_API_KEY` | Optional Gemini key | — |
-| `GEMINI_MODEL` | Gemini advisory model | `gemini-2.5-flash-lite` |
+| `GEMINI_MODEL` | Gemini advisory model | `gemini-flash-lite-latest` |
 | `MODEL_WEIGHTS_PATH` | Application YOLO weights | `data/weights/best.pt` |
 | `KNOWLEDGE_BASE_PATH` | Verified nutrition JSON | `data/knowledge_base.json` |
 | `CONFIDENCE_THRESHOLD` | Inference confidence threshold (calibrated on interim v5 val) | `0.47` |

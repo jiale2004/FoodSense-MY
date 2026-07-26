@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import ChatWidget from "./ChatWidget.jsx";
 
 const formatName = (name) =>
   name.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
@@ -80,7 +81,16 @@ export default function App() {
     }
   }
 
+  const mealContext = result
+    ? {
+        detections: result.detections,
+        nutrition: result.nutrition,
+        advisory_text: result.advisory_text,
+      }
+    : null;
+
   return (
+    <>
     <main className="page">
       <header className="app-header">
         <div className="brand-icon" aria-hidden="true">🍜</div>
@@ -231,5 +241,8 @@ export default function App() {
         For informational purposes only — not medical advice.
       </footer>
     </main>
+
+    <ChatWidget mealContext={mealContext} />
+    </>
   );
 }

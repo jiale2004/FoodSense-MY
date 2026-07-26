@@ -120,8 +120,10 @@ npm install          # once, or after package.json changes
 npm run dev          # http://localhost:5173
 ```
 
-Open [http://localhost:5173](http://localhost:5173). Drop an image and click
-**Analyze**. The Vite proxy forwards `/api` and `/uploads` to
+Open [http://localhost:5173](http://localhost:5173). Use the bottom-right
+**Ask FoodSense** chat anytime (no photo required), or drop an image and click
+**Analyze**. Chat calls `POST /api/chat` with the knowledge base always attached
+and optional last-scan context. The Vite proxy forwards `/api` and `/uploads` to
 `http://127.0.0.1:8000`, so you do not need to change CORS for local testing.
 
 Point at a different backend if needed:
@@ -171,14 +173,14 @@ OPENAI_MODEL=gpt-4o-mini
 ```bash
 LLM_PROVIDER=gemini
 GEMINI_API_KEY=...
-GEMINI_MODEL=gemini-2.5-flash-lite
+GEMINI_MODEL=gemini-flash-lite-latest
 ```
 
 3. Restart uvicorn and re-check `/api/health`.
 
 Do not commit `.env`. Prefer OpenAI `gpt-4o-mini` or Gemini
-`gemini-2.5-flash-lite` for this formatting-only use case. The old default
-`gemini-2.0-flash` was shut down on 1 June 2026.
+`gemini-flash-lite-latest` / `gemini-3.5-flash-lite`. Many new keys get 404
+on `gemini-2.5-*` models even when they still appear in `list_models`.
 
 Official pricing pages (rates change; verify before budgeting):
 

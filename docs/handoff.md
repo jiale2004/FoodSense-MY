@@ -32,6 +32,8 @@ Current dataset3 totals:
 - Phase C pilot checkpoint available at `runs/detect/dataset3_pilot_v1/weights/best.pt`
 - interim v2–v4 checkpoints available under `runs/detect/dataset3_interim_v{2,3,4}/weights/best.pt`
 - interim v5 checkpoint (source of production weights) at `runs/detect/dataset3_interim_v5/weights/best.pt`
+- interim v6 HPC retrains planned (batch size 16): see [`experiments/dataset3_interim_v6.md`](experiments/dataset3_interim_v6.md)
+- interim v7 HPC retrains planned (YOLO11n only, batch size 16): see [`experiments/dataset3_interim_v7.md`](experiments/dataset3_interim_v7.md)
 
 Phase B materialized the then-current 838 annotated images as the validated
 `data/dataset3-baseline/` training view. Its 84 test candidates have now been
@@ -472,6 +474,7 @@ The full policy is [`docs/bounding-box-policy.md`](bounding-box-policy.md). Its 
 |------|--------|
 | FastAPI backend (`backend/app/`) | Implemented |
 | React + Vite frontend (`frontend/`) | Implemented (primary local UI) |
+| Bottom-right AI chat widget | Implemented (`ChatWidget` → `POST /api/chat`) |
 | Legacy static upload UI (`backend/app/static/`) | Implemented (fallback at port 8000) |
 | Six-class nutrition knowledge base | Implemented |
 | OpenAI/Gemini advisory formatting | Implemented, optional |
@@ -1420,12 +1423,26 @@ Results visualization PDF:
 (4 pages: headline checkpoints, training curves from `results.csv`, per-class
 locked-test/validation charts, calibration summary).
 
-Suggested follow-ups (not blocking): Chicken Rice box-tightness (lowest test
-mAP50–95 0.528) is the main next-iteration target; consider per-class inference
-thresholds (calibration favored lower cutoffs for Mee Goreng / Roti Canai) and,
-for a future retrain, a shorter warmup or `cos_lr`, or `yolo11s` for the noodle
-classes. Optionally delete hosted CVAT tasks `2445540`, `2445679`, and `2449428`
-after local archive checks.
+Interim v6 HPC retrains are planned on the locked interim-v5 split (batch
+size **16** for both runs). Full commands and acceptance gate:
+[`experiments/dataset3_interim_v6.md`](experiments/dataset3_interim_v6.md).
+
+- Run A `dataset3_interim_v6_n_cos`: fine-tune v5 `best.pt` with `lr0=0.0005`,
+  `warmup_epochs=1.0`, `cos_lr=true`, `box=10.0`, `batch=16`.
+- Run B `dataset3_interim_v6_s`: train `yolo11s.pt` from COCO with `lr0=0.01`,
+  `mixup=0.1`, `batch=16`.
+
+Interim v7 (after v6 results; **YOLO11n only**, batch size 16):
+[`experiments/dataset3_interim_v7.md`](experiments/dataset3_interim_v7.md).
+
+- Run A `dataset3_interim_v7_n_freeze`: nano fine-tune with `freeze=10`,
+  `lr0=0.0002`, `cos_lr=true`, `batch=16`.
+- Run B `dataset3_interim_v7_n_box`: nano localization focus with
+  `multi_scale=0.5`, `box=12.0`, `close_mosaic=20`, `batch=16`.
+
+Other non-blocking follow-ups: per-class inference thresholds (calibration
+favored lower cutoffs for Mee Goreng / Roti Canai); optionally delete hosted
+CVAT tasks `2445540`, `2445679`, and `2449428` after local archive checks.
 
 ## 11. Environment and Runtime
 

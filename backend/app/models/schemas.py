@@ -50,3 +50,28 @@ class HealthResponse(BaseModel):
 
 class ClassListResponse(BaseModel):
     classes: list[str]
+
+
+class ChatMessage(BaseModel):
+    role: str = Field(pattern="^(user|assistant)$")
+    content: str = Field(min_length=1, max_length=4000)
+
+
+class ChatContext(BaseModel):
+    """Optional last prediction context so the chat can ground answers."""
+
+    detections: list[DetectionResult] = Field(default_factory=list)
+    nutrition: list[NutritionInfo] = Field(default_factory=list)
+    advisory_text: str = ""
+
+
+class ChatRequest(BaseModel):
+    message: str = Field(min_length=1, max_length=2000)
+    history: list[ChatMessage] = Field(default_factory=list, max_length=20)
+    context: ChatContext | None = None
+
+
+class ChatResponse(BaseModel):
+    reply: str
+    llm_used: bool
+    disclaimer: str

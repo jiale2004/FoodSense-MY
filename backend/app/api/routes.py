@@ -8,6 +8,8 @@ from fastapi import APIRouter, Depends, File, UploadFile
 from app.core.config import get_settings
 from app.core.security import validate_upload, verify_api_key
 from app.models.schemas import (
+    ChatRequest,
+    ChatResponse,
     ClassListResponse,
     HealthResponse,
     PredictResponse,
@@ -84,3 +86,28 @@ async def predict(
         image_url=f"/uploads/{filename}",
         processing_ms=processing_ms,
     )
+
+
+@router.post("/chat", response_model=ChatResponse)
+async def chat(
+    payload: ChatRequest,
+    llm: AdvisoryGenerator = Depends(get_llm_service),
+    data: KnowledgeRetriever = Depends(get_data_service),
+) -> ChatResponse:
+    context_payload = None
+    if payload.context is not None:
+        context_payload = payload.context.model_dump()
+
+    # Always attach the knowledge base so users can ask freely without a scan.
+    knowledge_base = {
+        name: data.lookup(name).model_dump() for name in data.list_classes()
+    }
+
+    history = [m.model_dump() for m in payload.history]
+    reply, llm_used = await llm.generate_chat_reply(
+        message=payload.message.strip(),
+        history=history,
+        context_payload=context_payload,
+        knowledge_base=knowledge_base,
+    )
+    return ChatResponse(reply=reply, llm_used=llm_used, disclaimer=DISCLAIMER)

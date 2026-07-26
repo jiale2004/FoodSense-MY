@@ -22,6 +22,20 @@ STRICT RULES:
 - Keep the response concise (2-3 short paragraphs).
 - If no dishes were detected, state that and suggest trying a clearer photo."""
 
+CHAT_SYSTEM_PROMPT = """You are FoodSense-MY's helpful chat assistant for Malaysian food detection and nutrition.
+
+Users may chat freely at any time — a photo upload is optional, not required.
+
+STRICT RULES:
+- Answer questions about Malaysian dishes, calories/macros, allergens, dietary tags, and how to use the app.
+- If a knowledge-base JSON is provided, use those verified numbers. Do NOT invent calories or macros.
+- If a latest-scan (meal context) JSON is provided, prefer it for questions about "my meal" / "this photo".
+- If a number is not in the provided JSON, say you do not have verified data rather than guessing.
+- Do NOT give medical diagnosis or personalized medical advice. Suggest consulting a professional when relevant.
+- Keep replies concise (a few short paragraphs or bullets).
+- If the user asks something unrelated, briefly redirect to food/nutrition topics.
+- Never refuse to answer just because no image was uploaded."""
+
 
 class AdvisoryGenerator:
     """Generates nutritional advisory text using an LLM as a strict formatting layer."""
@@ -151,6 +165,116 @@ class AdvisoryGenerator:
         except Exception:
             logger.exception("LLM call failed; using template fallback.")
             return self._fallback_advisory(detections, nutrition_entries)
+
+    def _chat_fallback(
+        self,
+        message: str,
+        context_json: str | None,
+        *,
+        reason: str = "unconfigured",
+    ) -> str:
+        """Deterministic reply when the LLM is unavailable."""
+        if reason == "error":
+            base = (
+                "The AI assistant hit an error (often an unavailable Gemini model id). "
+                "Check GEMINI_MODEL in .env — try gemini-flash-lite-latest — then restart."
+            )
+        else:
+            base = (
+                "I can help with Malaysian dish nutrition once an LLM key is configured "
+                "(set GEMINI_API_KEY or OPENAI_API_KEY in .env and restart the server)."
+            )
+        if context_json:
+            return (
+                f"{base}\n\nYour latest detection context is available on the next "
+                "successful AI reply.\n\n"
+                f"Your message: {message}"
+            )
+        return (
+            f"{base}\n\n"
+            "Tip: upload a meal photo first so I can ground answers in verified nutrition data."
+        )
+
+    async def generate_chat_reply(
+        self,
+        message: str,
+        history: list[dict[str, str]] | None = None,
+        context_payload: dict | None = None,
+        knowledge_base: dict | None = None,
+    ) -> tuple[str, bool]:
+        """Return (reply, llm_used) for the chat widget."""
+        context_json = (
+            json.dumps(context_payload, indent=2) if context_payload else None
+        )
+        kb_json = json.dumps(knowledge_base, indent=2) if knowledge_base else None
+        if not self.is_configured:
+            return self._chat_fallback(message, context_json, reason="unconfigured"), False
+
+        parts: list[str] = []
+        if kb_json:
+            parts.append(
+                "Verified nutrition knowledge base for supported dishes "
+                "(use these numbers; do not invent macros):\n"
+                + kb_json
+            )
+        if context_json:
+            parts.append(
+                "Latest meal detection from the user's photo "
+                "(prefer this for questions about their current scan):\n"
+                + context_json
+            )
+        else:
+            parts.append(
+                "No photo has been uploaded yet. Still answer general Malaysian "
+                "food and nutrition questions using the knowledge base above."
+            )
+        parts.append(f"User question:\n{message}")
+        user_content = "\n\n".join(parts)
+
+        try:
+            if self.settings.llm_provider == "openai":
+                from openai import AsyncOpenAI
+
+                client = AsyncOpenAI(api_key=self.settings.openai_api_key)
+                messages = [{"role": "system", "content": CHAT_SYSTEM_PROMPT}]
+                for turn in (history or [])[-12:]:
+                    role = turn.get("role")
+                    content = turn.get("content")
+                    if role in ("user", "assistant") and content:
+                        messages.append({"role": role, "content": content})
+                messages.append({"role": "user", "content": user_content})
+                response = await client.chat.completions.create(
+                    model=self.settings.openai_model,
+                    messages=messages,
+                    temperature=0.4,
+                    max_tokens=700,
+                )
+                return response.choices[0].message.content or "", True
+
+            import google.generativeai as genai
+
+            genai.configure(api_key=self.settings.gemini_api_key)
+            model = genai.GenerativeModel(
+                model_name=self.settings.gemini_model,
+                system_instruction=CHAT_SYSTEM_PROMPT,
+            )
+            # Gemini history uses "model" for assistant turns.
+            gemini_history = []
+            for turn in (history or [])[-12:]:
+                role = turn.get("role")
+                content = turn.get("content")
+                if not content:
+                    continue
+                if role == "user":
+                    gemini_history.append({"role": "user", "parts": [content]})
+                elif role == "assistant":
+                    gemini_history.append({"role": "model", "parts": [content]})
+            chat = model.start_chat(history=gemini_history)
+            response = await chat.send_message_async(user_content)
+            return response.text or "", True
+        except Exception:
+            logger.exception("Chat LLM call failed; using template fallback.")
+            return self._chat_fallback(message, context_json, reason="error"), False
 
 
 _advisory_generator: AdvisoryGenerator | None = None

@@ -87,7 +87,7 @@ Set `VITE_API_TARGET` to point at a different backend origin.
 | `OPENAI_API_KEY` | OpenAI API key | — |
 | `OPENAI_MODEL` | OpenAI model name | `gpt-4o-mini` |
 | `GEMINI_API_KEY` | Google Gemini API key | — |
-| `GEMINI_MODEL` | Gemini model name | `gemini-2.5-flash-lite` |
+| `GEMINI_MODEL` | Gemini model name | `gemini-flash-lite-latest` |
 | `MODEL_WEIGHTS_PATH` | Path to YOLO weights | `data/weights/best.pt` |
 | `KNOWLEDGE_BASE_PATH` | Path to nutrition JSON | `data/knowledge_base.json` |
 | `CONFIDENCE_THRESHOLD` | NMS confidence cutoff (calibrated on interim v5 val) | `0.47` |
@@ -406,6 +406,11 @@ and
 [`docs/experiments/dataset3_interim_v5.md`](docs/experiments/dataset3_interim_v5.md).
 A 4-page results PDF is at
 [`docs/logs/dataset3_interim_v5_results.pdf`](docs/logs/dataset3_interim_v5_results.pdf).
+Interim v6 HPC retrains (batch size 16 on the locked interim-v5 split: yolo11n
+cosine fine-tune + yolo11s) are planned in
+[`docs/experiments/dataset3_interim_v6.md`](docs/experiments/dataset3_interim_v6.md).
+Interim v7 stays on YOLO11n only (freeze + localization; batch 16):
+[`docs/experiments/dataset3_interim_v7.md`](docs/experiments/dataset3_interim_v7.md).
 
 See [`docs/handoff.md`](docs/handoff.md) for current counts and next-step gates,
 [`docs/architecture.md`](docs/architecture.md) for the complete data flow, and
