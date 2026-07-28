@@ -9,7 +9,7 @@ Nasi Lemak, Roti Canai, Char Kuey Teow, Chicken Rice, Laksa, Mee Goreng
 ## Requirements
 
 - Python 3.10+
-- Node.js 18+ and npm (only for the optional React test UI)
+- Node.js 18+ and npm (React frontend in `frontend/`)
 - macOS (Apple Silicon recommended for MPS acceleration), Windows, or Linux HPC with NVIDIA GPU
 
 **New to the repo?** Follow the step-by-step guide
@@ -61,13 +61,13 @@ uvicorn app.main:app --app-dir backend --reload --host 0.0.0.0 --port 8000
 
 Equivalently, `cd backend && uvicorn app.main:app --reload --host 0.0.0.0 --port 8000`.
 
-Open [http://localhost:8000](http://localhost:8000) in your browser. This
-serves the bundled static frontend (`backend/app/static/`).
+Open [http://localhost:8000](http://localhost:8000) for the API and the
+legacy vanilla UI (`backend/app/static/`). Prefer the React frontend below for
+day-to-day local use.
 
-## React Test Frontend (optional)
+## React Frontend
 
-A minimal Vite + React UI for testing image upload lives in [`frontend/`](frontend/).
-It is a development convenience separate from the production static frontend.
+Primary local UI: Vite + React 18 in [`frontend/`](frontend/).
 
 ```bash
 cd frontend
@@ -87,11 +87,11 @@ Set `VITE_API_TARGET` to point at a different backend origin.
 | `OPENAI_API_KEY` | OpenAI API key | — |
 | `OPENAI_MODEL` | OpenAI model name | `gpt-4o-mini` |
 | `GEMINI_API_KEY` | Google Gemini API key | — |
-| `GEMINI_MODEL` | Gemini model name | `gemini-2.0-flash` |
+| `GEMINI_MODEL` | Gemini model name | `gemini-flash-lite-latest` |
 | `MODEL_WEIGHTS_PATH` | Path to YOLO weights | `data/weights/best.pt` |
 | `KNOWLEDGE_BASE_PATH` | Path to nutrition JSON | `data/knowledge_base.json` |
-| `CONFIDENCE_THRESHOLD` | NMS confidence cutoff (calibrated on interim v5 val) | `0.47` |
-| `IOU_THRESHOLD` | NMS IoU threshold (calibrated on interim v5 val) | `0.45` |
+| `CONFIDENCE_THRESHOLD` | NMS confidence cutoff (calibrated on interim v8_n_mg val) | `0.5` |
+| `IOU_THRESHOLD` | NMS IoU threshold (calibrated on interim v8_n_mg val) | `0.45` |
 | `DEVICE` | Compute device (`auto`, `mps`, `cpu`) | `auto` |
 | `MAX_UPLOAD_SIZE_MB` | Max upload size in MB | `10` |
 | `API_KEY_ENABLED` | Require X-API-Key header | `false` |
@@ -386,25 +386,18 @@ annotations. `selection.jsonl` makes the later correction import revision-safe,
 and package creation fails if the baseline queue, current images, or labels
 have drifted.
 
-Four HPC interim runs are complete. `runs/detect/dataset3_interim_v2/` selected
-epoch 75 with mAP50 0.938 and mAP50–95 0.747. `runs/detect/dataset3_interim_v3/`
-trained from the v2 checkpoint on `data/dataset3-interim-v3/` (1,674 / 418 / 82)
-and selected epoch 1 with mAP50 0.932 and mAP50–95 0.761.
-`runs/detect/dataset3_interim_v4/` trained from the v3 checkpoint on
-`data/dataset3-interim-v4/` (3,299 / 825 / 82) with `lr0=0.002` and selected
-epoch 1 with mAP50 0.938 and mAP50–95 0.783. `runs/detect/dataset3_interim_v5/`
-trained from the v4 checkpoint on `data/dataset3-interim-v5/` (4,131 / 1,033 /
-82) with `lr0=0.002` and selected epoch 1 with mAP50 0.945 and mAP50–95 0.793 —
-the strongest interim run so far, with local Mee Goreng recall 0.778. It is the
-production-approved detector. Validation-only threshold calibration
-(`training_scripts/calibrate_thresholds.py`) selected confidence 0.47 and NMS-IoU
-0.45 (macro-F1 0.891), now the application defaults. The single locked-test
-evaluation (mAP50 0.926, mAP50–95 0.678) passed and the checkpoint is promoted to
+Four HPC interim runs through v5 are complete, plus later v6_s / v7 / v8
+candidates on the locked interim-v5 split. `runs/detect/dataset3_interim_v5/`
+selected epoch 1 with mAP50 0.945 and mAP50–95 0.793 (prior Phase E production).
+Interim **v8_n_mg** is the current production detector: validation mAP50–95
+0.830 / Mee Goreng recall 0.822; calibrated confidence **0.5** and NMS-IoU
+**0.45** (macro-F1 0.932); locked-test mAP50 0.886 / mAP50–95 0.673; promoted to
 `data/weights/best.pt`. See
-[`docs/experiments/dataset3_interim_v4.md`](docs/experiments/dataset3_interim_v4.md)
-and
-[`docs/experiments/dataset3_interim_v5.md`](docs/experiments/dataset3_interim_v5.md).
-A 4-page results PDF is at
+[`docs/experiments/dataset3_interim_v8.md`](docs/experiments/dataset3_interim_v8.md).
+Prior write-ups:
+[`docs/experiments/dataset3_interim_v5.md`](docs/experiments/dataset3_interim_v5.md),
+[`docs/experiments/dataset3_interim_v7.md`](docs/experiments/dataset3_interim_v7.md).
+A 4-page v5 results PDF remains at
 [`docs/logs/dataset3_interim_v5_results.pdf`](docs/logs/dataset3_interim_v5_results.pdf).
 
 See [`docs/handoff.md`](docs/handoff.md) for current counts and next-step gates,
@@ -475,8 +468,8 @@ backend/app/
 │   ├── data_service.py     # KnowledgeRetriever (JSON lookup)
 │   └── llm_service.py      # AdvisoryGenerator (LLM formatting layer)
 ├── models/schemas.py       # Pydantic models
-└── static/                 # Bundled production frontend assets
-frontend/                   # Optional Vite + React upload-test UI (dev only)
+└── static/                 # Legacy vanilla UI + uploads
+frontend/                   # Primary React 18 + Vite UI
 data/
 ├── knowledge_base.json     # 6-class nutrition data
 ├── dataset3/               # Canonical unsplit staging dataset

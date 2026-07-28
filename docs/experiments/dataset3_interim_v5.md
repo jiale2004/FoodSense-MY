@@ -224,9 +224,8 @@ Interim v5 is now the production-approved detector.
 
 ## Follow-ups
 
-The epoch-1 fitness peak persists across interim runs; if a future run is
-attempted, consider a shorter warmup or `cos_lr`, or evaluate `yolo11s` for the
-noodle classes. Chicken Rice box-tightness (low mAP50–95) is the main quality
-target for the next iteration. Per-class inference thresholds are not yet
-supported; the calibration diagnostics suggest they would help Mee Goreng and
-Roti Canai recall if added.
+Superseded as production by interim **v8_n_mg** (28 July 2026): see
+[`dataset3_interim_v8.md`](dataset3_interim_v8.md). This v5 write-up remains the
+Phase E historical record. Per-class inference thresholds are still not
+supported; calibration diagnostics continue to suggest they would help Mee
+Goreng and Roti Canai recall if added.

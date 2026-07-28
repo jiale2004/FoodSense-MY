@@ -1,7 +1,7 @@
 # Local Development Setup
 
 This guide walks through creating a Python virtual environment, starting the
-FastAPI backend with uvicorn, and running the optional React test frontend with
+FastAPI backend with uvicorn, and running the primary React (Vite) frontend with
 npm. Commands assume macOS or Linux from the repository root
 (`FoodSense-MY/`).
 
@@ -10,11 +10,12 @@ npm. Commands assume macOS or Linux from the repository root
 | Tool | Why | Check |
 |------|-----|-------|
 | Python 3.10+ | Backend, YOLO, training scripts | `python3 --version` |
-| Node.js 18+ and npm | React test UI in `frontend/` | `node --version` · `npm --version` |
+| Node.js 18+ and npm | React frontend in `frontend/` | `node --version` · `npm --version` |
 | Promoted weights | Inference | `data/weights/best.pt` must exist |
 
 LLM API keys are optional. Without them the advisory falls back to a local
-template.
+template. See [LLM advisory (OpenAI / Gemini)](#4-llm-advisory-openai--gemini)
+below for key setup and pricing notes.
 
 ## 1. Create and activate `.venv`
 
@@ -98,16 +99,16 @@ curl -s http://127.0.0.1:8000/api/classes
 
 Or open:
 
-- Bundled static UI: [http://localhost:8000](http://localhost:8000)
+- Legacy static UI (fallback): [http://localhost:8000](http://localhost:8000)
 - API docs: [http://localhost:8000/docs](http://localhost:8000/docs)
 
 Healthy `/api/health` includes `"status":"ok"` and `"model_loaded":true`.
 
-## 3. Start the React test frontend (npm)
+## 3. Start the React frontend (npm)
 
-The Vite app in [`frontend/`](../frontend/) is optional. Use it to exercise
-image upload against the live API. The production static UI is already served
-by uvicorn at port 8000.
+The primary local UI is the Vite + React app in [`frontend/`](../frontend/).
+Uvicorn still serves a legacy vanilla page at port 8000 if you need a no-npm
+fallback.
 
 **Terminal A** — uvicorn (section 2) must already be running on port 8000.
 
@@ -119,8 +120,10 @@ npm install          # once, or after package.json changes
 npm run dev          # http://localhost:5173
 ```
 
-Open [http://localhost:5173](http://localhost:5173). Drop an image and click
-**Analyze**. The Vite proxy forwards `/api` and `/uploads` to
+Open [http://localhost:5173](http://localhost:5173). Use the bottom-right
+**Ask FoodSense** chat anytime (no photo required), or drop an image and click
+**Analyze**. Chat calls `POST /api/chat` with the knowledge base always attached
+and optional last-scan context. The Vite proxy forwards `/api` and `/uploads` to
 `http://127.0.0.1:8000`, so you do not need to change CORS for local testing.
 
 Point at a different backend if needed:
@@ -138,9 +141,51 @@ VITE_API_TARGET=http://127.0.0.1:8000 npm run dev
 
 | URL | What |
 |-----|------|
-| http://localhost:8000 | FastAPI + bundled static frontend |
-| http://localhost:5173 | Vite React upload-test UI |
+| http://localhost:5173 | Primary React (Vite) frontend |
+| http://localhost:8000 | FastAPI + legacy static UI fallback |
 | http://localhost:8000/api/health | Backend health JSON |
+
+## 4. LLM advisory (OpenAI / Gemini)
+
+Detection and nutrition lookup do **not** need an LLM. The key only improves
+the natural-language advisory returned by `/api/predict`. Without a key, the
+app uses a local template fallback (still correct numbers from
+`knowledge_base.json`).
+
+### OpenAI
+
+1. Create a key at [platform.openai.com/api-keys](https://platform.openai.com/api-keys).
+2. Edit `.env` at the repo root:
+
+```bash
+LLM_PROVIDER=openai
+OPENAI_API_KEY=sk-...
+OPENAI_MODEL=gpt-4o-mini
+```
+
+3. Restart uvicorn. Check `GET /api/health` → `"llm_configured": true`.
+
+### Gemini
+
+1. Create a key at [aistudio.google.com/apikey](https://aistudio.google.com/apikey).
+2. Edit `.env`:
+
+```bash
+LLM_PROVIDER=gemini
+GEMINI_API_KEY=...
+GEMINI_MODEL=gemini-flash-lite-latest
+```
+
+3. Restart uvicorn and re-check `/api/health`.
+
+Do not commit `.env`. Prefer OpenAI `gpt-4o-mini` or Gemini
+`gemini-flash-lite-latest` / `gemini-3.5-flash-lite`. Many new keys get 404
+on `gemini-2.5-*` models even when they still appear in `list_models`.
+
+Official pricing pages (rates change; verify before budgeting):
+
+- OpenAI: [developers.openai.com/api/docs/pricing](https://developers.openai.com/api/docs/pricing)
+- Gemini: [ai.google.dev/gemini-api/docs/pricing](https://ai.google.dev/gemini-api/docs/pricing)
 
 ## Common issues
 

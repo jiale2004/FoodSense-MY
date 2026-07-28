@@ -1,4 +1,4 @@
-from fastapi import Header, HTTPException, UploadFile, status
+from fastapi import Depends, Header, HTTPException, UploadFile, status
 
 from app.core.config import Settings, get_settings
 
@@ -46,9 +46,11 @@ async def validate_upload(file: UploadFile, settings: Settings | None = None) ->
 
 def verify_api_key(
     x_api_key: str | None = Header(default=None, alias="X-API-Key"),
-    settings: Settings | None = None,
+    settings: Settings = Depends(get_settings),
 ) -> None:
-    settings = settings or get_settings()
+    # Settings must come from Depends(get_settings). A bare
+    # `settings: Settings | None = None` makes FastAPI treat Settings as a
+    # request-body field and breaks JSON endpoints like /api/chat (422).
     if not settings.api_key_enabled:
         return
 

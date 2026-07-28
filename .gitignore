@@ -42,7 +42,14 @@ runs/detect/dataset3_interim_v2_local_val
 runs/detect/dataset3_interim_v3_local_val
 runs/detect/dataset3_interim_v4_local_val
 runs/detect/dataset3_interim_v5_local_val
+runs/detect/dataset3_interim_v6_s_local_val
+runs/detect/dataset3_interim_v7_n_freeze_local_val
+runs/detect/dataset3_interim_v8_n_mg_local_val
+runs/detect/dataset3_interim_v8_n_box_local_val
 *.cache
 
 # SeleniumBase / UC scraper temp files
 downloaded_files/
+
+# Local report drafts and generated Word artifacts
+docs/report/

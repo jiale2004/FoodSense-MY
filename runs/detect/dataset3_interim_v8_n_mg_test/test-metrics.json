@@ -1,0 +1,90 @@
+{
+  "evaluation": "single locked-test evaluation (one-shot)",
+  "date": "2026-07-28",
+  "model": "runs/detect/dataset3_interim_v8_n_mg/weights/best.pt",
+  "model_sha256": "f0cda9e12125326f24d61bab789e6e09118855a8fd56cb8b0a96e4eec95ee412",
+  "data_yaml": "data/dataset3-interim-v5/data.yaml",
+  "split": "test",
+  "num_images": 82,
+  "num_instances": 84,
+  "thresholds": {
+    "confidence": 0.5,
+    "iou_nms": 0.45
+  },
+  "imgsz": 640,
+  "device": "mps",
+  "ultralytics": "8.4.90",
+  "torch": "2.12.1",
+  "overall": {
+    "precision": 0.94,
+    "recall": 0.868,
+    "mAP50": 0.886,
+    "mAP50_95": 0.673
+  },
+  "per_class": {
+    "nasi_lemak": {
+      "images": 5,
+      "instances": 5,
+      "precision": 1.0,
+      "recall": 0.8,
+      "mAP50": 0.795,
+      "mAP50_95": 0.676
+    },
+    "roti_canai": {
+      "images": 5,
+      "instances": 6,
+      "precision": 0.702,
+      "recall": 0.833,
+      "mAP50": 0.835,
+      "mAP50_95": 0.599
+    },
+    "char_kuey_teow": {
+      "images": 15,
+      "instances": 15,
+      "precision": 0.938,
+      "recall": 1.0,
+      "mAP50": 0.974,
+      "mAP50_95": 0.836
+    },
+    "chicken_rice": {
+      "images": 31,
+      "instances": 32,
+      "precision": 1.0,
+      "recall": 0.733,
+      "mAP50": 0.873,
+      "mAP50_95": 0.518
+    },
+    "laksa": {
+      "images": 15,
+      "instances": 15,
+      "precision": 1.0,
+      "recall": 0.933,
+      "mAP50": 0.935,
+      "mAP50_95": 0.733
+    },
+    "mee_goreng": {
+      "images": 11,
+      "instances": 11,
+      "precision": 1.0,
+      "recall": 0.909,
+      "mAP50": 0.905,
+      "mAP50_95": 0.677
+    }
+  },
+  "artifact_sha256": {
+    "confusion_matrix.png": "89c27756ea87c129f5dcbbefe6adf68e79741e900e8d4e631c8366d2765763f7",
+    "confusion_matrix_normalized.png": "7207ac16dece84b0797f5f51397d7e7ac208360bb2b05f852a5a61f908c56bef",
+    "BoxPR_curve.png": "e5b03e37a210c1a5c76afa2f9ffc21f3995290b2e974a5e048baad7333252b33",
+    "BoxF1_curve.png": "15d138d9dc809925020b8740d2e237a897602fac5942f797da857371538445bd"
+  },
+  "comparison_to_v5_test": {
+    "v5_overall": {
+      "precision": 0.93,
+      "recall": 0.93,
+      "mAP50": 0.926,
+      "mAP50_95": 0.678
+    },
+    "note": "v8_n_mg wins on validation but is slightly behind v5 on this locked-test pass (lower recall/mAP50). Promoted for nano schedule gains and stronger val MG recall; monitor chicken_rice test recall."
+  },
+  "note": "This is the single unbiased locked-test estimate for interim v8_n_mg. Do not reuse for model selection or threshold tuning."
+}

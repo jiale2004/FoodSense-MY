@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "Minimal React UI to test FoodSense-MY image upload and prediction.",
+  "description": "Primary React + Vite frontend for FoodSense-MY image upload and prediction.",
   "scripts": {
     "dev": "vite",
     "build": "vite build",

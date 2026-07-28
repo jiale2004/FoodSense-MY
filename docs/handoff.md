@@ -1,18 +1,19 @@
 # FoodSense-MY — Project Handoff
 
-**Last updated:** 23 July 2026
+**Last updated:** 28 July 2026
 **Repository:** [FoodSense-MY](https://github.com/jiale2004/FoodSense-MY)  
 **Purpose:** Six-class Malaysian food object detection and nutritional advisory.
 
 ## 1. Current State
 
-The FastAPI application and its static frontend are runnable. Phase E is
-complete: interim v5 is the production-approved six-class YOLO11n detector.
-It was calibrated on the validation split (`CONFIDENCE_THRESHOLD=0.47`,
-`IOU_THRESHOLD=0.45`), evaluated once on the locked test set (mAP50 0.926,
-mAP50–95 0.678), promoted to `data/weights/best.pt`, and smoke-tested through
-`/api/health`, `/api/classes`, and `/api/predict`. The app no longer falls back
-to Ultralytics COCO `yolo11n.pt` for inference.
+The FastAPI backend (`backend/app/`) and primary React + Vite frontend
+(`frontend/`) are runnable. A legacy vanilla static UI remains under
+`backend/app/static/` and is still served at port 8000 as a no-npm fallback.
+Production detector is interim **v8_n_mg** (YOLO11n): calibrated on validation
+(`CONFIDENCE_THRESHOLD=0.5`, `IOU_THRESHOLD=0.45`), evaluated once on the locked
+test set (mAP50 0.886, mAP50–95 0.673), promoted to `data/weights/best.pt`.
+Restart uvicorn after pull to load the new weights/thresholds. The app no longer
+falls back to Ultralytics COCO `yolo11n.pt` for inference.
 
 Image acquisition and consolidation are paused. The canonical staging dataset is now `data/dataset3/`. It combines approved content from dataset1, dataset2, the manually curated two-class web run, and two Roboflow imports. Exact duplicates were collapsed, near-duplicate leakage groups were recorded, and the initial CVAT pilot plus its Phase A priority audit have been completed and merged.
 
@@ -24,11 +25,13 @@ Current dataset3 totals:
 - 43 images still missing bounding-box annotations, all unreachable by assisted batches: 1 lies in a locked test leakage group and 42 collide by leakage group with already-selected images
 - 269 rejected images: 8 from the original pilot, 7 from batch 001, 13 from batch 002, 2 from the holdout audit, 11 from batch 003, 31 from batch 004, 10 from batch 005, 27 from batch 006, 21 from batch 007, 39 from batch 008, 30 from batch 009, and 70 from batch 010
 - 5,235 usable leakage groups; 52 groups contain more than one usable image
-- production weights at `data/weights/best.pt` (interim v5; SHA-256 `3b84619b715d1f2b0c7c10f8094f799b84972b195a207b8c9c1912c270c5b892`)
-- frozen inference thresholds: confidence 0.47, NMS-IoU 0.45
+- production weights at `data/weights/best.pt` (interim v8_n_mg; SHA-256 `f0cda9e12125326f24d61bab789e6e09118855a8fd56cb8b0a96e4eec95ee412`)
+- frozen inference thresholds: confidence 0.5, NMS-IoU 0.45
 - Phase C pilot checkpoint available at `runs/detect/dataset3_pilot_v1/weights/best.pt`
-- interim v2–v4 checkpoints available under `runs/detect/dataset3_interim_v{2,3,4}/weights/best.pt`
-- interim v5 checkpoint (source of production weights) at `runs/detect/dataset3_interim_v5/weights/best.pt`
+- interim v2–v5 and v6_s / v7_n_freeze / v8_n_box checkpoints under `runs/detect/`
+- interim v8_n_mg source checkpoint at `runs/detect/dataset3_interim_v8_n_mg/weights/best.pt`
+- calibration report: `runs/detect/dataset3_interim_v8_n_mg_calibration/calibration.json`
+- locked-test artifacts: `runs/detect/dataset3_interim_v8_n_mg_test/` (see [`experiments/dataset3_interim_v8.md`](experiments/dataset3_interim_v8.md))
 
 Phase B materialized the then-current 838 annotated images as the validated
 `data/dataset3-baseline/` training view. Its 84 test candidates have now been
@@ -467,17 +470,19 @@ The full policy is [`docs/bounding-box-policy.md`](bounding-box-policy.md). Its 
 
 | Area | Status |
 |------|--------|
-| FastAPI app, routes, services | Implemented |
-| Static upload/result UI | Implemented |
+| FastAPI backend (`backend/app/`) | Implemented |
+| React + Vite frontend (`frontend/`) | Implemented (primary local UI) |
+| Bottom-right AI chat widget | Implemented (`ChatWidget` → `POST /api/chat`) |
+| Legacy static upload UI (`backend/app/static/`) | Implemented (fallback at port 8000) |
 | Six-class nutrition knowledge base | Implemented |
 | OpenAI/Gemini advisory formatting | Implemented, optional |
 | Apple Silicon MPS inference | Supported |
 | Canonical dataset3 assembly | Implemented |
 | CVAT batch preparation/import | Implemented; assisted batches 001–010 reviewed, validated, and applied |
 | Group-aware annotated-only splitter | Implemented and validated |
-| Threshold calibration | Implemented (`calibrate_thresholds.py`); interim v5 conf 0.47 / NMS-IoU 0.45 |
-| Custom six-class YOLO model | Interim v5 trained, calibrated, locked-test evaluated, and production-approved |
-| Production `data/weights/best.pt` | Present (interim v5; SHA-256 `3b84619b715d1f2b0c7c10f8094f799b84972b195a207b8c9c1912c270c5b892`) |
+| Threshold calibration | Implemented (`calibrate_thresholds.py`); interim v8_n_mg conf 0.5 / NMS-IoU 0.45 |
+| Custom six-class YOLO model | Interim v8_n_mg trained, calibrated, locked-test evaluated, and production-approved |
+| Production `data/weights/best.pt` | Present (interim v8_n_mg; SHA-256 `f0cda9e12125326f24d61bab789e6e09118855a8fd56cb8b0a96e4eec95ee412`) |
 
 `/api/predict` now runs the promoted six-class detector with the frozen
 thresholds. LLM advisory still uses template fallback unless an OpenAI or
@@ -1389,39 +1394,33 @@ Full write-up: [`experiments/dataset3_interim_v5.md`](experiments/dataset3_inter
 
 ## 10. Immediate Recommended Action
 
-Phase E is complete. Interim v5 is the production-approved detector: trained,
-calibrated on validation, evaluated once on the locked test split, promoted to
-`data/weights/best.pt`, and smoke-tested through the running app.
+Interim **v8_n_mg** is the production-approved detector (28 July 2026): trained,
+calibrated on validation, evaluated once on the locked test split, and promoted
+to `data/weights/best.pt`. Full write-up:
+[`experiments/dataset3_interim_v8.md`](experiments/dataset3_interim_v8.md).
 
-- Validation (model selection): mAP50 0.945, mAP50–95 0.793; Mee Goreng recall 0.778.
-- Frozen thresholds (validation-only calibration,
-  `training_scripts/calibrate_thresholds.py`, macro-F1 optimum):
-  `CONFIDENCE_THRESHOLD=0.47`, `IOU_THRESHOLD=0.45` (macro-F1 0.891, micro
-  P 0.904 / R 0.896). Applied to `backend/app/core/config.py`, `.env.example`, `.env`.
-  Report: `runs/detect/dataset3_interim_v5_calibration/calibration.json`
-  (SHA-256 `5b76a7becc4ea4664e8f34a52af53e4a98e862c36e4e2fad8caa61e2e866786c`).
-- Single locked-test evaluation (one-shot, `conf=0.47 iou=0.45`): overall
-  precision 0.930, recall 0.930, mAP50 0.926, mAP50–95 0.678 (82 images, 84
-  instances). Artifacts in `runs/detect/dataset3_interim_v5_test/`; summary in
+- Validation (model selection): mAP50 0.959, mAP50–95 0.830; Mee Goreng recall 0.822.
+- Frozen thresholds (validation-only calibration):
+  `CONFIDENCE_THRESHOLD=0.5`, `IOU_THRESHOLD=0.45` (macro-F1 0.932, micro
+  P 0.946 / R 0.932). Applied to `backend/app/core/config.py`, `.env.example`, `.env`.
+  Report: `runs/detect/dataset3_interim_v8_n_mg_calibration/calibration.json`
+  (SHA-256 `c91e8317f22413a370ac9abd70663e88d49b0d0a99e45b4e5431c2ee289d227d`).
+- Single locked-test evaluation (one-shot, `conf=0.5 iou=0.45`): overall
+  precision 0.940, recall 0.868, mAP50 0.886, mAP50–95 0.673 (82 images, 84
+  instances). Artifacts in `runs/detect/dataset3_interim_v8_n_mg_test/`; summary in
   `test-metrics.json`. Do not reuse the test split for tuning.
 - Promotion: `data/weights/best.pt` SHA-256
-  `3b84619b715d1f2b0c7c10f8094f799b84972b195a207b8c9c1912c270c5b892`
-  (byte-identical to the interim v5 checkpoint).
-- Smoke test: `/api/health` reports the custom weights on `mps`; `/api/classes`
-  returns all six classes; `/api/predict` on a locked-test image returned
-  `chicken_rice` (0.848) with a generated advisory.
+  `f0cda9e12125326f24d61bab789e6e09118855a8fd56cb8b0a96e4eec95ee412`
+  (byte-identical to the interim v8_n_mg checkpoint). Restart uvicorn to load.
+- Note vs prior v5 locked-test (mAP50 0.926 / mAP50–95 0.678 / recall 0.930):
+  v8 is stronger on validation and MG recovery; locked-test recall/mAP50 are
+  slightly lower (chicken_rice test recall 0.733 is the main watch item).
 
-Results visualization PDF:
-[`docs/logs/dataset3_interim_v5_results.pdf`](logs/dataset3_interim_v5_results.pdf)
-(4 pages: headline checkpoints, training curves from `results.csv`, per-class
-locked-test/validation charts, calibration summary).
-
-Suggested follow-ups (not blocking): Chicken Rice box-tightness (lowest test
-mAP50–95 0.528) is the main next-iteration target; consider per-class inference
-thresholds (calibration favored lower cutoffs for Mee Goreng / Roti Canai) and,
-for a future retrain, a shorter warmup or `cos_lr`, or `yolo11s` for the noodle
-classes. Optionally delete hosted CVAT tasks `2445540`, `2445679`, and `2449428`
-after local archive checks.
+Prior Phase E (v5) artifacts remain under `runs/detect/dataset3_interim_v5*` for
+history. Interim v6–v8 experiment notes:
+[`experiments/dataset3_interim_v6.md`](experiments/dataset3_interim_v6.md),
+[`experiments/dataset3_interim_v7.md`](experiments/dataset3_interim_v7.md),
+[`experiments/dataset3_interim_v8.md`](experiments/dataset3_interim_v8.md).
 
 ## 11. Environment and Runtime
 
@@ -1440,7 +1439,7 @@ uvicorn app.main:app --app-dir backend --reload --host 0.0.0.0 --port 8000
 
 The FastAPI service now lives in `backend/app/`; `--app-dir backend` puts the
 `app` package on the import path while data and `.env` stay at the repo root.
-Optional React upload UI: `cd frontend && npm install && npm run dev`
+Primary React UI (second terminal): `cd frontend && npm install && npm run dev`
 ([http://localhost:5173](http://localhost:5173)).
 
 Linux HPC GPU training:
@@ -1457,29 +1456,32 @@ python -c "import torch; print(torch.__version__, torch.version.cuda, torch.cuda
 `requirements-hpc.txt` pulls torch/torchvision from the CUDA 12.4 wheel index, then installs [`requirements.txt`](../requirements.txt). This avoids the driver mismatch seen when a newer CUDA build is installed on nodes with NVIDIA driver API `12080` (CUDA 12.8). Comments in `requirements.txt` document the same constraint.
 
 Important environment variables include `MODEL_WEIGHTS_PATH`, `KNOWLEDGE_BASE_PATH`,
-`CONFIDENCE_THRESHOLD` (default `0.47`), `IOU_THRESHOLD` (default `0.45`),
+`CONFIDENCE_THRESHOLD` (default `0.5`), `IOU_THRESHOLD` (default `0.45`),
 `DEVICE`, `LLM_PROVIDER`, and the optional OpenAI/Gemini credentials.
 
 ## 12. Working Tree Note
 
 The returned `runs/detect/dataset3_interim_v2/` through
-`runs/detect/dataset3_interim_v5/` HPC artifacts are tracked in the repository.
-This chat's Phase E close-out updates:
+`runs/detect/dataset3_interim_v8_n_*` HPC artifacts are tracked in the repository.
+This chat's v8_n_mg production promotion updates:
 
-- `training_scripts/calibrate_thresholds.py`
-- `backend/app/core/config.py` (defaults conf 0.47 / iou 0.45)
+- `backend/app/core/config.py` (defaults conf 0.5 / iou 0.45)
 - `.env.example`
-- `docs/experiments/dataset3_interim_v5.md`
+- `docs/experiments/dataset3_interim_v8.md`
 - `README.md`
 - `docs/architecture.md`
 - `docs/handoff.md`
-- `.gitignore` (ignore interim v5 local-val diagnostics)
+- `data/weights/best.pt` (promoted v8_n_mg checkpoint)
+- `runs/detect/dataset3_interim_v8_n_mg_calibration/`
+- `runs/detect/dataset3_interim_v8_n_mg_test/` (including `test-metrics.json`)
+- `.gitignore` (ignore v8 local-val diagnostics)
 
-A separate development convenience was added later: a minimal Vite + React
-upload-test UI under `frontend/` (`package.json`, `vite.config.js`,
-`index.html`, `src/`). It proxies `/api` and `/uploads` to the backend at
-`http://127.0.0.1:8000` and is independent of the production static frontend in
-`backend/app/static/`. Its `node_modules/` and `dist/` are gitignored.
+The primary local UI is the Vite + React app under `frontend/`
+(`package.json`, `vite.config.js`, `index.html`, `src/`). It proxies `/api` and
+`/uploads` to the backend at `http://127.0.0.1:8000`. The vanilla page under
+`backend/app/static/` remains mounted by FastAPI as a no-npm fallback. Frontend
+`node_modules/` and `dist/` are gitignored. See
+[`docs/local-dev-setup.md`](local-dev-setup.md).
 
 The FastAPI service was subsequently relocated from `app/` to `backend/app/`
 (via `git mv`) to mirror `frontend/`. The `app` Python package name is

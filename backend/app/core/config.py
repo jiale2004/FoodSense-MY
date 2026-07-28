@@ -37,13 +37,15 @@ class Settings(BaseSettings):
     openai_api_key: str | None = None
     openai_model: str = "gpt-4o-mini"
     gemini_api_key: str | None = None
-    gemini_model: str = "gemini-2.0-flash"
+    # gemini-2.5-* is blocked for many new API keys; flash-lite-latest stays current.
+    gemini_model: str = "gemini-flash-lite-latest"
 
     model_weights_path: Path = Path("data/weights/best.pt")
     knowledge_base_path: Path = Path("data/knowledge_base.json")
 
-    # Calibrated on the dataset3-interim-v5 validation split (macro-F1 optimum).
-    confidence_threshold: float = 0.47
+    # Calibrated on the dataset3-interim-v5 val split for v8_n_mg
+    # (macro-F1 optimum; see runs/detect/dataset3_interim_v8_n_mg_calibration/).
+    confidence_threshold: float = 0.5
     iou_threshold: float = 0.45
     device: Literal["auto", "mps", "cpu"] = "auto"
     max_upload_size_mb: int = 10

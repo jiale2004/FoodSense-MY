@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import NasiLemakIcon from "../components/NasiLemakIcon.jsx";
+import ChatWidget from "../ChatWidget.jsx";
 
 const formatName = (name) =>
   name.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
@@ -82,7 +83,16 @@ export default function Scan() {
     }
   }
 
+  const mealContext = result
+    ? {
+        detections: result.detections,
+        nutrition: result.nutrition,
+        advisory_text: result.advisory_text,
+      }
+    : null;
+
   return (
+    <>
     <main className="page">
       <Link to="/" className="back-link">← Back to Home</Link>
 
@@ -237,5 +247,8 @@ export default function Scan() {
         For informational purposes only — not medical advice.
       </footer>
     </main>
+
+    <ChatWidget mealContext={mealContext} />
+    </>
   );
 }
