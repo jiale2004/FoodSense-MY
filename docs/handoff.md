@@ -1,6 +1,6 @@
 # FoodSense-MY — Project Handoff
 
-**Last updated:** 28 July 2026
+**Last updated:** 29 July 2026
 **Repository:** [FoodSense-MY](https://github.com/jiale2004/FoodSense-MY)  
 **Purpose:** Six-class Malaysian food object detection and nutritional advisory.
 
@@ -211,7 +211,8 @@ Local validation-only review shows Mee Goreng recall improved to 0.778 (from
 threshold calibration selected confidence 0.47 / NMS-IoU 0.45 (macro-F1 0.891);
 the single locked-test evaluation scored precision 0.930, recall 0.930, mAP50
 0.926, mAP50–95 0.678; the checkpoint was promoted to `data/weights/best.pt`
-and smoke-tested. Interim v5 is the production-approved detector. Full metrics
+and smoke-tested. Interim v5 was the production-approved detector until it was
+superseded by interim **v8_n_mg** on 28 July 2026 (see §1 / §10). Full metrics
 are in [`experiments/dataset3_interim_v5.md`](experiments/dataset3_interim_v5.md).
 
 `data/cvat/assisted-batch-010/` was reviewed in CVAT task `2449428`, completed
@@ -543,12 +544,13 @@ Mee Goreng ingest, and Phase E finalization:
 - `dataset3-interim-v5` contains 4,131 train, 1,033 validation, and 82 reviewed test images with zero cross-split leakage
 - all 4,124 surviving interim-v4 train/validation images keep their original split and all 1,040 new batch-010 annotations remain outside test
 - the interim-v5 split-manifest SHA-256 is `3f4e2fc58133e18c8a11ae41b39a66c78594a1168534b11e53c1ebb1d2108eb6`
-- interim v5 training stopped normally at epoch 21 after selecting epoch 1 by mAP50–95 fitness; its best metrics are precision 0.894, recall 0.899, mAP50 0.945, and mAP50–95 0.793 (best interim run so far)
+- interim v5 training stopped normally at epoch 21 after selecting epoch 1 by mAP50–95 fitness; its best metrics are precision 0.894, recall 0.899, mAP50 0.945, and mAP50–95 0.793 (then the best interim run; later superseded by v8_n_mg)
 - interim v5 checkpoint SHA-256 is `3b84619b715d1f2b0c7c10f8094f799b84972b195a207b8c9c1912c270c5b892`
 - local interim-v5 validation shows Mee Goreng recall 0.778 (up from 0.717 in interim v4)
-- validation-only threshold calibration (`training_scripts/calibrate_thresholds.py`) selected confidence 0.47 and NMS-IoU 0.45 (macro-F1 0.891, micro P 0.904 / R 0.896); report SHA-256 `5b76a7becc4ea4664e8f34a52af53e4a98e862c36e4e2fad8caa61e2e866786c`
-- single locked-test evaluation (`conf=0.47 iou=0.45`) scored precision 0.930, recall 0.930, mAP50 0.926, mAP50–95 0.678 on 82 images / 84 instances; summary in `runs/detect/dataset3_interim_v5_test/test-metrics.json`
-- production `data/weights/best.pt` is byte-identical to the interim v5 checkpoint and was smoke-tested through `/api/health`, `/api/classes`, and `/api/predict`
+- Phase E (v5) validation-only threshold calibration selected confidence 0.47 and NMS-IoU 0.45 (macro-F1 0.891); report SHA-256 `5b76a7becc4ea4664e8f34a52af53e4a98e862c36e4e2fad8caa61e2e866786c`
+- Phase E (v5) single locked-test evaluation (`conf=0.47 iou=0.45`) scored precision 0.930, recall 0.930, mAP50 0.926, mAP50–95 0.678; summary in `runs/detect/dataset3_interim_v5_test/test-metrics.json`
+- interim v8_n_mg (28 July 2026) is the current production detector: validation precision 0.936, recall 0.926, mAP50 0.959, mAP50–95 0.830 (MG recall 0.822); calibrated conf 0.5 / NMS-IoU 0.45 (macro-F1 0.932); locked-test precision 0.940, recall 0.868, mAP50 0.886, mAP50–95 0.673
+- production `data/weights/best.pt` is byte-identical to the interim v8_n_mg checkpoint (SHA-256 `f0cda9e12125326f24d61bab789e6e09118855a8fd56cb8b0a96e4eec95ee412`)
 - `prepare_cvat_assisted_batch.py` gained `--predict-batch-size` (default 100) to process inference in memory-safe chunks
 - assisted batch 005 contains 300 images from 300 new leakage groups, with zero overlap against 81 locked test groups and 1,751 prior selection groups, and 358 proposals on 299 images
 - CVAT task `2442437`, completed job `4263052`, reviewed those proposals into 304 accepted boxes on 290 images and 10 rejects
@@ -566,7 +568,7 @@ Mee Goreng ingest, and Phase E finalization:
 - assisted batch 009 contains 498 images from 498 new leakage groups, with zero overlap against 81 locked test groups and 3,412 prior selection groups, and 605 proposals on 492 images (42 Mee Goreng boxes; 61 of 200 Mee Goreng slots from the curated ingest)
 - CVAT task `2445679`, completed job `4266727`, reviewed those proposals into 499 accepted boxes on 468 images and 30 rejects
 - batch 009 recorded 130 primary-class corrections, including 123 `mee_goreng` → `char_kuey_teow`, and retained 61 Mee Goreng boxes (51 on curated-ingest frames); Chicken Rice missing count reached 0
-- the locked test split was not evaluated
+- the locked test split was evaluated once for Phase E (v5) and once for v8_n_mg; do not reuse it for tuning
 - all eighteen repository regression tests pass, including locked incremental assignment, assisted selection, holdout packaging, README reconciliation, batch-path safety, revision, and split-integrity coverage
 - `git diff --check` passes
 
@@ -1391,6 +1393,8 @@ SHA-256 values:
 6. Restart FastAPI and test `/api/health`, `/api/classes`, and `/api/predict` end to end. **Done** (custom weights on `mps`; predict returned `chicken_rice` 0.848 on a locked-test image).
 
 Full write-up: [`experiments/dataset3_interim_v5.md`](experiments/dataset3_interim_v5.md).
+Production weights were later replaced by interim **v8_n_mg** (28 July 2026);
+see §10 and [`experiments/dataset3_interim_v8.md`](experiments/dataset3_interim_v8.md).
 
 ## 10. Immediate Recommended Action
 
@@ -1493,15 +1497,17 @@ resolves `PROJECT_ROOT` to the repository root (`parents[3]`) so `data/` and
 `tests/`, `requirements*.txt`) intentionally remains at the repository root.
 `.gitignore` now ignores `backend/app/static/uploads/*`.
 
-Local runtime artifacts (typically gitignored or untracked) include:
-
-- `runs/detect/dataset3_interim_v5_calibration/calibration.json`
-- `runs/detect/dataset3_interim_v5_test/` (including `test-metrics.json`)
-- `data/weights/best.pt` (promoted interim v5 checkpoint)
+Local runtime artifacts (typically gitignored or untracked) include historical
+Phase E paths under `runs/detect/dataset3_interim_v5_*`. Current production
+weights are gitignored at `data/weights/best.pt` (interim **v8_n_mg**; SHA-256
+`f0cda9e12125326f24d61bab789e6e09118855a8fd56cb8b0a96e4eec95ee412`). Calibration
+and locked-test reports for v8_n_mg are tracked under
+`runs/detect/dataset3_interim_v8_n_mg_calibration/` and
+`runs/detect/dataset3_interim_v8_n_mg_test/`.
 
 The validation-only diagnostic directories
 `runs/detect/dataset3_interim_v2_local_val/` through
-`runs/detect/dataset3_interim_v5_local_val/` are intentionally ignored. The
+`runs/detect/dataset3_interim_v8_n_*_local_val/` are intentionally ignored. The
 repository-wide documentation rule is recorded in `AGENTS.md`. Dataset outputs
 under `data/` (including `data/cvat/assisted-batch-010/`,
 `data/dataset3-interim-v4/`, `data/dataset3-interim-v5/`, and
