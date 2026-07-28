@@ -224,11 +224,8 @@ Interim v5 is now the production-approved detector.
 
 ## Follow-ups
 
-Interim v6 HPC retrains are planned on this same locked split with batch size
-16: a `yolo11n` cosine fine-tune (`lr0=0.0005`, shorter warmup) and a fresh
-`yolo11s` train. See
-[`dataset3_interim_v6.md`](dataset3_interim_v6.md). Interim v7 stays on
-YOLO11n only (freeze + localization); see
-[`dataset3_interim_v7.md`](dataset3_interim_v7.md). Per-class inference
-thresholds are not yet supported; the calibration diagnostics suggest they
-would help Mee Goreng and Roti Canai recall if added.
+Superseded as production by interim **v8_n_mg** (28 July 2026): see
+[`dataset3_interim_v8.md`](dataset3_interim_v8.md). This v5 write-up remains the
+Phase E historical record. Per-class inference thresholds are still not
+supported; calibration diagnostics continue to suggest they would help Mee
+Goreng and Roti Canai recall if added.

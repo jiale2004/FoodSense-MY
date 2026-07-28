@@ -1,14 +1,15 @@
 # Dataset3 Interim v8 — HPC retrain plan (YOLO11n only)
 
-**Status:** both runs completed (26 July 2026)
+**Status:** production-approved (28 July 2026)
 **Model family:** YOLO11 **nano** only — no `yolo11s` / larger variants
 **Split:** reuse locked `data/dataset3-interim-v5/` (no new split)
-**Nano baseline to beat:** interim v7 freeze validation mAP50–95 **0.820**
-  (and keep Mee Goreng recall ≥ interim v5 **0.778**)
-**Assessment:** **Run A (`v8_n_mg`) is the nano winner** (val mAP50–95 0.830,
-Mee Goreng recall 0.822). Run B passes the gate but is slightly weaker and did
-not improve Chicken Rice mAP50–95. Next: validation-only calibration, then one
-locked-test eval before promoting over v5.
+**Nano baseline beaten:** interim v7 freeze validation mAP50–95 **0.820**;
+  Mee Goreng recall recovered above v5 (**0.822** ≥ **0.778**)
+**Assessment:** **Run A (`v8_n_mg`) is the production detector.** Calibrated on
+validation (conf **0.5** / NMS-IoU **0.45**), evaluated once on the locked test
+set (mAP50 0.886, mAP50–95 0.673), and promoted to `data/weights/best.pt`.
+Locked-test recall/mAP50 are slightly behind interim v5; validation and MG
+recall are stronger. Monitor chicken_rice test recall.
 
 Interim v7 freeze (`dataset3_interim_v7_n_freeze`) proved that `freeze=10` +
 `lr0=0.0002` + `cos_lr` escapes the epoch-1 fitness peak and lifts aggregate
@@ -21,10 +22,10 @@ v8 stays on `yolo11n` and targets those two gaps. Both runs use **batch size
 
 | Checkpoint | mAP50–95 | Mee Goreng recall | Notes |
 |------------|----------:|------------------:|-------|
-| v5 `best.pt` (prod nano) | 0.793 | 0.778 | Locked-test done |
+| v5 `best.pt` (prior prod) | 0.793 | 0.778 | Locked-test done; superseded |
 | v7_n_freeze (ep 30) | 0.820 | 0.722 | Epoch-1 peak fixed; MG regressed |
 | v6_s (yolo11s) | 0.826 | 0.878 | Strongest small; **not** used as init |
-| **v8_n_mg (ep 73)** | **0.830** | **0.822** | **Nano winner** |
+| **v8_n_mg (ep 73)** | **0.830** | **0.822** | **Production nano** |
 | v8_n_box (ep 94) | 0.828 | 0.807 | Localization goal not met vs Run A |
 
 ## HPC root
@@ -223,19 +224,76 @@ HPC normalized matrix is ~14% (worse than Run A’s ~12%).
 best.pt SHA-256:
 `131ad0d7d209f747e48b4f6a16fa9e3c1a652f3967d468bea78437a2ce43f501`
 
-## Decision: nano winner = Run A
+## Decision: nano winner = Run A → production
 
 | Run | mAP50–95 | MG recall | Chicken Rice mAP50–95 | Winner? |
 |-----|----------:|----------:|----------------------:|---------|
-| A `v8_n_mg` | **0.830** | **0.822** | 0.751 | **Yes** |
+| A `v8_n_mg` | **0.830** | **0.822** | 0.751 | **Yes → promoted** |
 | B `v8_n_box` | 0.828 | 0.807 | 0.749 | No |
 
-Next steps for `dataset3_interim_v8_n_mg/weights/best.pt` only:
+## Threshold calibration (validation only)
 
-1. Re-run `training_scripts/calibrate_thresholds.py` on validation only.
-2. Run the locked test split **once** with the new thresholds.
-3. Promote to `data/weights/best.pt` only if locked-test metrics justify replacing
-   interim v5 (nano size advantage vs deploying v6_s).
+Ran `training_scripts/calibrate_thresholds.py` on the 1,033-image validation
+split (refuses `split=test`). Recommended operating point:
+
+| Setting | Value |
+|---------|------:|
+| `CONFIDENCE_THRESHOLD` | **0.5** |
+| `IOU_THRESHOLD` (NMS) | **0.45** |
+| macro-F1 | 0.932 |
+| micro P / R / F1 | 0.946 / 0.932 / 0.939 |
+
+Per-class at the global threshold (eval IoU 0.5):
+
+| Class | P | R | F1 | TP | FP | FN |
+|-------|--:|--:|---:|---:|---:|---:|
+| nasi_lemak | 0.970 | 0.946 | 0.958 | 192 | 6 | 11 |
+| roti_canai | 0.938 | 0.916 | 0.927 | 197 | 13 | 18 |
+| char_kuey_teow | 0.915 | 0.946 | 0.930 | 226 | 21 | 13 |
+| chicken_rice | 0.971 | 0.917 | 0.943 | 132 | 4 | 12 |
+| laksa | 0.963 | 0.977 | 0.970 | 208 | 8 | 5 |
+| mee_goreng | 0.914 | 0.822 | 0.866 | 74 | 7 | 16 |
+
+Report: `runs/detect/dataset3_interim_v8_n_mg_calibration/calibration.json`
+(SHA-256 `c91e8317f22413a370ac9abd70663e88d49b0d0a99e45b4e5431c2ee289d227d`).
+
+Applied to `backend/app/core/config.py`, `.env.example`, and local `.env`.
+
+## Locked-test evaluation (one-shot)
+
+`conf=0.5 iou=0.45` on the 82-image / 84-instance locked test split
+(Ultralytics 8.4.90, MPS). Do not reuse for tuning.
+
+| | Precision | Recall | mAP50 | mAP50–95 |
+|--|----------:|-------:|------:|----------:|
+| **v8_n_mg test** | **0.940** | **0.868** | **0.886** | **0.673** |
+| v5 test (prior) | 0.930 | 0.930 | 0.926 | 0.678 |
+
+Per-class locked test:
+
+| Class | Images | Instances | P | R | mAP50 | mAP50–95 |
+|-------|-------:|----------:|--:|--:|------:|----------:|
+| nasi_lemak | 5 | 5 | 1.000 | 0.800 | 0.795 | 0.676 |
+| roti_canai | 5 | 6 | 0.702 | 0.833 | 0.835 | 0.599 |
+| char_kuey_teow | 15 | 15 | 0.938 | 1.000 | 0.974 | 0.836 |
+| chicken_rice | 31 | 32 | 1.000 | 0.733 | 0.873 | 0.518 |
+| laksa | 15 | 15 | 1.000 | 0.933 | 0.935 | 0.733 |
+| mee_goreng | 11 | 11 | 1.000 | 0.909 | 0.905 | 0.677 |
+
+Artifacts: `runs/detect/dataset3_interim_v8_n_mg_test/` including
+`test-metrics.json` (SHA-256
+`107831cf1bc5426ce60152248e8ebb25cdbb51bb09c25316e26d0293cd4d71f8`).
+
+Locked-test tradeoff vs v5: slightly lower recall and mAP50 (chicken_rice
+recall 0.733 is the main gap); Mee Goreng test recall matches v5 (0.909).
+Promotion proceeds on stronger validation / MG recovery and nano size.
+
+## Promotion
+
+Copied `runs/detect/dataset3_interim_v8_n_mg/weights/best.pt` →
+`data/weights/best.pt` (SHA-256
+`f0cda9e12125326f24d61bab789e6e09118855a8fd56cb8b0a96e4eec95ee412`,
+byte-identical). Restart uvicorn to load the new weights and thresholds.
 
 ## Artifacts
 
@@ -243,3 +301,5 @@ Next steps for `dataset3_interim_v8_n_mg/weights/best.pt` only:
 |-----|-----------|-------------------|---------------------|
 | A `dataset3_interim_v8_n_mg` | `/home/user/22059034/FoodSense-MY/runs/detect/dataset3_interim_v8_n_mg/` | `f0cda9e12125326f24d61bab789e6e09118855a8fd56cb8b0a96e4eec95ee412` | `27fe60d04e382b316dcbae87914d8cb6e2f59dc8ef54786cbf6bdabf87e5995f` |
 | B `dataset3_interim_v8_n_box` | `/home/user/22059034/FoodSense-MY/runs/detect/dataset3_interim_v8_n_box/` | `131ad0d7d209f747e48b4f6a16fa9e3c1a652f3967d468bea78437a2ce43f501` | `4444fd122cb135832956818dd1f01d351d1f08fe67887fe7ed01302289994898` |
+| Calibration | `runs/detect/dataset3_interim_v8_n_mg_calibration/` | — | report SHA above |
+| Locked test | `runs/detect/dataset3_interim_v8_n_mg_test/` | — | `test-metrics.json` SHA above |

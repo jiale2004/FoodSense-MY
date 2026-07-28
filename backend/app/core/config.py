@@ -43,8 +43,9 @@ class Settings(BaseSettings):
     model_weights_path: Path = Path("data/weights/best.pt")
     knowledge_base_path: Path = Path("data/knowledge_base.json")
 
-    # Calibrated on the dataset3-interim-v5 validation split (macro-F1 optimum).
-    confidence_threshold: float = 0.47
+    # Calibrated on the dataset3-interim-v5 val split for v8_n_mg
+    # (macro-F1 optimum; see runs/detect/dataset3_interim_v8_n_mg_calibration/).
+    confidence_threshold: float = 0.5
     iou_threshold: float = 0.45
     device: Literal["auto", "mps", "cpu"] = "auto"
     max_upload_size_mb: int = 10

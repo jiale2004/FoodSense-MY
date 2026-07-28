@@ -90,8 +90,8 @@ Set `VITE_API_TARGET` to point at a different backend origin.
 | `GEMINI_MODEL` | Gemini model name | `gemini-flash-lite-latest` |
 | `MODEL_WEIGHTS_PATH` | Path to YOLO weights | `data/weights/best.pt` |
 | `KNOWLEDGE_BASE_PATH` | Path to nutrition JSON | `data/knowledge_base.json` |
-| `CONFIDENCE_THRESHOLD` | NMS confidence cutoff (calibrated on interim v5 val) | `0.47` |
-| `IOU_THRESHOLD` | NMS IoU threshold (calibrated on interim v5 val) | `0.45` |
+| `CONFIDENCE_THRESHOLD` | NMS confidence cutoff (calibrated on interim v8_n_mg val) | `0.5` |
+| `IOU_THRESHOLD` | NMS IoU threshold (calibrated on interim v8_n_mg val) | `0.45` |
 | `DEVICE` | Compute device (`auto`, `mps`, `cpu`) | `auto` |
 | `MAX_UPLOAD_SIZE_MB` | Max upload size in MB | `10` |
 | `API_KEY_ENABLED` | Require X-API-Key header | `false` |
@@ -386,33 +386,19 @@ annotations. `selection.jsonl` makes the later correction import revision-safe,
 and package creation fails if the baseline queue, current images, or labels
 have drifted.
 
-Four HPC interim runs are complete. `runs/detect/dataset3_interim_v2/` selected
-epoch 75 with mAP50 0.938 and mAP50–95 0.747. `runs/detect/dataset3_interim_v3/`
-trained from the v2 checkpoint on `data/dataset3-interim-v3/` (1,674 / 418 / 82)
-and selected epoch 1 with mAP50 0.932 and mAP50–95 0.761.
-`runs/detect/dataset3_interim_v4/` trained from the v3 checkpoint on
-`data/dataset3-interim-v4/` (3,299 / 825 / 82) with `lr0=0.002` and selected
-epoch 1 with mAP50 0.938 and mAP50–95 0.783. `runs/detect/dataset3_interim_v5/`
-trained from the v4 checkpoint on `data/dataset3-interim-v5/` (4,131 / 1,033 /
-82) with `lr0=0.002` and selected epoch 1 with mAP50 0.945 and mAP50–95 0.793 —
-the strongest interim run so far, with local Mee Goreng recall 0.778. It is the
-production-approved detector. Validation-only threshold calibration
-(`training_scripts/calibrate_thresholds.py`) selected confidence 0.47 and NMS-IoU
-0.45 (macro-F1 0.891), now the application defaults. The single locked-test
-evaluation (mAP50 0.926, mAP50–95 0.678) passed and the checkpoint is promoted to
+Four HPC interim runs through v5 are complete, plus later v6_s / v7 / v8
+candidates on the locked interim-v5 split. `runs/detect/dataset3_interim_v5/`
+selected epoch 1 with mAP50 0.945 and mAP50–95 0.793 (prior Phase E production).
+Interim **v8_n_mg** is the current production detector: validation mAP50–95
+0.830 / Mee Goreng recall 0.822; calibrated confidence **0.5** and NMS-IoU
+**0.45** (macro-F1 0.932); locked-test mAP50 0.886 / mAP50–95 0.673; promoted to
 `data/weights/best.pt`. See
-[`docs/experiments/dataset3_interim_v4.md`](docs/experiments/dataset3_interim_v4.md)
-and
-[`docs/experiments/dataset3_interim_v5.md`](docs/experiments/dataset3_interim_v5.md).
-A 4-page results PDF is at
-[`docs/logs/dataset3_interim_v5_results.pdf`](docs/logs/dataset3_interim_v5_results.pdf).
-Interim v6 HPC retrains (batch size 16 on the locked interim-v5 split: yolo11n
-cosine fine-tune + yolo11s) are planned in
-[`docs/experiments/dataset3_interim_v6.md`](docs/experiments/dataset3_interim_v6.md).
-Interim v7 freeze is complete (val mAP50–95 0.820; MG recall 0.722):
-[`docs/experiments/dataset3_interim_v7.md`](docs/experiments/dataset3_interim_v7.md).
-Interim v8 stays on YOLO11n only (MG recovery + localization; batch 16):
 [`docs/experiments/dataset3_interim_v8.md`](docs/experiments/dataset3_interim_v8.md).
+Prior write-ups:
+[`docs/experiments/dataset3_interim_v5.md`](docs/experiments/dataset3_interim_v5.md),
+[`docs/experiments/dataset3_interim_v7.md`](docs/experiments/dataset3_interim_v7.md).
+A 4-page v5 results PDF remains at
+[`docs/logs/dataset3_interim_v5_results.pdf`](docs/logs/dataset3_interim_v5_results.pdf).
 
 See [`docs/handoff.md`](docs/handoff.md) for current counts and next-step gates,
 [`docs/architecture.md`](docs/architecture.md) for the complete data flow, and

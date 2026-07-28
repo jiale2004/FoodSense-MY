@@ -7,7 +7,7 @@ FoodSense-MY contains two related systems:
 1. a FastAPI backend plus a React (Vite) frontend that detect six Malaysian dishes and return verified nutrition plus an optional LLM-formatted advisory;
 2. a local data pipeline that acquires, curates, consolidates, annotates, splits, trains, and promotes the custom detector.
 
-The application is runnable. Dataset consolidation, the first CVAT pilot, its Phase A priority audit, the Phase B leakage-safe split, the Phase C YOLO11n pilot, the reviewed Phase D batch 001–010 merges, the no-proposal test-holdout audit, four locked incremental splits (`dataset3-interim-v2` through `dataset3-interim-v5`), four interim HPC retrains (`dataset3_interim_v2` through `dataset3_interim_v5`), and curated Mee Goreng web ingest (`ingest_mee_goreng_full`, +251) are complete. Batch 010 drained the annotation backlog: Dataset3 now has 5,246 annotated images / 5,579 boxes, with only 43 unreachable missing frames. Interim v5 remains the production-approved checkpoint (validation mAP50–95 0.793, Mee Goreng recall 0.778; locked-test done). Phase E is complete: validation-only threshold calibration (confidence 0.47, NMS-IoU 0.45; macro-F1 0.891), the single locked-test evaluation (mAP50 0.926, mAP50–95 0.678), and production promotion to `data/weights/best.pt` are done, and the app was smoke-tested against the promoted weights. Later HPC candidates on the same split: v6_s (yolo11s, val mAP50–95 0.826) and v7_n_freeze (yolo11n, 0.820, MG recall 0.722); interim v8 (YOLO11n MG recovery + localization) is planned.
+The application is runnable. Dataset consolidation, the first CVAT pilot, its Phase A priority audit, the Phase B leakage-safe split, the Phase C YOLO11n pilot, the reviewed Phase D batch 001–010 merges, the no-proposal test-holdout audit, four locked incremental splits (`dataset3-interim-v2` through `dataset3-interim-v5`), interim HPC retrains through v8, and curated Mee Goreng web ingest (`ingest_mee_goreng_full`, +251) are complete. Batch 010 drained the annotation backlog: Dataset3 now has 5,246 annotated images / 5,579 boxes, with only 43 unreachable missing frames. Production detector is interim **v8_n_mg** (validation mAP50–95 0.830, Mee Goreng recall 0.822): calibrated on validation (confidence 0.5 / NMS-IoU 0.45; macro-F1 0.932), locked-test evaluated once (mAP50 0.886, mAP50–95 0.673), and promoted to `data/weights/best.pt`. Prior Phase E v5 remains available for comparison (locked-test mAP50 0.926 / mAP50–95 0.678).
 
 ## Tech Stack
 
@@ -512,35 +512,34 @@ yolo11n.pt pretrained initialization
     → assisted batch 010 human review and guarded merge [completed]
     → locked incremental split dataset3-interim-v5 [completed: 4,131/1,033/82]
     → interim HPC retraining v5 (lr0=0.002) [completed: dataset3_interim_v5]
-    → threshold calibration on validation [completed: conf 0.47 / NMS-IoU 0.45]
-    → single locked-test evaluation [completed: mAP50 0.926, mAP50-95 0.678]
-    → accepted data/weights/best.pt [completed: interim v5 checkpoint]
+    → threshold calibration on validation [completed v5: conf 0.47 / NMS-IoU 0.45]
+    → single locked-test evaluation [completed v5: mAP50 0.926, mAP50-95 0.678]
+    → accepted data/weights/best.pt [completed then: interim v5 checkpoint]
     → FastAPI restart and smoke test [completed]
-    → interim HPC retraining v6 (batch=16; yolo11n cos + yolo11s) [planned: dataset3_interim_v6]
+    → interim HPC retraining v6_s (batch=16; yolo11s) [completed: dataset3_interim_v6_s]
     → interim HPC retraining v7 Run A (batch=16; yolo11n freeze) [completed: dataset3_interim_v7_n_freeze]
-    → interim HPC retraining v8 Run A (batch=16; yolo11n MG recovery) [completed winner: dataset3_interim_v8_n_mg]
+    → interim HPC retraining v8 Run A (batch=16; yolo11n MG recovery) [completed: dataset3_interim_v8_n_mg]
     → interim HPC retraining v8 Run B (batch=16; yolo11n box) [completed: dataset3_interim_v8_n_box]
+    → v8_n_mg threshold calibration [completed: conf 0.5 / NMS-IoU 0.45]
+    → v8_n_mg locked-test evaluation [completed: mAP50 0.886, mAP50-95 0.673]
+    → accepted data/weights/best.pt [completed: interim v8_n_mg]
 ```
 
 Model promotion is deliberate. Training outputs must first be saved under a versioned candidate name. `data/weights/best.pt` represents the application-approved detector, not merely the most recent experiment.
 
-The current best checkpoint is
-`runs/detect/dataset3_interim_v5/weights/best.pt`. It was fine-tuned from the
-interim v4 checkpoint on `data/dataset3-interim-v5/` (4,131 / 1,033 / 82) with
-`lr0=0.002` and selected epoch 1 with validation mAP50 0.945 and mAP50–95 0.793
-— the strongest interim run to date. Local per-class review shows Mee Goreng
-recall improved to 0.778. It is the production-approved detector: thresholds were
-calibrated on validation (conf 0.47 / NMS-IoU 0.45), the locked test set was
-evaluated exactly once (mAP50 0.926, mAP50–95 0.678), and the checkpoint was
-promoted to `data/weights/best.pt`. See
-[`experiments/dataset3_interim_v4.md`](experiments/dataset3_interim_v4.md) and
-[`experiments/dataset3_interim_v5.md`](experiments/dataset3_interim_v5.md).
-Interim v6 HPC retrains (batch size 16 on the same locked split) are planned in
-[`experiments/dataset3_interim_v6.md`](experiments/dataset3_interim_v6.md).
-Interim v7 freeze is complete (val mAP50–95 0.820; MG recall 0.722):
-[`experiments/dataset3_interim_v7.md`](experiments/dataset3_interim_v7.md).
-Interim v8 stays on YOLO11n only (MG recovery + localization; batch 16):
+The current production checkpoint is
+`runs/detect/dataset3_interim_v8_n_mg/weights/best.pt` (promoted to
+`data/weights/best.pt`, SHA-256
+`f0cda9e12125326f24d61bab789e6e09118855a8fd56cb8b0a96e4eec95ee412`). It was
+fine-tuned from interim v7 freeze on `data/dataset3-interim-v5/` with
+`freeze=5`, `lr0=0.0003`, `cls=1.0`, `mixup=0.15`, and selected epoch 73 with
+validation mAP50 0.959 and mAP50–95 0.830 (Mee Goreng recall 0.822). Thresholds
+were calibrated on validation (conf 0.5 / NMS-IoU 0.45; macro-F1 0.932), the
+locked test set was evaluated exactly once (mAP50 0.886, mAP50–95 0.673), and
+the checkpoint was promoted. See
 [`experiments/dataset3_interim_v8.md`](experiments/dataset3_interim_v8.md).
+Prior Phase E v5 write-up:
+[`experiments/dataset3_interim_v5.md`](experiments/dataset3_interim_v5.md).
 
 ## Repository Structure
 
@@ -583,14 +582,15 @@ FoodSense-MY/
 ├── runs/detect/dataset3_interim_v2/    # HPC interim v2 artifacts
 ├── runs/detect/dataset3_interim_v3/    # HPC interim v3 artifacts
 ├── runs/detect/dataset3_interim_v4/    # HPC interim v4 artifacts
-├── runs/detect/dataset3_interim_v5/    # HPC interim v5 artifacts; current best checkpoint
-├── runs/detect/dataset3_interim_v5_calibration/  # validation-only threshold calibration report
-├── runs/detect/dataset3_interim_v5_test/         # single locked-test evaluation artifacts
-├── runs/detect/dataset3_interim_v6_n_cos/  # planned HPC v6 yolo11n cosine fine-tune (batch=16)
-├── runs/detect/dataset3_interim_v6_s/      # planned HPC v6 yolo11s train (batch=16)
-├── runs/detect/dataset3_interim_v7_n_freeze/  # HPC v7 yolo11n freeze fine-tune (batch=16)
-├── runs/detect/dataset3_interim_v8_n_mg/      # planned HPC v8 yolo11n MG recovery (batch=16)
-├── runs/detect/dataset3_interim_v8_n_box/     # planned HPC v8 yolo11n localization (batch=16)
+├── runs/detect/dataset3_interim_v5/    # HPC interim v5 artifacts; prior production
+├── runs/detect/dataset3_interim_v5_calibration/  # v5 validation-only threshold calibration
+├── runs/detect/dataset3_interim_v5_test/         # v5 locked-test evaluation artifacts
+├── runs/detect/dataset3_interim_v6_s/            # HPC v6 yolo11s train
+├── runs/detect/dataset3_interim_v7_n_freeze/     # HPC v7 yolo11n freeze fine-tune
+├── runs/detect/dataset3_interim_v8_n_mg/         # HPC v8 yolo11n MG recovery; current production source
+├── runs/detect/dataset3_interim_v8_n_box/        # HPC v8 yolo11n localization (not promoted)
+├── runs/detect/dataset3_interim_v8_n_mg_calibration/  # v8 validation-only threshold calibration
+├── runs/detect/dataset3_interim_v8_n_mg_test/         # v8 locked-test evaluation artifacts
 ├── training_scripts/
 │   ├── scrape_images.py, google_crawler.py, uc_crawler.py
 │   ├── curate_images.py, curation.py
@@ -641,8 +641,8 @@ FoodSense-MY/
 | `GEMINI_MODEL` | Gemini advisory model | `gemini-flash-lite-latest` |
 | `MODEL_WEIGHTS_PATH` | Application YOLO weights | `data/weights/best.pt` |
 | `KNOWLEDGE_BASE_PATH` | Verified nutrition JSON | `data/knowledge_base.json` |
-| `CONFIDENCE_THRESHOLD` | Inference confidence threshold (calibrated on interim v5 val) | `0.47` |
-| `IOU_THRESHOLD` | Inference IoU (NMS) threshold (calibrated on interim v5 val) | `0.45` |
+| `CONFIDENCE_THRESHOLD` | Inference confidence threshold (calibrated on interim v8_n_mg val) | `0.5` |
+| `IOU_THRESHOLD` | Inference IoU (NMS) threshold (calibrated on interim v8_n_mg val) | `0.45` |
 | `DEVICE` | `auto`, `mps`, `cuda`, or `cpu` | `auto` |
 | `MAX_UPLOAD_SIZE_MB` | Upload size limit | `10` |
 | `API_KEY_ENABLED` | Require an API key | `false` |
