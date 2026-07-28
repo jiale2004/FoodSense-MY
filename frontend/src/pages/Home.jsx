@@ -54,10 +54,10 @@ const STEPS = [
 ];
 
 const METRICS = [
-  { value: "93.0%", label: "Precision" },
-  { value: "93.0%", label: "Recall" },
-  { value: "92.6%", label: "mAP@0.5" },
-  { value: "67.8%", label: "mAP@0.5:0.95" },
+  { value: "94.0%", label: "Precision" },
+  { value: "86.8%", label: "Recall" },
+  { value: "88.6%", label: "mAP@0.5" },
+  { value: "67.3%", label: "mAP@0.5:0.95" },
 ];
 
 export default function Home() {
@@ -153,8 +153,8 @@ export default function Home() {
           <h2 className="section-title">Locked test-set performance</h2>
           <Flourish />
           <p className="section-subtitle">
-            Interim v5 detector, evaluated once on a held-out test split (82
-            images, 84 boxes) — thresholds calibrated on validation only.
+            Interim v8_n_mg detector, evaluated once on a held-out test split
+            (82 images, 84 boxes) — thresholds calibrated on validation only.
           </p>
           <div className="metrics-grid">
             {METRICS.map((m) => (
