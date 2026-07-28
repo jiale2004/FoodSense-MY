@@ -50,3 +50,6 @@ runs/detect/dataset3_interim_v8_n_box_local_val
 
 # SeleniumBase / UC scraper temp files
 downloaded_files/
+
+# Local report drafts and generated Word artifacts
+docs/report/
