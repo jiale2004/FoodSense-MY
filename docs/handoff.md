@@ -12,8 +12,17 @@ The FastAPI backend (`backend/app/`) and primary React + Vite frontend
 Production detector is interim **v8_n_mg** (YOLO11n): calibrated on validation
 (`CONFIDENCE_THRESHOLD=0.5`, `IOU_THRESHOLD=0.45`), evaluated once on the locked
 test set (mAP50 0.886, mAP50–95 0.673), promoted to `data/weights/best.pt`.
-Restart uvicorn after pull to load the new weights/thresholds. The app no longer
-falls back to Ultralytics COCO `yolo11n.pt` for inference.
+Restart uvicorn after pull to load the new weights/thresholds. The app **hard-
+fails** if custom weights are missing — there is no Ultralytics COCO
+`yolo11n.pt` inference fallback. After clone, run
+`python training_scripts/promote_weights.py` (weights are gitignored).
+
+App hardening (29 July 2026):
+
+- `DEVICE=auto` selects CUDA → MPS → CPU; explicit `cuda` / `mps` / `cpu` allowed
+- upload retention: `UPLOAD_RETENTION_HOURS=24`, `UPLOAD_MAX_FILES=200` (startup + after predict)
+- API smoke tests in `tests/test_api.py` and `tests/test_app_hardening.py`
+- live smoke verified: `/api/health` → model loaded from `data/weights/best.pt` on cpu; `/api/classes` → 6 dishes; `/api/predict` on `val_batch0_labels.jpg` → 200 with detections + nutrition
 
 Image acquisition and consolidation are paused. The canonical staging dataset is now `data/dataset3/`. It combines approved content from dataset1, dataset2, the manually curated two-class web run, and two Roboflow imports. Exact duplicates were collapsed, near-duplicate leakage groups were recorded, and the initial CVAT pilot plus its Phase A priority audit have been completed and merged.
 
@@ -460,6 +469,7 @@ The full policy is [`docs/bounding-box-policy.md`](bounding-box-policy.md). Its 
 | [`import_cvat_annotations.py`](../training_scripts/import_cvat_annotations.py) | Validate first-time or replacement CVAT exports, merge or revise labels, retain recoverable backups, and quarantine rejected frames |
 | [`split_dataset3.py`](../training_scripts/split_dataset3.py) | Build and validate a deterministic annotated-only split while preserving leakage groups and immutable label snapshots |
 | [`calibrate_thresholds.py`](../training_scripts/calibrate_thresholds.py) | Sweep confidence and NMS-IoU on the validation split only (refuses the test split) and recommend the macro-F1-optimal global operating point |
+| [`promote_weights.py`](../training_scripts/promote_weights.py) | Copy an approved checkpoint to `data/weights/best.pt` with SHA-256 verification |
 | [`scrape_images.py`](../training_scripts/scrape_images.py) | Acquire Google/Bing/UC image candidates with provenance |
 | [`curate_images.py`](../training_scripts/curate_images.py) | Validate, deduplicate, score, calibrate, and route scraped candidates |
 | [`ingest_curated_images.py`](../training_scripts/ingest_curated_images.py) | Append curated accepted images into Dataset3 without rebuilding (preserves CVAT merges) |
@@ -477,13 +487,16 @@ The full policy is [`docs/bounding-box-policy.md`](bounding-box-policy.md). Its 
 | Legacy static upload UI (`backend/app/static/`) | Implemented (fallback at port 8000) |
 | Six-class nutrition knowledge base | Implemented |
 | OpenAI/Gemini advisory formatting | Implemented, optional |
-| Apple Silicon MPS inference | Supported |
+| Apple Silicon MPS / NVIDIA CUDA inference | Supported (`DEVICE=auto` prefers CUDA → MPS → CPU) |
+| Missing-weights startup policy | Hard-fail; promote via `training_scripts/promote_weights.py` |
+| Upload retention cleanup | Implemented (age + max-file caps) |
+| API smoke tests | Implemented (`tests/test_api.py`, `tests/test_app_hardening.py`) |
 | Canonical dataset3 assembly | Implemented |
 | CVAT batch preparation/import | Implemented; assisted batches 001–010 reviewed, validated, and applied |
 | Group-aware annotated-only splitter | Implemented and validated |
 | Threshold calibration | Implemented (`calibrate_thresholds.py`); interim v8_n_mg conf 0.5 / NMS-IoU 0.45 |
 | Custom six-class YOLO model | Interim v8_n_mg trained, calibrated, locked-test evaluated, and production-approved |
-| Production `data/weights/best.pt` | Present (interim v8_n_mg; SHA-256 `f0cda9e12125326f24d61bab789e6e09118855a8fd56cb8b0a96e4eec95ee412`) |
+| Production `data/weights/best.pt` | Present when promoted (interim v8_n_mg; SHA-256 `f0cda9e12125326f24d61bab789e6e09118855a8fd56cb8b0a96e4eec95ee412`) |
 
 `/api/predict` now runs the promoted six-class detector with the frozen
 thresholds. LLM advisory still uses template fallback unless an OpenAI or
@@ -570,12 +583,20 @@ Mee Goreng ingest, and Phase E finalization:
 - batch 009 recorded 130 primary-class corrections, including 123 `mee_goreng` → `char_kuey_teow`, and retained 61 Mee Goreng boxes (51 on curated-ingest frames); Chicken Rice missing count reached 0
 - the locked test split was evaluated once for Phase E (v5) and once for v8_n_mg; do not reuse it for tuning
 - all eighteen repository regression tests pass, including locked incremental assignment, assisted selection, holdout packaging, README reconciliation, batch-path safety, revision, and split-integrity coverage
+- API smoke and app-hardening tests pass (`tests/test_api.py`, `tests/test_app_hardening.py`, `tests/test_promote_weights.py`); full suite `python -m pytest tests/ -q` → 31 passed
+- live uvicorn smoke (29 July 2026): `/api/health` model_loaded on `data/weights/best.pt`, `/api/classes` returns six dishes, `/api/predict` on `val_batch0_labels.jpg` returns detections + nutrition (HTTP 200)
 - `git diff --check` passes
 
 Run the current test suite with:
 
 ```bash
 python -m pytest tests/ -q
+```
+
+Promote gitignored production weights after clone:
+
+```bash
+python training_scripts/promote_weights.py
 ```
 
 ## 9. Recommended Next Steps
@@ -1398,10 +1419,17 @@ see §10 and [`experiments/dataset3_interim_v8.md`](experiments/dataset3_interim
 
 ## 10. Immediate Recommended Action
 
-Interim **v8_n_mg** is the production-approved detector (28 July 2026): trained,
-calibrated on validation, evaluated once on the locked test split, and promoted
-to `data/weights/best.pt`. Full write-up:
-[`experiments/dataset3_interim_v8.md`](experiments/dataset3_interim_v8.md).
+Interim **v8_n_mg** remains the production-approved detector. Local demo
+checklist after pull:
+
+```bash
+python training_scripts/promote_weights.py
+cp .env.example .env   # if needed
+uvicorn app.main:app --app-dir backend --reload --host 0.0.0.0 --port 8000
+# other terminal: cd frontend && npm run dev
+curl -s http://127.0.0.1:8000/api/health
+python -m pytest tests/test_api.py tests/test_app_hardening.py -q
+```
 
 - Validation (model selection): mAP50 0.959, mAP50–95 0.830; Mee Goreng recall 0.822.
 - Frozen thresholds (validation-only calibration):
@@ -1415,7 +1443,8 @@ to `data/weights/best.pt`. Full write-up:
   `test-metrics.json`. Do not reuse the test split for tuning.
 - Promotion: `data/weights/best.pt` SHA-256
   `f0cda9e12125326f24d61bab789e6e09118855a8fd56cb8b0a96e4eec95ee412`
-  (byte-identical to the interim v8_n_mg checkpoint). Restart uvicorn to load.
+  (byte-identical to the interim v8_n_mg checkpoint). Use
+  `training_scripts/promote_weights.py`; restart uvicorn to load.
 - Note vs prior v5 locked-test (mAP50 0.926 / mAP50–95 0.678 / recall 0.930):
   v8 is stronger on validation and MG recovery; locked-test recall/mAP50 are
   slightly lower (chicken_rice test recall 0.733 is the main watch item).
@@ -1461,9 +1490,21 @@ python -c "import torch; print(torch.__version__, torch.version.cuda, torch.cuda
 
 Important environment variables include `MODEL_WEIGHTS_PATH`, `KNOWLEDGE_BASE_PATH`,
 `CONFIDENCE_THRESHOLD` (default `0.5`), `IOU_THRESHOLD` (default `0.45`),
-`DEVICE`, `LLM_PROVIDER`, and the optional OpenAI/Gemini credentials.
+`DEVICE` (`auto` / `cuda` / `mps` / `cpu`), `UPLOAD_RETENTION_HOURS`,
+`UPLOAD_MAX_FILES`, `LLM_PROVIDER`, and the optional OpenAI/Gemini credentials.
 
 ## 12. Working Tree Note
+
+App hardening on branch work updates:
+
+- `backend/app/core/config.py` (`DEVICE` includes `cuda`; upload retention settings)
+- `backend/app/services/vision_service.py` (CUDA-aware auto device; hard-fail missing weights)
+- `backend/app/core/security.py` (upload retention cleanup)
+- `backend/app/main.py` / `backend/app/api/routes.py` (cleanup on startup and after predict)
+- `training_scripts/promote_weights.py`
+- `tests/test_api.py`, `tests/test_app_hardening.py`, `tests/test_promote_weights.py`, `tests/conftest.py`, `pytest.ini`
+- `.env.example`, `requirements.txt` (`pytest`, `httpx`)
+- `README.md`, `docs/local-dev-setup.md`, `docs/architecture.md`, `docs/handoff.md`
 
 The returned `runs/detect/dataset3_interim_v2/` through
 `runs/detect/dataset3_interim_v8_n_*` HPC artifacts are tracked in the repository.
@@ -1475,7 +1516,7 @@ This chat's v8_n_mg production promotion updates:
 - `README.md`
 - `docs/architecture.md`
 - `docs/handoff.md`
-- `data/weights/best.pt` (promoted v8_n_mg checkpoint)
+- `data/weights/best.pt` (promoted v8_n_mg checkpoint; gitignored — use `promote_weights.py`)
 - `runs/detect/dataset3_interim_v8_n_mg_calibration/`
 - `runs/detect/dataset3_interim_v8_n_mg_test/` (including `test-metrics.json`)
 - `.gitignore` (ignore v8 local-val diagnostics)

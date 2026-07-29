@@ -15,7 +15,7 @@ The application is runnable. Dataset consolidation, the first CVAT pilot, its Ph
 |-------|------------|----------|
 | Frontend (primary UI) | React 18 + Vite | `frontend/` (`npm run dev` → http://localhost:5173) |
 | Backend API | FastAPI + Uvicorn | `backend/app/` |
-| Detection | Ultralytics YOLO11n + OpenCV + PyTorch (MPS/CPU/CUDA) | `backend/app/services/vision_service.py` |
+| Detection | Ultralytics YOLO11n + OpenCV + PyTorch (CUDA/MPS/CPU) | `backend/app/services/vision_service.py` |
 | Nutrition | Local JSON knowledge base | `data/knowledge_base.json` |
 | Advisory | OpenAI or Gemini (optional); template fallback | `backend/app/services/llm_service.py` |
 | Legacy static UI | Vanilla HTML/CSS/JS (still mounted by FastAPI) | `backend/app/static/` |
@@ -62,10 +62,10 @@ Never reorder these IDs in CVAT exports or `data.yaml`. Human annotation is auth
 
 1. The browser uploads an image.
 2. `backend/app/api/routes.py` validates and stores it under `backend/app/static/uploads/`.
-3. `VisionProcessor` preprocesses with OpenCV and runs YOLO with the configured confidence and IoU thresholds on MPS or CPU.
+3. `VisionProcessor` preprocesses with OpenCV and runs YOLO with the configured confidence and IoU thresholds on CUDA, MPS, or CPU (`DEVICE=auto` prefers CUDA → MPS → CPU). Missing `data/weights/best.pt` fails startup; promote with `training_scripts/promote_weights.py`.
 4. `KnowledgeRetriever` maps detected canonical classes to verified records in `data/knowledge_base.json`.
 5. `AdvisoryGenerator` formats those records through OpenAI, Gemini, or a local template fallback.
-6. The response contains boxes, classes, confidence, nutrition, advisory text, processing time, and a mandatory disclaimer.
+6. The response contains boxes, classes, confidence, nutrition, advisory text, processing time, and a mandatory disclaimer. Upload retention cleanup runs on startup and after each predict (`UPLOAD_RETENTION_HOURS`, `UPLOAD_MAX_FILES`).
 7. The React bottom-right chat widget is always available (photo upload optional). It calls `POST /api/chat` with the user message, short history, optional last-scan context, and the server always attaches the verified knowledge-base snapshot so general Malaysian-food questions work without a scan. `AdvisoryGenerator.generate_chat_reply` uses the configured LLM (or a template fallback) and must not invent nutrition numbers outside that JSON.
 
 ## Module Responsibilities
@@ -77,9 +77,9 @@ Never reorder these IDs in CVAT exports or `data.yaml`. Human annotation is auth
 | Entry point | — | `backend/app/main.py` | FastAPI construction, lifespan, CORS, static mounting |
 | Routes | — | `backend/app/api/routes.py` | Health, classes, prediction, and chat endpoints with dependency injection |
 | Configuration | `Settings` | `backend/app/core/config.py` | Paths, thresholds, device, providers, and canonical classes |
-| Security | — | `backend/app/core/security.py` | Upload validation and optional API key |
+| Security | — | `backend/app/core/security.py` | Upload validation, optional API key, and upload retention cleanup |
 | Schemas | — | `backend/app/models/schemas.py` | Pydantic request and response contracts |
-| Vision | `VisionProcessor` | `backend/app/services/vision_service.py` | OpenCV preprocessing, YOLO inference, and NMS |
+| Vision | `VisionProcessor` | `backend/app/services/vision_service.py` | OpenCV preprocessing, YOLO inference, and NMS; hard-fails if custom weights are missing |
 | Nutrition | `KnowledgeRetriever` | `backend/app/services/data_service.py` | Local JSON knowledge-base lookup |
 | Advisory | `AdvisoryGenerator` | `backend/app/services/llm_service.py` | Formatting-only LLM advisory, chat replies, and deterministic fallbacks |
 | Frontend | — | `frontend/` | Primary React 18 + Vite UI; upload, analyze, result rendering, and bottom-right AI chat widget; proxies `/api` and `/uploads` to the backend |
@@ -101,6 +101,7 @@ Never reorder these IDs in CVAT exports or `data.yaml`. Human annotation is auth
 | CVAT assisted batch | `training_scripts/prepare_cvat_assisted_batch.py` | Exclude candidate-test and prior-selection groups, apply class quotas, generate pilot-model proposals, and package CVAT artifacts |
 | CVAT merge/revision | `training_scripts/import_cvat_annotations.py` | Validate first-time or replacement exports, merge/revise labels, create recoverable backups, quarantine rejected frames, and (via `--primary-class-override`) reassign a multi-class frame whose source class is absent from the reviewed boxes |
 | Dataset3 splitting | `training_scripts/split_dataset3.py` | Build a fresh group-stratified split or preserve base train/validation assignments while locking a reviewed holdout; materialize immutable YOLO views and validate hashes and coverage |
+| Weights promotion | `training_scripts/promote_weights.py` | Copy an approved checkpoint to `data/weights/best.pt` with optional SHA-256 verification |
 | Threshold calibration | `training_scripts/calibrate_thresholds.py` | Sweep confidence and NMS-IoU on the validation split only (refuses the test split), match to ground truth at a fixed evaluation IoU, and recommend the macro-F1-optimal global operating point with per-class diagnostics and a JSON report |
 | VOC conversion | `training_scripts/convert_voc_to_yolo.py` | Convert reviewed PASCAL VOC annotations to YOLO |
 | Legacy splitting | `training_scripts/prepare_dataset.py` | Random flat-folder split; not safe for dataset3 leakage groups |
@@ -643,8 +644,10 @@ FoodSense-MY/
 | `KNOWLEDGE_BASE_PATH` | Verified nutrition JSON | `data/knowledge_base.json` |
 | `CONFIDENCE_THRESHOLD` | Inference confidence threshold (calibrated on interim v8_n_mg val) | `0.5` |
 | `IOU_THRESHOLD` | Inference IoU (NMS) threshold (calibrated on interim v8_n_mg val) | `0.45` |
-| `DEVICE` | `auto`, `mps`, `cuda`, or `cpu` | `auto` |
+| `DEVICE` | `auto`, `cuda`, `mps`, or `cpu` (`auto` = CUDA → MPS → CPU) | `auto` |
 | `MAX_UPLOAD_SIZE_MB` | Upload size limit | `10` |
+| `UPLOAD_RETENTION_HOURS` | Delete prediction uploads older than N hours (`0` disables) | `24` |
+| `UPLOAD_MAX_FILES` | Keep at most N upload files; oldest removed first (`0` disables) | `200` |
 | `API_KEY_ENABLED` | Require an API key | `false` |
 | `API_KEY` | Optional API key value | — |
 
@@ -652,6 +655,8 @@ FoodSense-MY/
 
 - Nutrition values originate only from `data/knowledge_base.json`; the LLM is a formatting layer.
 - A fixed disclaimer is always returned by the API.
+- Application startup requires promoted custom weights at `MODEL_WEIGHTS_PATH`; COCO pretrained fallback is disabled.
+- Prediction uploads are retained under age and count caps to avoid unbounded disk growth.
 - Raw acquisition inputs and CVAT exports are retained as provenance.
 - Exact hashes and near-duplicate groups prevent avoidable split leakage.
 - Batch imports validate before mutation and back up dataset metadata.

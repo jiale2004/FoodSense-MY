@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from app.api.routes import router
+from app.core.security import cleanup_uploads
 from app.services.data_service import get_data_service
 from app.services.vision_service import get_vision_service
 
@@ -26,6 +27,7 @@ async def lifespan(app: FastAPI):
     data = get_data_service()
     vision.load_model()
     data.load()
+    cleanup_uploads()
     logger.info("FoodSense-MY ready.")
     yield
     logger.info("Shutting down FoodSense-MY.")

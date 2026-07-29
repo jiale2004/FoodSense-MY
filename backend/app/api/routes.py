@@ -6,7 +6,7 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, File, UploadFile
 
 from app.core.config import get_settings
-from app.core.security import validate_upload, verify_api_key
+from app.core.security import cleanup_uploads, validate_upload, verify_api_key
 from app.models.schemas import (
     ChatRequest,
     ChatResponse,
@@ -68,6 +68,7 @@ async def predict(
 
     content = await file.read()
     save_path.write_bytes(content)
+    cleanup_uploads(settings)
 
     start = time.perf_counter()
 

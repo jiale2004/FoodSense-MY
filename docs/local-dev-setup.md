@@ -11,11 +11,20 @@ npm. Commands assume macOS or Linux from the repository root
 |------|-----|-------|
 | Python 3.10+ | Backend, YOLO, training scripts | `python3 --version` |
 | Node.js 18+ and npm | React frontend in `frontend/` | `node --version` · `npm --version` |
-| Promoted weights | Inference | `data/weights/best.pt` must exist |
+| Promoted weights | Inference | `data/weights/best.pt` must exist (see promote step below) |
 
 LLM API keys are optional. Without them the advisory falls back to a local
 template. See [LLM advisory (OpenAI / Gemini)](#4-llm-advisory-openai--gemini)
 below for key setup and pricing notes.
+
+Production weights are gitignored. Promote the approved checkpoint after clone
+(or after a new approved training run) **before** starting uvicorn. Startup
+fails hard if `data/weights/best.pt` is missing — there is no COCO fallback:
+
+```bash
+python training_scripts/promote_weights.py
+# → data/weights/best.pt (SHA-256 verified against interim v8_n_mg)
+```
 
 ## 1. Create and activate `.venv`
 
@@ -95,6 +104,10 @@ In another terminal (venv not required for curl):
 ```bash
 curl -s http://127.0.0.1:8000/api/health
 curl -s http://127.0.0.1:8000/api/classes
+
+# Optional predict smoke (any JPEG/PNG/WebP):
+curl -s -F "file=@runs/detect/dataset3_interim_v8_n_mg/val_batch0_labels.jpg;type=image/jpeg" \
+  http://127.0.0.1:8000/api/predict | python3 -m json.tool | head
 ```
 
 Or open:
@@ -102,7 +115,16 @@ Or open:
 - Legacy static UI (fallback): [http://localhost:8000](http://localhost:8000)
 - API docs: [http://localhost:8000/docs](http://localhost:8000/docs)
 
-Healthy `/api/health` includes `"status":"ok"` and `"model_loaded":true`.
+Healthy `/api/health` includes `"status":"ok"`, `"model_loaded":true`, and
+`"model_path"` ending in `data/weights/best.pt`. Predict should return
+`detections`, `nutrition`, `advisory_text`, and `disclaimer`.
+
+Automated API smoke tests (stubbed vision; no GPU required):
+
+```bash
+source .venv/bin/activate
+python -m pytest tests/test_api.py tests/test_app_hardening.py -q
+```
 
 ## 3. Start the React frontend (npm)
 
@@ -193,8 +215,9 @@ Official pricing pages (rates change; verify before budgeting):
 |---------|-----|
 | `uvicorn: command not found` | Activate `.venv` (`source .venv/bin/activate`) and confirm `pip install -r requirements.txt` succeeded |
 | `ModuleNotFoundError: No module named 'app'` | Run from repo root with `--app-dir backend`, or `cd backend` first |
-| Model not loaded / missing weights | Ensure `data/weights/best.pt` exists; check `MODEL_WEIGHTS_PATH` in `.env` |
+| Startup `FileNotFoundError` / missing weights | Run `python training_scripts/promote_weights.py`; check `MODEL_WEIGHTS_PATH` in `.env` |
 | Frontend analyze fails / network error | Start uvicorn on port 8000 before `npm run dev` |
+| Uploads filling disk | Defaults retain 24h / max 200 files (`UPLOAD_RETENTION_HOURS`, `UPLOAD_MAX_FILES`) |
 | Port 8000 or 5173 already in use | Stop the other process, or change `--port` / Vite `server.port` |
 | `npm: command not found` | Install Node.js 18+ from [nodejs.org](https://nodejs.org/) or your package manager |
 

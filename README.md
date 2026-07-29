@@ -92,19 +92,31 @@ Set `VITE_API_TARGET` to point at a different backend origin.
 | `KNOWLEDGE_BASE_PATH` | Path to nutrition JSON | `data/knowledge_base.json` |
 | `CONFIDENCE_THRESHOLD` | NMS confidence cutoff (calibrated on interim v8_n_mg val) | `0.5` |
 | `IOU_THRESHOLD` | NMS IoU threshold (calibrated on interim v8_n_mg val) | `0.45` |
-| `DEVICE` | Compute device (`auto`, `mps`, `cpu`) | `auto` |
+| `DEVICE` | Compute device (`auto`, `cuda`, `mps`, `cpu`); `auto` prefers CUDA → MPS → CPU | `auto` |
 | `MAX_UPLOAD_SIZE_MB` | Max upload size in MB | `10` |
+| `UPLOAD_RETENTION_HOURS` | Delete prediction uploads older than N hours (`0` disables) | `24` |
+| `UPLOAD_MAX_FILES` | Keep at most N upload files; oldest removed first (`0` disables) | `200` |
 | `API_KEY_ENABLED` | Require X-API-Key header | `false` |
 | `API_KEY` | API key when protection enabled | — |
 
 ## Model Weights
 
-Place only an approved YOLO detector at `data/weights/best.pt`. Until approved custom weights are available, the app falls back to Ultralytics pretrained `yolo11n.pt` (COCO classes).
-
-After training and accepted holdout evaluation:
+Production weights are gitignored at `data/weights/best.pt`. After clone or a new
+approved run, promote the checkpoint before starting uvicorn. Missing weights
+fail hard at startup (no COCO `yolo11n.pt` fallback):
 
 ```bash
-cp runs/detect/<approved-run>/weights/best.pt data/weights/best.pt
+python training_scripts/promote_weights.py
+# default source: runs/detect/dataset3_interim_v8_n_mg/weights/best.pt
+# verifies SHA-256 f0cda9e12125326f24d61bab789e6e09118855a8fd56cb8b0a96e4eec95ee412
+```
+
+After training and a new accepted holdout evaluation:
+
+```bash
+python training_scripts/promote_weights.py \
+  --source runs/detect/<approved-run>/weights/best.pt \
+  --skip-hash-check
 ```
 
 ## Training Pipeline
@@ -496,6 +508,7 @@ training_scripts/
 ├── convert_voc_to_yolo.py  # VOC → YOLO via Pandas
 ├── scrape_images.py        # icrawler / UC image scraper
 ├── ingest_curated_images.py # Incremental curated ingest into dataset3
+├── promote_weights.py      # Copy approved checkpoint → data/weights/best.pt
 ├── build_dataset3.py       # Source consolidation + leakage groups
 ├── prepare_cvat_pilot.py   # Deterministic CVAT batch packaging
 ├── prepare_cvat_assisted_batch.py # Leakage-safe selection + YOLO proposals
@@ -503,6 +516,7 @@ training_scripts/
 ├── split_dataset3.py       # Fresh or locked-incremental leakage-safe split
 └── prepare_dataset.py      # Legacy splitter; not safe for dataset3
 docs/                       # Handoff, architecture, local-dev-setup, annotation policy
+tests/                      # Pipeline + API smoke tests (`python -m pytest tests/ -q`)
 ```
 
 ## Disclaimer

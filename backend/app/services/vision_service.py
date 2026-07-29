@@ -11,7 +11,6 @@ from app.models.schemas import BoundingBox, DetectionResult
 
 logger = logging.getLogger(__name__)
 
-FALLBACK_MODEL = "yolo11n.pt"
 MAX_IMAGE_DIM = 640
 
 
@@ -25,27 +24,34 @@ class VisionProcessor:
         self.device: str = self._select_device()
 
     def _select_device(self) -> str:
-        """Select compute device: explicit setting, MPS on Apple Silicon, or CPU."""
+        """Select compute device: explicit setting, else CUDA > MPS > CPU."""
         if self.settings.device != "auto":
             return self.settings.device
+        if torch.cuda.is_available():
+            return "cuda"
         if torch.backends.mps.is_available():
             return "mps"
         return "cpu"
 
     def load_model(self) -> None:
-        """Load YOLOv11n weights onto the selected PyTorch device."""
+        """Load the approved six-class YOLO weights onto the selected device.
+
+        Missing weights fail hard. Promote an approved checkpoint first:
+
+            python training_scripts/promote_weights.py
+        """
         weights_path = self.settings.model_weights_path
-        if weights_path.exists():
-            self.model_path = str(weights_path)
-            logger.info("Loading custom YOLOv11n weights from %s", self.model_path)
-        else:
-            self.model_path = FALLBACK_MODEL
-            logger.warning(
-                "Custom weights not found at %s. Falling back to %s (COCO classes).",
-                weights_path,
-                FALLBACK_MODEL,
+        if not weights_path.exists():
+            raise FileNotFoundError(
+                f"Custom weights not found at {weights_path}. "
+                "Promote the approved checkpoint before starting the API:\n"
+                "  python training_scripts/promote_weights.py\n"
+                "Or set MODEL_WEIGHTS_PATH to an existing .pt file. "
+                "COCO pretrained fallback is disabled."
             )
 
+        self.model_path = str(weights_path)
+        logger.info("Loading custom YOLOv11n weights from %s", self.model_path)
         self.model = YOLO(self.model_path)
         logger.info("VisionProcessor using device: %s", self.device)
 
@@ -120,3 +126,9 @@ def get_vision_service() -> VisionProcessor:
     if _vision_processor is None:
         _vision_processor = VisionProcessor()
     return _vision_processor
+
+
+def reset_vision_service() -> None:
+    """Clear the singleton (for tests)."""
+    global _vision_processor
+    _vision_processor = None

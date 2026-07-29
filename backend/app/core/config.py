@@ -47,8 +47,12 @@ class Settings(BaseSettings):
     # (macro-F1 optimum; see runs/detect/dataset3_interim_v8_n_mg_calibration/).
     confidence_threshold: float = 0.5
     iou_threshold: float = 0.45
-    device: Literal["auto", "mps", "cpu"] = "auto"
+    device: Literal["auto", "cuda", "mps", "cpu"] = "auto"
     max_upload_size_mb: int = 10
+    # Retain uploaded prediction images for this many hours; 0 disables age cleanup.
+    upload_retention_hours: float = 24.0
+    # Keep at most this many upload files; oldest are removed first. 0 disables.
+    upload_max_files: int = 200
 
     api_key_enabled: bool = False
     api_key: str | None = None
