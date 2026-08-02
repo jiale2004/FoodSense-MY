@@ -38,14 +38,11 @@ STRICT RULES:
 
 
 class AdvisoryGenerator:
-    """Generates nutritional advisory text using an LLM as a strict formatting layer."""
-
     def __init__(self, settings: Settings | None = None) -> None:
         self.settings = settings or get_settings()
 
     @property
     def is_configured(self) -> bool:
-        """Return True if the active LLM provider has an API key configured."""
         if self.settings.llm_provider == "openai":
             return bool(self.settings.openai_api_key)
         return bool(self.settings.gemini_api_key)
@@ -55,7 +52,6 @@ class AdvisoryGenerator:
         detections: list[DetectionResult],
         nutrition_entries: list[NutritionInfo],
     ) -> str:
-        """Build the fixed prompt template injecting verified JSON data."""
         payload = {
             "detections": [
                 {"class_name": d.class_name, "confidence": round(d.confidence, 3)}
@@ -88,7 +84,6 @@ class AdvisoryGenerator:
         detections: list[DetectionResult],
         nutrition_entries: list[NutritionInfo],
     ) -> str:
-        """Generate a template-based advisory when LLM is unavailable."""
         if not detections:
             return (
                 "No Malaysian dishes were detected in your image. "
@@ -120,7 +115,6 @@ class AdvisoryGenerator:
         return "\n".join(lines)
 
     async def _call_openai(self, user_prompt: str) -> str:
-        """Call OpenAI API for advisory text generation."""
         from openai import AsyncOpenAI
 
         client = AsyncOpenAI(api_key=self.settings.openai_api_key)
@@ -136,7 +130,6 @@ class AdvisoryGenerator:
         return response.choices[0].message.content or ""
 
     async def _call_gemini(self, user_prompt: str) -> str:
-        """Call Google Gemini API for advisory text generation."""
         import google.generativeai as genai
 
         genai.configure(api_key=self.settings.gemini_api_key)
@@ -152,7 +145,6 @@ class AdvisoryGenerator:
         detections: list[DetectionResult],
         nutrition_entries: list[NutritionInfo],
     ) -> str:
-        """Generate advisory text using LLM or template fallback."""
         if not self.is_configured:
             return self._fallback_advisory(detections, nutrition_entries)
 
@@ -173,7 +165,6 @@ class AdvisoryGenerator:
         *,
         reason: str = "unconfigured",
     ) -> str:
-        """Deterministic reply when the LLM is unavailable."""
         if reason == "error":
             base = (
                 "The AI assistant hit an error (often an unavailable Gemini model id). "
@@ -202,7 +193,6 @@ class AdvisoryGenerator:
         context_payload: dict | None = None,
         knowledge_base: dict | None = None,
     ) -> tuple[str, bool]:
-        """Return (reply, llm_used) for the chat widget."""
         context_json = (
             json.dumps(context_payload, indent=2) if context_payload else None
         )
@@ -281,7 +271,6 @@ _advisory_generator: AdvisoryGenerator | None = None
 
 
 def get_llm_service() -> AdvisoryGenerator:
-    """Return the singleton AdvisoryGenerator instance."""
     global _advisory_generator
     if _advisory_generator is None:
         _advisory_generator = AdvisoryGenerator()

@@ -1,9 +1,15 @@
 # Dataset3 Interim v6 — HPC retrain plan
 
-**Status:** planned / queued for HPC (25 July 2026)
+**Status:** Run B completed (YOLO11s); Run A nano cosine not retained as winner
 **Split:** reuse locked `data/dataset3-interim-v5/` (no new split)
 **Production baseline to beat:** interim v5 validation mAP50–95 0.793
-**Assessment:** not yet trained; do not promote until validation clearly beats v5
+**Assessment:** v6_s beats v5 on validation (mAP50–95 0.826, MG recall 0.878)
+  but is **not promoted** (YOLO11s; nano production path continues via v7→v8)
+
+Results visualization (3-page PDF):
+[`docs/logs/dataset3_interim_v6_results.pdf`](../logs/dataset3_interim_v6_results.pdf)
+— headline validation metrics, training curves, and promotion decision context
+for `dataset3_interim_v6_s`.
 
 Interim v6 addresses the persistent epoch-1 fitness peak on fine-tunes from
 converged checkpoints, Chicken Rice box-tightness (lowest locked-test
@@ -130,5 +136,7 @@ See [`dataset3_interim_v7.md`](dataset3_interim_v7.md). Do not start another
 
 | Run | Directory | Best ckpt SHA-256 | Results CSV SHA-256 |
 |-----|-----------|-------------------|---------------------|
-| A `dataset3_interim_v6_n_cos` | `runs/detect/dataset3_interim_v6_n_cos/` | _pending_ | _pending_ |
-| B `dataset3_interim_v6_s` | `runs/detect/dataset3_interim_v6_s/` | _pending_ | _pending_ |
+| A `dataset3_interim_v6_n_cos` | _(not retained as winner)_ | — | — |
+| B `dataset3_interim_v6_s` | `runs/detect/dataset3_interim_v6_s/` | see local `weights/best.pt` | see local `results.csv` |
+
+Results PDF: [`docs/logs/dataset3_interim_v6_results.pdf`](../logs/dataset3_interim_v6_results.pdf).

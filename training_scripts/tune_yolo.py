@@ -21,8 +21,6 @@ BASE_MODEL = "yolo11n.pt"
 
 
 class YoloHyperparameterTuner:
-    """Runs Optuna trials to optimize YOLOv11n hyperparameters with Mixup/Mosaic augmentations."""
-
     def __init__(
         self,
         data_yaml: Path,
@@ -38,13 +36,11 @@ class YoloHyperparameterTuner:
         ReproducibilityManager(seed=seed).seed_everything()
 
     def _select_device(self) -> str:
-        """Select MPS on Apple Silicon or CPU."""
         if torch.backends.mps.is_available():
             return "mps"
         return "cpu"
 
     def _objective(self, trial: optuna.Trial) -> float:
-        """Optuna objective: train YOLOv11n and return validation mAP50-95."""
         lr0 = trial.suggest_float("lr0", 1e-4, 1e-2, log=True)
         momentum = trial.suggest_float("momentum", 0.6, 0.98)
         weight_decay = trial.suggest_float("weight_decay", 1e-5, 1e-3, log=True)
@@ -75,7 +71,6 @@ class YoloHyperparameterTuner:
         return float(map50_95)
 
     def optimize(self) -> dict:
-        """Run Optuna study and return best hyperparameters."""
         study = optuna.create_study(direction="maximize", study_name="yolo11n_tune")
         study.optimize(self._objective, n_trials=self.n_trials)
 

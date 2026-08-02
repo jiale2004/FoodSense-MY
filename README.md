@@ -408,9 +408,13 @@ Interim **v8_n_mg** is the current production detector: validation mAP50–95
 [`docs/experiments/dataset3_interim_v8.md`](docs/experiments/dataset3_interim_v8.md).
 Prior write-ups:
 [`docs/experiments/dataset3_interim_v5.md`](docs/experiments/dataset3_interim_v5.md),
+[`docs/experiments/dataset3_interim_v6.md`](docs/experiments/dataset3_interim_v6.md),
 [`docs/experiments/dataset3_interim_v7.md`](docs/experiments/dataset3_interim_v7.md).
-A 4-page v5 results PDF remains at
-[`docs/logs/dataset3_interim_v5_results.pdf`](docs/logs/dataset3_interim_v5_results.pdf).
+Results PDFs:
+[`docs/logs/dataset3_interim_v5_results.pdf`](docs/logs/dataset3_interim_v5_results.pdf),
+[`docs/logs/dataset3_interim_v6_results.pdf`](docs/logs/dataset3_interim_v6_results.pdf),
+[`docs/logs/dataset3_interim_v7_results.pdf`](docs/logs/dataset3_interim_v7_results.pdf),
+[`docs/logs/dataset3_interim_v8_results.pdf`](docs/logs/dataset3_interim_v8_results.pdf).
 
 See [`docs/handoff.md`](docs/handoff.md) for current counts and next-step gates,
 [`docs/architecture.md`](docs/architecture.md) for the complete data flow, and

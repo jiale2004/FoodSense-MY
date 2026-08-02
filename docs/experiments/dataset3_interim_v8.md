@@ -11,6 +11,11 @@ set (mAP50 0.886, mAP50–95 0.673), and promoted to `data/weights/best.pt`.
 Locked-test recall/mAP50 are slightly behind interim v5; validation and MG
 recall are stronger. Monitor chicken_rice test recall.
 
+Results visualization (4-page PDF):
+[`docs/logs/dataset3_interim_v8_results.pdf`](../logs/dataset3_interim_v8_results.pdf)
+— headline metrics, v8_n_mg training curves, per-class locked-test/validation
+charts, and validation-only threshold calibration.
+
 Interim v7 freeze (`dataset3_interim_v7_n_freeze`) proved that `freeze=10` +
 `lr0=0.0002` + `cos_lr` escapes the epoch-1 fitness peak and lifts aggregate
 mAP50–95 to 0.820, but local Mee Goreng recall fell to **0.722** (v5 was

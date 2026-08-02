@@ -1,6 +1,6 @@
 # FoodSense-MY — Project Handoff
 
-**Last updated:** 29 July 2026
+**Last updated:** 2 August 2026
 **Repository:** [FoodSense-MY](https://github.com/jiale2004/FoodSense-MY)  
 **Purpose:** Six-class Malaysian food object detection and nutritional advisory.
 
@@ -41,6 +41,7 @@ Current dataset3 totals:
 - interim v8_n_mg source checkpoint at `runs/detect/dataset3_interim_v8_n_mg/weights/best.pt`
 - calibration report: `runs/detect/dataset3_interim_v8_n_mg_calibration/calibration.json`
 - locked-test artifacts: `runs/detect/dataset3_interim_v8_n_mg_test/` (see [`experiments/dataset3_interim_v8.md`](experiments/dataset3_interim_v8.md))
+- results visualizations: [`logs/dataset3_interim_v6_results.pdf`](logs/dataset3_interim_v6_results.pdf), [`logs/dataset3_interim_v7_results.pdf`](logs/dataset3_interim_v7_results.pdf), [`logs/dataset3_interim_v8_results.pdf`](logs/dataset3_interim_v8_results.pdf) (regenerate via `python training_scripts/generate_interim_results_pdf.py`)
 
 Phase B materialized the then-current 838 annotated images as the validated
 `data/dataset3-baseline/` training view. Its 84 test candidates have now been
@@ -1454,6 +1455,11 @@ history. Interim v6–v8 experiment notes:
 [`experiments/dataset3_interim_v6.md`](experiments/dataset3_interim_v6.md),
 [`experiments/dataset3_interim_v7.md`](experiments/dataset3_interim_v7.md),
 [`experiments/dataset3_interim_v8.md`](experiments/dataset3_interim_v8.md).
+Results PDFs:
+[`logs/dataset3_interim_v6_results.pdf`](logs/dataset3_interim_v6_results.pdf),
+[`logs/dataset3_interim_v7_results.pdf`](logs/dataset3_interim_v7_results.pdf),
+[`logs/dataset3_interim_v8_results.pdf`](logs/dataset3_interim_v8_results.pdf)
+(regenerate with `python training_scripts/generate_interim_results_pdf.py`).
 
 ## 11. Environment and Runtime
 

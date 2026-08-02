@@ -21,8 +21,6 @@ CLASS_MAP = {name: idx for idx, name in enumerate(TARGET_CLASSES)}
 
 
 class VocToYoloConverter:
-    """Converts PASCAL VOC XML annotations to YOLO format using Pandas DataFrames."""
-
     def __init__(
         self,
         voc_dir: Path,
@@ -37,7 +35,6 @@ class VocToYoloConverter:
         self.class_map = {name: idx for idx, name in enumerate(self.target_classes)}
 
     def _parse_voc_xml(self, xml_path: Path) -> pd.DataFrame:
-        """Parse a single VOC XML file into a DataFrame of bounding boxes."""
         tree = ET.parse(xml_path)
         root = tree.getroot()
 
@@ -66,7 +63,6 @@ class VocToYoloConverter:
         return pd.DataFrame(rows)
 
     def _to_yolo_row(self, row: pd.Series) -> str:
-        """Convert a single bounding box row to YOLO format string."""
         cx = ((row["xmin"] + row["xmax"]) / 2) / row["img_width"]
         cy = ((row["ymin"] + row["ymax"]) / 2) / row["img_height"]
         w = (row["xmax"] - row["xmin"]) / row["img_width"]
@@ -74,7 +70,6 @@ class VocToYoloConverter:
         return f"{row['class_id']} {cx:.6f} {cy:.6f} {w:.6f} {h:.6f}"
 
     def convert(self) -> int:
-        """Convert all VOC annotations to YOLO format. Returns count of converted files."""
         labels_dir = self.output_dir / "labels"
         images_out = self.output_dir / "images"
         labels_dir.mkdir(parents=True, exist_ok=True)

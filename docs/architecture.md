@@ -106,6 +106,7 @@ Never reorder these IDs in CVAT exports or `data.yaml`. Human annotation is auth
 | VOC conversion | `training_scripts/convert_voc_to_yolo.py` | Convert reviewed PASCAL VOC annotations to YOLO |
 | Legacy splitting | `training_scripts/prepare_dataset.py` | Random flat-folder split; not safe for dataset3 leakage groups |
 | Hyperparameter tuning | `training_scripts/tune_yolo.py` | Optuna trials for YOLO |
+| Interim results PDFs | `training_scripts/generate_interim_results_pdf.py` | Build v6/v7/v8 multi-page result visualizations under `docs/logs/` |
 | Reproducibility | `training_scripts/utils.py` | Fix Python, NumPy, PyTorch, and MPS seeds |
 
 ## Dataset and Training Data Flow
@@ -616,8 +617,11 @@ FoodSense-MY/
 ├── docs/experiments/dataset3_interim_v2.md
 ├── docs/experiments/dataset3_interim_v6.md  # Planned HPC v6 retrains (batch=16)
 ├── docs/experiments/dataset3_interim_v7.md  # HPC v7 freeze (yolo11n); Run B superseded by v8
-├── docs/experiments/dataset3_interim_v8.md  # Planned HPC v8 retrains (yolo11n only, batch=16)
+├── docs/experiments/dataset3_interim_v8.md  # HPC v8_n_mg production nano (batch=16)
 ├── docs/logs/dataset3_interim_v5_results.pdf  # Interim v5 results visualization
+├── docs/logs/dataset3_interim_v6_results.pdf  # Interim v6_s results visualization
+├── docs/logs/dataset3_interim_v7_results.pdf  # Interim v7_n_freeze results visualization
+├── docs/logs/dataset3_interim_v8_results.pdf  # Interim v8_n_mg results visualization
 ├── requirements.txt                 # Default / macOS MPS install
 ├── requirements-hpc.txt             # NVIDIA CUDA 12.4 index for HPC GPUs
 └── .env.example

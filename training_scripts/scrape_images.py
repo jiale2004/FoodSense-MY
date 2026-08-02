@@ -70,8 +70,6 @@ DEFAULT_MAX_IMAGES = 1100
 
 
 class ImageScraper:
-    """Downloads food images per class using icrawler or SeleniumBase UC mode."""
-
     def __init__(
         self,
         output_dir: Path,
@@ -105,7 +103,6 @@ class ImageScraper:
         return _normalize_queries([keyword, *variants])
 
     def _create_crawler(self, class_dir: Path, engine: str | None = None):
-        """Create an icrawler instance for the given engine."""
         selected_engine = engine or self.engine
         if selected_engine == "bing":
             return BingImageCrawler(storage={"root_dir": str(class_dir)})
@@ -115,7 +112,6 @@ class ImageScraper:
         return sum(1 for path in class_dir.iterdir() if path.suffix.lower() in IMAGE_SUFFIXES)
 
     def scrape_class(self, class_name: str, keyword: str) -> int:
-        """Scrape images for a single class. Returns number of images downloaded."""
         class_dir = self.output_dir / class_name
         class_dir.mkdir(parents=True, exist_ok=True)
         before = {
@@ -214,7 +210,6 @@ class ImageScraper:
         return downloaded
 
     def scrape_all(self, classes: list[str] | None = None) -> int:
-        """Scrape images for all (or specified) classes. Returns total image count."""
         target = classes or list(self.keywords.keys())
         total = 0
         for class_name in target:

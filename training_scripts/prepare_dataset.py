@@ -19,8 +19,6 @@ TARGET_CLASSES = [
 
 
 class DatasetPreparer:
-    """Splits a YOLO dataset into train/val/test and generates data.yaml."""
-
     def __init__(
         self,
         source_dir: Path,
@@ -38,7 +36,6 @@ class DatasetPreparer:
         self.seed = seed
 
     def _collect_pairs(self) -> list[tuple[Path, Path | None]]:
-        """Collect (image, label) pairs from the source YOLO dataset."""
         images_dir = self.source_dir / "images"
         labels_dir = self.source_dir / "labels"
         pairs: list[tuple[Path, Path | None]] = []
@@ -56,7 +53,6 @@ class DatasetPreparer:
     def _split(
         self, pairs: list[tuple[Path, Path | None]]
     ) -> dict[str, list[tuple[Path, Path | None]]]:
-        """Split pairs into train/val/test sets."""
         random.shuffle(pairs)
         n = len(pairs)
         train_end = int(n * self.train_ratio)
@@ -72,7 +68,6 @@ class DatasetPreparer:
         split_name: str,
         items: list[tuple[Path, Path | None]],
     ) -> None:
-        """Copy image/label pairs into the output split directory."""
         img_out = self.output_dir / split_name / "images"
         lbl_out = self.output_dir / split_name / "labels"
         img_out.mkdir(parents=True, exist_ok=True)
@@ -84,7 +79,6 @@ class DatasetPreparer:
                 shutil.copy2(label_path, lbl_out / label_path.name)
 
     def _generate_data_yaml(self) -> Path:
-        """Write data.yaml with class names and paths."""
         yaml_path = self.output_dir / "data.yaml"
         data = {
             "path": str(self.output_dir.resolve()),
@@ -99,7 +93,6 @@ class DatasetPreparer:
         return yaml_path
 
     def prepare(self) -> Path | None:
-        """Run the full dataset preparation pipeline. Returns path to data.yaml."""
         random.seed(self.seed)
         pairs = self._collect_pairs()
         if not pairs:

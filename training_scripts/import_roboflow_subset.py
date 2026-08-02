@@ -28,14 +28,11 @@ SPLITS = ("train", "valid", "test")
 
 @dataclass(frozen=True)
 class ImageFingerprint:
-    """Content and perceptual hashes for one decoded image."""
-
     sha256: str
     dhash: int
 
 
 def iter_images(paths: Iterable[Path]) -> Iterable[Path]:
-    """Yield supported images below files or directories in stable order."""
     discovered: set[Path] = set()
     for root in paths:
         candidates = [root] if root.is_file() else root.rglob("*") if root.exists() else []
@@ -46,7 +43,6 @@ def iter_images(paths: Iterable[Path]) -> Iterable[Path]:
 
 
 def fingerprint(path: Path) -> ImageFingerprint:
-    """Decode and fingerprint an image."""
     with Image.open(path) as image:
         image.load()
         dhash = difference_hash(image)
@@ -54,8 +50,6 @@ def fingerprint(path: Path) -> ImageFingerprint:
 
 
 class DuplicateIndex:
-    """Exact SHA-256 and perceptual dHash index."""
-
     def __init__(self, distance: int) -> None:
         self.distance = distance
         self.exact: dict[str, str] = {}
@@ -77,7 +71,6 @@ class DuplicateIndex:
 
 
 def load_target_class(dataset_dir: Path, target_class: str) -> int:
-    """Return the class ID matching an exact Roboflow class name."""
     config = yaml.safe_load((dataset_dir / "data.yaml").read_text(encoding="utf-8"))
     names = config.get("names", [])
     if isinstance(names, dict):
@@ -91,7 +84,6 @@ def load_target_class(dataset_dir: Path, target_class: str) -> int:
 
 
 def find_image(images_dir: Path, stem: str) -> Path:
-    """Resolve the image paired with a YOLO label stem."""
     matches = sorted(
         path
         for path in images_dir.glob(f"{stem}.*")
@@ -103,7 +95,6 @@ def find_image(images_dir: Path, stem: str) -> Path:
 
 
 def selected_boxes(label_path: Path, target_id: int) -> list[str]:
-    """Return selected YOLO boxes remapped to class ID zero."""
     boxes: list[str] = []
     for raw_line in label_path.read_text(encoding="utf-8").splitlines():
         fields = raw_line.split()
@@ -113,14 +104,12 @@ def selected_boxes(label_path: Path, target_id: int) -> list[str]:
 
 
 def write_jsonl(path: Path, records: Iterable[dict[str, Any]]) -> None:
-    """Write JSON Lines with stable keys."""
     with path.open("w", encoding="utf-8") as handle:
         for record in records:
             handle.write(json.dumps(record, sort_keys=True) + "\n")
 
 
 def import_subset(args: argparse.Namespace) -> dict[str, Any]:
-    """Create a normalized, deduplicated single-class YOLO subset."""
     if args.output_dir.exists():
         raise FileExistsError(f"Import output already exists: {args.output_dir}")
 

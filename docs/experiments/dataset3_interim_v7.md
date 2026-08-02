@@ -8,6 +8,11 @@
 Mee Goreng recall (0.722); not promoted. Follow-on nano work is in
 [`dataset3_interim_v8.md`](dataset3_interim_v8.md).
 
+Results visualization (3-page PDF):
+[`docs/logs/dataset3_interim_v7_results.pdf`](../logs/dataset3_interim_v7_results.pdf)
+— headline validation metrics, training curves, and Mee Goreng tradeoff vs
+v5 / v6_s for `dataset3_interim_v7_n_freeze`.
+
 Interim v7 stays on `yolo11n` and explores the levers left after v6 Run A
 (cosine fine-tune): backbone freeze with a still-lower LR, and a
 localization-focused fine-tune for Chicken Rice box-tightness. Both runs use
